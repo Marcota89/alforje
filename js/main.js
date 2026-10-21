@@ -348,7 +348,7 @@ function statTable(src,isPlayer){const rows=Object.values(src).filter(s=>s.dmg+s
  if(!rows.length)return '<p class="muted">Nada registrado.</p>';
  return `<table class="st"><thead><tr><th>${isPlayer?'Item':'Ataque'}</th><th title="acionamentos">Ativ.</th><th title="dano · % de críticos">Dano</th><th title="escudo dado / cura">Esc/Cura</th><th>Status</th></tr></thead><tbody>${rows.map(s=>{const u=isPlayer?iconURL(s.icon,s.tier):null;
   const st=[s.burn?`<span class="sb">${s.burn}🔥</span>`:'',s.poison?`<span class="sp">${s.poison}☠</span>`:'',s.frost?`<span class="sf">${s.frost}❄</span>`:'',s.purge?`<span class="sf">${s.purge}✧</span>`:''].join(' ');
-  return `<tr><td>${u?`<img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}>`:''}<span>${s.label}</span></td><td>${s.act||'–'}</td><td>${Math.round(s.dmg)||'–'}${s.act&&s.crit?`<small class="cr"> ${Math.round(s.crit/s.act*100)}%c</small>`:''}</td><td>${s.blk?`<em>${Math.round(s.blk)}</em>`:''}${s.blk&&s.heal?'/':''}${s.heal?`<u>${Math.round(s.heal)}</u>`:''}${!s.blk&&!s.heal?'–':''}</td><td>${st||'–'}</td></tr>`;}).join('')}</tbody></table>`;}
+  return `<tr><td>${u?`<i class="ri${isPlayer&&s.tier?' t'+s.tier:''}"><img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}></i>`:''}<span>${s.label}</span></td><td>${s.act||'–'}</td><td>${Math.round(s.dmg)||'–'}${s.act&&s.crit?`<small class="cr"> ${Math.round(s.crit/s.act*100)}%c</small>`:''}</td><td>${s.blk?`<em>${Math.round(s.blk)}</em>`:''}${s.blk&&s.heal?'/':''}${s.heal?`<u>${Math.round(s.heal)}</u>`:''}${!s.blk&&!s.heal?'–':''}</td><td>${st||'–'}</td></tr>`;}).join('')}</tbody></table>`;}
 function addFloat(side,cls,txt){const fl=$('#floats');if(fl.childElementCount>14)return;const s=document.createElement('span');s.className='float '+cls;s.textContent=txt;
  const lx=POS[side].x+(cls==='banner'?0:(Math.random()-.5)*30),ly=cls==='banner'?60:POS[side].feet-50-Math.random()*20;
  let px=(CV.ox+lx*CV.K)/CV.dpr,py=(CV.oy+ly*CV.K)/CV.dpr;const w=CV.w/CV.dpr;if(cls==='banner')px=Math.min(w*.78,Math.max(w*.22,px));
@@ -581,8 +581,8 @@ function expandOptions(){const s=state.bag,o=[],pk=rshuffle(POCKETKEYS);
 function expandScreen(free){if(!canExpand()){if(free)nextQueue();return;}
  if(!state.expandOpts)state.expandOpts=expandOptions();const b=state.bag;
  overlay(`<h2>Ampliar a mochila</h2><p class="muted center">Escolha o formato. A nova linha vira um bolso com um efeito.${free?' (De graça.)':` Custa ${BAGCOST[state.bagLvl]} de ouro.`}</p><div class="rewards">
- ${state.expandOpts.map((o,i)=>`<button class="cls" data-exp="${i}" data-free="${free?1:''}"><span class="shape" style="--c:${o.dir==='col'?b.cols+1:b.cols};--r:${o.dir==='row'?b.rows+1:b.rows};--pk:${POCKETS[o.pocket].col}" data-dir="${o.dir}"></span><div><b>${o.dir==='col'?'Mais uma coluna':'Mais uma fileira'} → ${o.dir==='col'?b.cols+1:b.cols}×${o.dir==='row'?b.rows+1:b.rows}</b><span>${POCKETS[o.pocket].name}: ${POCKETS[o.pocket].desc}.</span></div></button>`).join('')}</div>
- ${free?'':'<button class="btn" id="closeOv">Agora não</button>'}`);
+ ${state.expandOpts.map((o,i)=>`<button class="k-card choice" data-exp="${i}" data-free="${free?1:''}"><i class="ico"><span class="shape" style="--c:${o.dir==='col'?b.cols+1:b.cols};--r:${o.dir==='row'?b.rows+1:b.rows};--pk:${POCKETS[o.pocket].col}" data-dir="${o.dir}"></span></i><div><b>${o.dir==='col'?'Mais uma coluna':'Mais uma fileira'} → ${o.dir==='col'?b.cols+1:b.cols}×${o.dir==='row'?b.rows+1:b.rows}</b><span>${POCKETS[o.pocket].name}: ${POCKETS[o.pocket].desc}.</span></div></button>`).join('')}</div>
+ ${free?'':'<button class="k-btn v" id="closeOv">Agora não</button>'}`);
  document.querySelectorAll('.shape').forEach(el=>{const c=+el.style.getPropertyValue('--c'),r=+el.style.getPropertyValue('--r'),dir=el.dataset.dir;let h='';for(let y=0;y<r;y++)for(let x=0;x<c;x++)h+=`<i class="${(dir==='col'&&x===c-1)||(dir==='row'&&y===r-1)?'n':''}"></i>`;el.innerHTML=h;el.style.gridTemplateColumns=`repeat(${c},8px)`;});}
 function doExpand(i,free){const o=state.expandOpts[i];if(!o)return;if(!free){const c=BAGCOST[state.bagLvl];if(state.gold<c)return;state.gold-=c;}
  const b=state.bag;if(o.dir==='col'){for(let y=0;y<b.rows;y++)b.pockets[K(b.cols,y)]=o.pocket;b.cols++;}else{for(let x=0;x<b.cols;x++)b.pockets[K(x,b.rows)]=o.pocket;b.rows++;}
@@ -640,32 +640,32 @@ function finish(){if(state.phase!=='battle')return;BASEMODE='shop';V.p.dead=0;V.
  const rule=win?'':(state.stopLosses===1?`Revanche: ${f.name} volta igual, sem ficar mais forte. Esta derrota custou 1 vida e paga ${cons} de consolo.`:`Segunda derrota seguida nesta parada: custou 1 vida e não paga consolo.`);
  overlay(`<h2 class="${win?'good':'bad'}">${win?'Vitória!':'Derrota'}</h2>
  <p>${win?`Você derrotou ${f.name} em ${t}s e terminou com ${hpLeft} de vida.`:`${f.name} venceu em ${t}s.`} ${rule}</p>
- ${forged.length?`<div class="forge"><b>⚒ Forja</b>${forged.map(n=>`<span>Nasceu: ${n}</span>`).join('')}</div>`:''}
+ ${forged.length?`<div class="k-card fg"><b>⚒ Forja</b>${forged.map(n=>`<span>Nasceu: ${n}</span>`).join('')}</div>`:''}
  ${report}
  <p class="muted">+${inc} de ouro: renda ${base}${it?`, juros ${it}`:''}${bonus?`, prêmio de vitória ${bonus}`:''}${cons?`, consolo ${cons}`:''}. Vidas: ${state.surv?state.survLives:state.lives}. Vitórias: ${state.wins}/${state.surv?SURV_GOAL:GOAL}.</p>
- <button class="btn primary" id="next">${state.queue.length?{bless:'Escolher Bênção',sub:'Escolher subclasse',event:'Seguir pela estrada'}[state.queue[0]]:'Ir ao mercador'}</button>`);
+ <button class="k-btn g" id="next">${state.queue.length?{bless:'Escolher Bênção',sub:'Escolher subclasse',event:'Seguir pela estrada'}[state.queue[0]]:'Ir ao mercador'}</button>`);
  render();}
 function resultTables(){const L=lastFight;if(!L)return '';
- return `<div class="tabs" role="tablist"><button class="tab on" data-tab="p">Seus itens</button><button class="tab" data-tab="e">Inimigo</button><button class="tab" data-tab="log">Registro</button></div>
- <div class="tabp" data-p="p">${statTable(L.stats,true)}<p class="muted small">Dano que o seu escudo segurou: <b>${Math.round(L.blocked)}</b>.</p></div>
- <div class="tabp" data-p="e" hidden>${statTable(L.es,false)}</div>
- <div class="tabp" data-p="log" hidden><pre class="log">${L.log.join('\n').replace(/</g,'&lt;')}</pre><button class="btn sm" id="copyLog">Copiar registro</button></div>`;}
+ return `<div class="k-seg rtabs" role="tablist"><button class="on" data-tab="p">Seus itens</button><button data-tab="e">Inimigo</button><button data-tab="log">Registro</button></div>
+ <div class="k-card rp" data-p="p">${statTable(L.stats,true)}<p class="muted small">Dano que o seu escudo segurou: <b>${Math.round(L.blocked)}</b>.</p></div>
+ <div class="k-card rp" data-p="e" hidden>${statTable(L.es,false)}</div>
+ <div class="k-card rp" data-p="log" hidden><pre class="log">${L.log.join('\n').replace(/</g,'&lt;')}</pre><button class="k-btn v sm" id="copyLog">Copiar registro</button></div>`;}
 function nextQueue(){const q=state.queue.shift();state.cur=q||null;save();if(!q){closeOverlay();render();return;}showCur();}
 function showCur(){const q=state.cur;
  if(q==='bless')blessScreen();else if(q==='sub')subScreen();else if(q==='event')eventScreen();else if(q==='expandfree')expandScreen(true);else nextQueue();}
 function blessScreen(){if(!state.reward){const silver=state.wins===9;const pool=Object.keys(BLESS).filter(k=>BLESS[k].t===(silver?'p':'b')&&!state.bless.includes(k)&&(!BLESS[k].ok||BLESS[k].ok(state)));state.reward=rshuffle(pool).slice(0,3);save();}
  overlay(`<h2>Bênção ${state.wins===9?'de Prata':'de Bronze'}</h2><p class="muted center">O figurão caiu. Escolha uma Bênção para o resto da jornada.</p><div class="rewards">
- ${state.reward.map(k=>`<button class="cls" data-bless="${k}"><img src="${spr('star')}" class="px" alt=""><div><b>${BLESS[k].name}</b><span>${BLESS[k].desc}</span></div></button>`).join('')}</div>`);}
+ ${state.reward.map(k=>`<button class="k-card choice" data-bless="${k}"><i class="ico"><img src="${spr('star')}" class="px" alt=""></i><div><b>${BLESS[k].name}</b><span>${BLESS[k].desc}</span></div></button>`).join('')}</div>`);}
 function takeBless(k){state.bless.push(k);state.reward=null;sfx('merge');
  if(k==='alforje')state.queue.unshift('expandfree');
  if(k==='tesouro'){const key=rpick(SHOPKEYS);if(!addItem(key,3)){state.gold+=basePrice(key,3);toast('Sem espaço: virou ouro');}else toast(`Tesouro: ${ITEMS[key].name} Épico`);}
  if(k==='mascate')while(state.shop.length<shopSize()){const o={key:rpick(shopPool()),tier:rollTier()};state.shop.push(o);}
  if(state.bless.length>=3)ach('bless3');nextQueue();}
 function subScreen(){const S=SUBS[state.cls];overlay(`<h2>Subclasse</h2><p class="muted center">Meio do caminho. ${CLASSES[state.cls].name} escolhe um rumo, e o Mascate adianta 6 de ouro para a viagem.</p><div class="rewards">
- ${S.map(s=>`<button class="cls" data-sub="${s.id}"><img src="a/h_${state.cls}.webp" alt="" style="${CLASSES[state.cls].flip?'transform:scaleX(-1)':''}"><div><b>${s.name}</b><span>${s.desc}</span></div></button>`).join('')}</div>`);}
+ ${S.map(s=>`<button class="k-card choice" data-sub="${s.id}"><i class="ico"><img src="a/h_${state.cls}.webp" alt="" style="${CLASSES[state.cls].flip?'transform:scaleX(-1)':''}"></i><div><b>${s.name}</b><span>${s.desc}</span></div></button>`).join('')}</div>`);}
 function takeSub(id){state.sub=id;state.gold+=6;sfx('merge');toast(`${SUBOF(id).name} · +6 de ouro`);nextQueue();}
 function eventScreen(){if(!state.event){let ks=Object.keys(EVENTS);if(!state.pets.some(Boolean))ks=ks.filter(k=>k!=='andarilho');state.event=rpick(ks);save();}
- const E=EVENTS[state.event];overlay(`<h2>${E.title}</h2><p class="story">${E.text}</p><div class="two"><button class="btn gold" id="evA" ${state.event==='aposta'&&state.gold<5?'disabled':''}>${E.a}</button><button class="btn" id="evB">${E.b}</button></div>`);}
+ const E=EVENTS[state.event];overlay(`<h2>${E.title}</h2><p class="story">${E.text}</p><div class="two"><button class="k-btn o" id="evA" ${state.event==='aposta'&&state.gold<5?'disabled':''}>${E.a}</button><button class="k-btn v" id="evB">${E.b}</button></div>`);}
 function eventChoose(a){const e=state.event;state.event=null;
  if(a){if(e==='aposta'){state.gold-=5;if(R()<.5){const key=rpick(SHOPKEYS);if(addItem(key,2))toast(`Cara! ${ITEMS[key].name} Raro é seu`,1);else{state.gold+=basePrice(key,2);toast('Cara! Sem espaço: virou ouro');}}else toast('Coroa. O Mascate guarda as moedas, sorrindo.',1);}
   if(e==='altar'){const c=state.items.filter(i=>i.tier<4);state.maxHpMod=(state.maxHpMod||0)-8;if(c.length){const it=rpick(c);it.tier++;mergedId=it.id;toast(`${ITEMS[it.key].name} subiu para ${TIERS[it.tier-1]} · −8 de vida máxima`,1);}}
@@ -675,13 +675,14 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  const sc=score();
  overlay(`<h2 class="${won?'good':'bad'}">${surv?(won?'O Norte foi vencido':'Fim da Sobrevivência'):won?'A viagem terminou':'Fim da jornada'}</h2>
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>
- <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`} Pontuação: <b>${sc}</b>${state.asc?` (Ascensão ${state.asc}: +${state.asc*5}%)`:''}.</p>
+ <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`}</p>
+ <div class="k-card score"><small>Pontuação:</small><strong>${sc}</strong>${state.asc?`<em>(Ascensão ${state.asc}: +${state.asc*5}%)</em>`:''}</div>
  ${won&&!surv&&state.mode==='normal'&&state.asc<10?`<p class="bonus center">Ascensão ${Math.min(10,state.asc+1)} liberada para ${CLASSES[state.cls].name}.</p>`:''}
  ${state.mode==='seed'?'<p class="muted">Partida com seed manual: não conta para Ascensão, Codex nem conquistas.</p>':''}
  ${report||''}
- <button class="btn gold" id="shareBtn">📷 Compartilhar imagem do resultado</button>
- <div class="two"><button class="btn" id="copyBuild">Copiar código da build</button>${canSurv?'<button class="btn gold" id="goSurv">Continuar: Sobrevivência</button>':''}</div>
- <button class="btn primary" id="again">Voltar ao início</button>`);}
+ <button class="k-btn o" id="shareBtn">📷 Compartilhar imagem do resultado</button>
+ <div class="two"><button class="k-btn v" id="copyBuild">Copiar código da build</button>${canSurv?'<button class="k-btn ad" id="goSurv">Continuar: Sobrevivência</button>':''}</div>
+ <button class="k-btn g" id="again">Voltar ao início</button>`);}
 function startSurvival(){state.surv=true;state.survLives=3;state.survRoute=[0,1,2,3].map(()=>({s:5+Math.floor(R()*4),v:Math.floor(R()*3)}));
  state.phase='shop';state.round++;state.gold+=income()+interest();state.rerollN=0;state.hammerUsed=false;state.queue=[];state.skipOffer=null;rollShop();save();closeOverlay();toast('Sobrevivência: 3 vidas até a parada 14',1);render();}
 function score(){const won=state.wins>=GOAL;return Math.round((state.wins*100+(won?250:0)+(state.surv?(state.wins-GOAL)*150:0)+(state.surv?state.survLives:state.lives)*25)*(1+.05*state.asc));}
@@ -1181,7 +1182,7 @@ document.addEventListener('click',e=>{
  else if(t.dataset.codex)codexScreen(t.dataset.codex);
  else if(t.dataset.bless)takeBless(t.dataset.bless);else if(t.dataset.sub)takeSub(t.dataset.sub);
  else if(id==='evA')eventChoose(true);else if(id==='evB')eventChoose(false);
- else if(t.dataset.tab){const box=t.closest('.modal');box.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));box.querySelectorAll('.tabp').forEach(p=>p.hidden=p.dataset.p!==t.dataset.tab);}
+ else if(t.dataset.tab){const box=t.closest('.modal');box.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===t));box.querySelectorAll('[data-p]').forEach(p=>p.hidden=p.dataset.p!==t.dataset.tab);}
  else if(id==='copyLog'&&lastFight)copyText(lastFight.log.join('\n'),'Registro copiado');
  else if(id==='copyBuild')copyText(buildCode(),'Código da build copiado');
  else if(t.dataset.hcode!=null){const h=PROF.history[+t.dataset.hcode];if(h)copyText(h.code,'Código copiado');}
