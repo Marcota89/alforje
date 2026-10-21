@@ -22,9 +22,6 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.35;padding-left:max(
 button{font:inherit;color:inherit}
 button:focus-visible,.slot:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
-.panelhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:-26px;margin-bottom:8px}
-.panelhead .note{font-family:var(--f-num);font-size:11px;color:var(--muted);text-align:right;background:#1a0f07;padding:1px 7px;border-radius:4px;box-shadow:0 0 0 1px #4a2e19}
-.panelhead .note.over{color:var(--red)}
 
 /* header */
 
@@ -179,7 +176,7 @@ table.odds td,table.odds th{text-align:center}table.odds tr.cur td{background:rg
 .tabp{background:#140c07;border:2px solid #0d0805;border-radius:0 0 4px 4px;padding:6px;max-height:38vh;overflow:auto;display:grid;gap:6px}
 pre.log{margin:0;font-family:var(--f-num);font-size:12px;line-height:1.35;white-space:pre-wrap;color:#e6d6b8;-webkit-user-select:text;user-select:text;max-height:30vh;overflow:auto}
 /* UX-07: typography floor */
-.panelhead .note{font-size:12.5px}.cls span{font-size:13.5px}
+.cls span{font-size:13.5px}
 .howto{font-size:14.5px}.recipes{font-size:14.5px}
 
 .pkleg{flex-basis:100%;text-align:center;font-size:13px;color:var(--c)}

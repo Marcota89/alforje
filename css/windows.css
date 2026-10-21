@@ -19,6 +19,7 @@
 #overlay .modal>.k-rib,#sheet .in>.k-rib{position:relative;left:auto;top:auto;transform:none;align-self:center;justify-self:center;width:max-content;max-width:calc(100% + 8px);margin:-47px 0 0;white-space:normal;overflow:visible;text-overflow:clip;text-wrap:balance;font-size:20px;line-height:1.1}
 /* botão final grudado embaixo quando a janela rola */
 #overlay .modal>.two:last-child,#overlay .modal>.btn.primary:last-child,#overlay .modal>.k-btn:last-child{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2}
+#overlay .modal.scrolls>:is(.btn.primary,.k-btn):last-child:not(:focus-visible){outline:10px solid var(--cream-2);outline-offset:0}
 #overlay .modal.scrolls>.two:last-child{padding-top:10px;margin-top:-10px;background:linear-gradient(180deg,rgba(255,229,173,0),var(--cream-2) 10px)}
 #overlay .modal #next{min-height:56px;font-size:20px}
 
