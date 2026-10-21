@@ -43,29 +43,29 @@ function playDaily(dayIx) {
   return { s, entry: { v: 2, d: S.dayStr(dayIx), s: sc, cls: s.cls, w: s.wins, t: 1, pf: proof } };
 }
 
-// 0. "diário inalterado": golden regravado com o sim da v1.2 (teto de veneno/queimadura, Tocha, elite da parada 9, chefe, Couraça Viva 12%).
+// 0. "diário inalterado": golden regravado com o sim da v1.2 rodada 2 (teto de veneno/queimadura, Tocha, elites e chefe, Couraça Viva 12%, classes, Adaga 3).
 //    Antes: gravado do sim da v8 (sem bônus permanentes). Dias 0..19, mesma política de melhoria de playDaily. Mudar o sim muda este golden: regrave e publique a função do servidor junto.
 const DAILY_GOLDEN = [
   "1:W12.6,L18.5,L18.5,L18.5,L18.5,L18.5",
-  "6:W7.2,W6.3,W4.5,W3.6,W4.5,W3.6,L2.7,L2.7,L2.7,L2.7,L2.7",
-  "5:W6.6,W4.9,L4.7,W4.9,W4.9,W3.2,L3,L2.4,L3,L3",
-  "2:W26,W19,L11.1,L11.1,L10.3,L11.8,L11.9",
-  "6:W10,W11.9,L8.5,L8.5,W8.8,W6.2,W5.8,L6,L4.9,W5.8,L3.1",
+  "5:W7.2,W6.3,W5.4,W3.6,W4.5,L3.4,L2.7,L2.7,L3.1,L2.7",
+  "2:W6.6,W6,L4.7,L4.7,L5.7,L4.7,L4.7",
+  "2:W26,W19,L11.1,L13.7,L12.1,L11.9,L13.7",
+  "9:W9,W11.9,W10,W5,W5.8,L6.4,W5.8,W8,L8,W6,L10.3,W10,L3,L3",
   "0:L14,L14,L14,L12.7,L14",
-  "5:W6.3,W6.3,L4.7,L4.7,L4.7,W4.5,W3.6,W3.6,L3.9,L3.1",
-  "5:W6.6,W4.9,W4.9,W3.2,W3.2,L3.8,L3.8,L3.8,L3.8,L3.8",
-  "5:W21.4,L12,L12,W14.2,W9.4,W7.5,W4.6,L4,L7.9,L7.3",
-  "2:W12,W9,L10.3,L10.3,L10.3,L10.3,L10.3",
+  "2:W6.3,W6.3,L4,L4.7,L4,L4,L4.7",
+  "2:W6.6,W6,L5.2,L6,L5,L5.7,L6",
+  "7:W21.4,L14,W14.2,L12,L11.7,W11.8,W4.8,W9.4,L6.8,W4.6,W14.2,L7.8",
+  "5:W11.9,W8.8,W12,W5.8,W5.8,L8.5,L8.8,L8.8,L8.8,L8.8",
   "1:L23.3,L23.3,W22.2,L18.7,L18.7,L18.7",
-  "2:W5.4,W7.2,L3.6,L3.6,L3.6,L3.6,L3.6",
-  "5:W6.6,W4.9,W4.9,W4.9,W3.2,L3.1,L3.1,L3.1,L3.1,L3.1",
-  "4:W26,W14.2,L13.9,W16.6,W7.5,L6,L8,L7.7,L6.5",
-  "2:W10,W9,L8.8,L8.8,L8.8,L8.8,L8.8",
+  "2:W5.4,W7.2,L3.6,L3.1,L3.1,L3.1,L3.6",
+  "5:W6.6,W6.6,L5.9,L5.9,L5.7,L5.7,W6,W3.2,W4.9,L3.1",
+  "5:W26,W14.2,L13.9,W19,W7.5,W7,L7.3,L10.5,L10.5,L7.3",
+  "5:W9,W8.8,W11.9,W6.2,W5.8,L6.7,L6,L6,L6.7,L6",
   "1:L23.3,L23.3,W20.6,L12.7,L12.7,L12.7",
-  "5:W8.1,W8.1,L4.8,L6,W4.5,W2.7,W2.7,L3.7,L3.7,L3.7",
-  "5:W6.6,W4.9,W4.9,W3.4,W4.9,L4,L3.7,L4,L3.7,L3.7",
-  "2:W26,W14.2,L11.8,L11.8,L11.1,L11.9,L11.9",
-  "5:W10,W9,W6,W6.2,W6,L6.7,L6.7,L6.7,L6.7,L6.7"
+  "5:W8.1,W8.1,L4.1,L5.3,L4.8,L4.1,W5.4,W3.6,W3.6,L1.7",
+  "2:W6.6,W6.6,L4.7,L5.7,L5.7,L4.7,L5.7",
+  "2:W26,W14.2,L11.9,L11.9,L11.8,L13.7,L13.7",
+  "5:W9,W8.8,W8,W6.2,W6,L8.8,L8.5,L8.8,L8.5,L8.8"
 ];
 {
   let okAll = 0;
@@ -226,13 +226,22 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
   check(D.STOPS[8].hp < D.STOPS[7].hp * 1.15 && D.STOPS[9].hp > 2 * D.STOPS[8].hp, `v1.2 elite da parada 9 (vida base ${D.STOPS[8].hp}) abaixo do chefe (${D.STOPS[9].hp})`);
   check(hp(1, 4) > hp(0, 4) && hp(5, 4) > hp(1, 4) && hp(10, 4) > hp(5, 4), `v1.2 Ascensão: vida do inimigo da parada 5 sobe já na A1 (${hp(0, 4)}, ${hp(1, 4)}, ${hp(5, 4)}, ${hp(10, 4)})`);
 }
+// rodada 2 (decisões 6/7): elites das paradas 3 e 6 com 1 modificador mesmo na A10; reforço da Ascensão menor no começo e nas elites
+{
+  const st = S.setState(S.fresh()); st.asc = 10; st.rng = 77; st.route = D.STOPS.map(() => 0); S.rollElites();
+  check(st.elites[2].every(m => m.length === 1) && st.elites[5].every(m => m.length === 1) && st.elites[7].every(m => m.length === 2) && st.elites[8].every(m => m.length === 2) && st.elites[9].every(m => m.length === 2),
+    'v1.2 A10: elites das paradas 3 e 6 com 1 modificador; 8, 9 e o chefe com 2');
+  const ratio = wins => { const hp = asc => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.route = D.STOPS.map(() => 0); s.elites = {}; return S.foeStats().hp; }; return hp(10) / hp(0); };
+  check(ratio(0) < ratio(6) && ratio(8) < ratio(6), `v1.2 A10: reforço de vida menor na parada 1 (×${ratio(0).toFixed(2)}) que na 7 (×${ratio(6).toFixed(2)}), e menor na elite da parada 9 (×${ratio(8).toFixed(2)})`);
+}
 // decisão 9: teto de ouro apertado — uma jornada honesta passa, mochila 1,5× acima do teto não
 {
-  check(S.goldCap(2) < 213 && S.goldCap(10) <= 300 && S.goldCap(14) <= 400, `v1.2 goldCap apertado (r2 ${S.goldCap(2)}, r10 ${S.goldCap(10)}, r14 ${S.goldCap(14)}; antes 213/939/1243)`);
+  check(S.goldCap(1) === 50 && S.goldCap(2) === 128 && S.goldCap(10) === 400 && S.goldCap(14) === 536, `v1.2 goldCap: 50 na 1ª rodada, depois 60+34·r (r2 ${S.goldCap(2)}, r10 ${S.goldCap(10)}, r14 ${S.goldCap(14)}; antes 213/939/1243)`);
+  check(S.keyCost('infernal', 4) === Math.min(5 * 8 + 2, 5 + 2 * 8) && S.keyCost('infernal', 1) === 7 && S.keyCost('sword', 3) === 12, `v1.2 item forjado conta pelo custo dos ingredientes (Cajado Infernal Lendário = ${S.keyCost('infernal', 4)}, não 80)`);
   let mono = true; for (let r = 2; r <= S.MAXFIGHTS + 1; r++) if (S.goldCap(r) < S.goldCap(r - 1)) mono = false;
   check(mono, 'v1.2 goldCap só cresce com a rodada');
   const k = { c: 'warrior', sub: null, bl: [], b: [7, 5, {}], lv: 3, i: [], p: [], w: 9, r: 10, a: 0, ch: null };
-  let y = 0, x = 0; while (S.buildPlausible(k).ok) { k.i.push(['dagger', 3, x, y, 1, 1]); if (++x >= 7) { x = 0; y++; } if (y >= 5) break; }
+  let y = 0, x = 0; while (S.buildPlausible(k).ok) { k.i.push(['dagger', 4, x, y, 1, 1]); if (++x >= 7) { x = 0; y++; } if (y >= 5) break; }
   const why = S.buildPlausible(k).why; k.i.pop();
   check(why === 'mochila cara demais para a rodada' && S.buildPlausible(k).cost <= S.goldCap(10), `v1.2 goldCap recusa a 1ª mochila acima do teto da rodada 10 (${S.goldCap(10)})`);
 }

@@ -149,6 +149,11 @@ function setPetOn(m,key){m.petOn=key&&m.pets[key]?key:null;}
 function permOf(m){const lv=levelOf(m.xp).lv,g=m.gear,p=m.petOn&&m.pets[m.petOn]?{key:m.petOn,mul:(PET_LV_STEP+m.pets[m.petOn]-1)/PET_LV_STEP}:null;
  return {hp:HP_PER_LV*(lv-1),block:gearBonus('armor',g.armor),dmgPct:gearBonus('weapon',g.weapon)/100,crit:gearBonus('ring',g.ring)/100,gold:gearBonus('bag',g.bag),pet:p};}
 
+/* v1.2: na jornada, os bônus permanentes valem 100% na Ascensão 0 e caem em linha reta até 30% na Ascensão 10 */
+const permScale=asc=>1-.07*Math.max(0,Math.min(10,asc||0));
+function permFor(m,asc){const p=permOf(m),f=permScale(asc);
+ return {hp:Math.round(p.hp*f),block:Math.round(p.block*f),dmgPct:p.dmgPct*f,crit:p.crit*f,gold:Math.floor(p.gold*f),pet:p.pet?{key:p.pet.key,mul:1+(p.pet.mul-1)*f}:null};}
+
 /* ===== fim de jornada ===== */
 function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:0))*(1+.05*(asc||0))),stone=Math.floor(wins/3);
  if(mode==='daily'||mode==='duel'){gold=Math.floor(gold/2);stone=0;}
@@ -181,7 +186,7 @@ function achRuby(m,achKeys){let n=0;
  return n?addRes(m,'ruby',n*ACH_RUBY):0;}
 
 window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,ASC_WINS,HP_PER_LV,
- gearBonus,ascWin,progressCounts,canUpgradeAny,
+ gearBonus,permScale,permFor,ascWin,progressCounts,canUpgradeAny,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
  levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,rewardOk,markReward,adUse,buy,achRuby};
 })();

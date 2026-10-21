@@ -1,7 +1,7 @@
 /* Alforje: geometria da mochila, inimigos e simulação de combate. Sem DOM. */
 (function(){
 'use strict';
-const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
+const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
 let state=null;
 let DIFF={hp:1.84,dmg:1.5};
 /* ================= SEEDED RNG (MOD-01) ================= */
@@ -116,7 +116,7 @@ function newStop(s,limit){s.rerollN=0;s.hammerUsed=false;s.freeHammer=false;s.sa
 const stopIx=()=>Math.min(state.wins,STOPS.length-1);
 function isEliteStop(s){return !!STOPS[s].elite||(state.asc>=1&&s===7);}
 function rollElites(){state.elites={};for(let s=0;s<STOPS.length;s++){const st=STOPS[s];if(!isEliteStop(s)&&!st.boss)continue;
- state.elites[s]=st.v.map(v=>{const pool=MODPOOL[v.arch]||['furia','casca'];const n=st.boss?(state.asc>=9?2:1):(state.asc>=6?2:1);return rshuffle(pool).slice(0,n);});}}
+ state.elites[s]=st.v.map(v=>{const pool=MODPOOL[v.arch]||['furia','casca'];const n=st.boss?(state.asc>=9?2:1):(state.asc>=6&&s>=ASC_MOD2?2:1);return rshuffle(pool).slice(0,n);});}}
 function foeDef(){
  if(state.surv&&state.wins>=GOAL){const k=state.wins-GOAL,r=state.survRoute[k]||{s:6,v:0},st=STOPS[r.s],v=st.v[r.v%st.v.length];
   return Object.assign({stop:r.s,biome:st.biome,elite:0,boss:0,surv:k+1,mods:[]},v,{name:v.name+' do Norte'});}
@@ -124,12 +124,13 @@ function foeDef(){
  if(st.boss&&state.duel){const g=state.duel;return {stop:s,biome:st.biome,boss:1,elite:0,arch:'duelo',name:'Fantasma: '+(CLASSES[g.c]||CLASSES.warrior).name,img:'h_'+g.c,flipImg:!(CLASSES[g.c]||{}).flip,h:48,line:'"Esta mochila venceu uma vez. Vai vencer de novo."',mods:[],ghost:1};}
  const mods=(state.elites[s]&&state.elites[s][vi])||[];
  return Object.assign({stop:s,biome:st.biome,elite:isEliteStop(s)&&!st.boss,boss:st.boss,mods},v);}
-/* força extra por Ascensão: [por nível até a A5, por nível depois] (o peso vem logo no começo) */
-const ascFoe=k=>{const a=state.asc||0;return 1+k[0]*Math.min(a,5)+k[1]*Math.max(0,a-5);};
+/* força extra por Ascensão: [por nível até a A5, por nível depois] (o peso vem logo no começo), menor nas primeiras paradas
+   (ASC_FOE.early na parada 1, subindo até 100% na parada 10) para a dificuldade crescer até o fim da jornada; elites recebem ASC_FOE.elite dela e o chefe ASC_FOE.boss */
+const ascFoe=(k,s,el)=>{const a=state.asc||0,w=(ASC_FOE.early+(1-ASC_FOE.early)*Math.min(s,9)/9)*(el==='boss'?ASC_FOE.boss:el?ASC_FOE.elite:1);return 1+(k[0]*Math.min(a,5)+k[1]*Math.max(0,a-5))*w;};
 function foeStats(){const f=foeDef(),st=STOPS[f.stop],A=ARCH[f.arch],el=f.elite?1.15:1,s=f.stop;
  let hpS=1,dS=1;if(f.surv){hpS=STOPS[9].hp/st.hp*Math.pow(1.15,f.surv);dS=STOPS[9].dps/st.dps*Math.pow(1.15,f.surv);}
  /* v1.2: a Ascensão deixa os inimigos mais fortes (vida e dano, ASC_FOE); a A10 ainda soma ×1,13 de vida */
- const ascHp=state.asc>=10?2.2/1.95:1,aH=ascFoe(ASC_FOE.hp),aD=ascFoe(ASC_FOE.dmg);
+ const ascHp=state.asc>=10?2.2/1.95:1,big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
  const HP=Math.round(st.hp*A.hp*el*DIFF.hp*hpS*ascHp*aH),D=st.dps*(f.elite?1.1:1)*DIFF.dmg*dS*aD;
  let atk=[],block=0,reflect=0,heal=null;
  if(f.arch==='bruto')atk=[{dmg:Math.round(D*2.4),cd:2.4,label:'Pancada'}];
@@ -241,7 +242,7 @@ function step(b,dt){const P=b.p,E=b.e;b.t+=dt;
   for(const h of A.heals){h.t-=dt;if(h.t>0)continue;h.t+=h.cd;rec(b,a,h.key||'regen',h.label,h.icon,'act',1,h.tier);
    if(h.shield){A.block+=h.amt;rec(b,a,h.key,h.label,h.icon,'blk',h.amt,h.tier);b.ev.push({k:'num',s:a,c:'blk',v:'+'+h.amt+' escudo'});}
    else{let amt=h.amt;if(A.mods.includes('regen2')&&A.hp<A.max/2)amt*=2;if(A.purged>0)amt=Math.round(amt/2);const g=Math.min(amt,A.max-A.hp);A.hp+=g;rec(b,a,h.key||'regen',h.label,h.icon,'heal',g,h.tier);if(g>0){b.ev.push({k:'num',s:a,c:'heal',v:'+'+g});lg(b,`${a==='p'?'':'⟵ '}${h.label}: cura ${g}`);}
-    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.6)*(A.pdm||1)));hurt(b,D,n,false);if(dm){D.burn+=2;}else D.poison+=1;stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
+    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.9)*(A.pdm||1)));hurt(b,D,n,false);if(dm){D.burn+=2;}else D.poison+=1;stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
    b.ev.push({k:'fire',id:h.id,pet:h.pet,s:a});}
   A.bt-=dt;if(A.bt<=0){A.bt+=1;if(A.burn>0){const n=A.mods.includes('escamas')?Math.ceil(A.burn/2):A.burn;hurt(b,A,n,false);rec(b,d,'burn','Queimadura','flame','dmg',n);b.ev.push({k:'num',s:a,c:'burn',v:'-'+n});lg(b,`Queimadura em ${A.name}: ${n}`);
     if(!A.noDecay){A.bd=(A.bd||0)+1;if(A.bd>=(A.bdi||1)){A.bd=0;A.burn-=1;}}}}
@@ -256,8 +257,8 @@ function step(b,dt){const P=b.p,E=b.e;b.t+=dt;
   fireTrig(b,P.trig.below50,t=>{const g=Math.min(t.amt,P.max-P.hp);P.hp+=g;stat(b,t.key,t.label,t.icon,'heal',g,t.tier);b.ev.push({k:'banner',s:'p',v:'Fênix +'+g});b.ev.push({k:'holy',s:'p'});lg(b,'Fênix: cura '+g);});}
  if(P.fury>0){P.fury-=dt;if(P.fury<=0)P.mult=1;}
  const cth=P.sub==='cinzeiro'?7:10;
- if(P.cls==='pyro'&&E.burn>=cth){const n=Math.round((24+state.round)*(P.sub==='cinzeiro'?1.5:1)*(P.pdm||1));E.hp-=n;b.combust++;stat(b,'skill','Combustão','flame','dmg',n);stat(b,'skill','Combustão','flame','act',1);E.burn=Math.floor(E.burn/2);b.ev.push({k:'banner',s:'e',v:'COMBUSTÃO! -'+n});b.ev.push({k:'boom',s:'e'});lg(b,'Combustão: '+n);}
- if(P.cls==='paladin'){P.holy-=dt;if(P.holy<=0){const cr=P.sub==='cruzado';P.holy+=cr?6:8;const amt=cr?7:5;const g=Math.min(amt,P.max-P.hp);P.hp+=g;P.block+=amt;stat(b,'skill','Luz Sagrada','shield','heal',g);stat(b,'skill','Luz Sagrada','shield','blk',amt);stat(b,'skill','Luz Sagrada','shield','act',1);b.ev.push({k:'banner',s:'p',v:'LUZ SAGRADA'});b.ev.push({k:'holy',s:'p'});lg(b,`Luz Sagrada: +${g} vida, +${amt} escudo`);}}
+ if(P.cls==='pyro'&&E.burn>=cth){const n=Math.round((16+state.round)*(P.sub==='cinzeiro'?1.5:1)*(P.pdm||1));E.hp-=n;b.combust++;stat(b,'skill','Combustão','flame','dmg',n);stat(b,'skill','Combustão','flame','act',1);E.burn=Math.floor(E.burn/2);b.ev.push({k:'banner',s:'e',v:'COMBUSTÃO! -'+n});b.ev.push({k:'boom',s:'e'});lg(b,'Combustão: '+n);}
+ if(P.cls==='paladin'){P.holy-=dt;if(P.holy<=0){const cr=P.sub==='cruzado';P.holy+=cr?6:8;const amt=cr?12:10;const g=Math.min(amt,P.max-P.hp);P.hp+=g;P.block+=amt;stat(b,'skill','Luz Sagrada','shield','heal',g);stat(b,'skill','Luz Sagrada','shield','blk',amt);stat(b,'skill','Luz Sagrada','shield','act',1);b.ev.push({k:'banner',s:'p',v:'LUZ SAGRADA'});b.ev.push({k:'holy',s:'p'});lg(b,`Luz Sagrada: +${g} vida, +${amt} escudo`);}}
  if(b.t>b.ft){if(b.ft===b.ft0){b.ev.push({k:'banner',s:'p',v:'FADIGA'});lg(b,'Fadiga começou: dano crescente nos dois lados');}b.ft+=1;b.fat+=1;hurt(b,P,b.fat,false);hurt(b,E,b.fat,false);}
  if(E.hp<=0){b.done='win';lg(b,`${E.name} caiu.`);}else if(P.hp<=0){b.done='lose';lg(b,`${P.name} caiu.`);}}
 /* ================= REPRODUÇÃO E VALIDAÇÃO (placar do Diário e fantasmas) ================= */
@@ -279,11 +280,17 @@ function simulate(s){return withState(s,()=>{const b=newBattle();let g=0;while(!
 const MAXFIGHTS=40;
 /* custo em ouro de um item: cada raridade pede dois do nível anterior */
 const itemCost=(price,tier)=>price*Math.pow(2,tier-1);
-/* teto do valor que cabe na mochila antes da luta da rodada r (v1.2, apertado ao medido): o maior valor de mochila de jogadores
-   honestos simulados (bots da v1.2, ~3.000 jornadas no modo do Diário e no Normal com a Bolsa no máximo) foi 27, 48, 62, 79, 104,
-   128, 161, 176, 204, 228, 245, 239, 265 e 295 nas rodadas 1 a 14 (até 291 nos fantasmas); o teto é esse valor +20%, arredondado
-   para uma reta. Barra mochilas impossíveis; não prova cada compra. */
-function goldCap(r){return 25+25*r;}
+/* v1.2: item forjado custa o que custaram os ingredientes (a forja herda a maior raridade): o mais barato deles na raridade do
+   resultado e o outro Comum. Sem isto, Cajado Lendário + Tocha virava um Cajado Infernal "de 80" e passava do teto honesto. */
+const keyCost=(key,tier)=>{const d=ITEMS[key];if(!d.recipe)return itemCost(d.price,tier);
+ return Math.min(...RECIPES.filter(r=>r[2]===key).map(r=>{const a=ITEMS[r[0]].price,b=ITEMS[r[1]].price;return Math.min(itemCost(a,tier)+b,a+itemCost(b,tier));}));};
+/* teto do valor que cabe na mochila antes da luta da rodada r (v1.2). Medido com bots (~4.000 jornadas): o maior valor honesto
+   (Diário, e Normal com a Bolsa no máximo) foi 37, 55, 67, 81, 121, 132, 178, 195, 207, 229, 273, 282 e 316 nas rodadas 1 a 13;
+   uma amostra "sortuda" (25% a mais de promoções, Etiquetas da Bolsa, Fada e as 3 Marteladas da Salamandra de graça) chegou a
+   41, 87, 138, 175, 208, 230, 273, 302, 331, 360 e 364 nas rodadas 1 a 11. 60 + 34·r fica acima de tudo isso (8 a 12% de folga
+   sobre a sortuda), para nunca recusar quem joga honesto; na 1ª rodada (só o kit e 10 de ouro) o teto é 50, para o kit inteiro
+   Lendário continuar recusado. Itens forjados contam pelo custo dos ingredientes (keyCost). Não prova cada compra. */
+function goldCap(r){return r<=1?50:60+34*r;}
 function buildPlausible(k){const bad=m=>({ok:false,why:m});
  if(!k||!Array.isArray(k.i)||!Array.isArray(k.b))return bad('formato');
  const C=CLASSES[k.c];if(!C)return bad('classe');
@@ -300,7 +307,7 @@ function buildPlausible(k){const bad=m=>({ok:false,why:m});
   if(!(a[2]>=0&&a[3]>=0&&a[2]+a[4]<=k.b[0]&&a[3]+a[5]<=k.b[1]))return bad('fora da mochila');
   for(let y=a[3];y<a[3]+a[5];y++)for(let x=a[2];x<a[2]+a[4];x++){if(g[y][x])return bad('itens sobrepostos');g[y][x]=1;}
   if((a[6]||0)>k.w||(a[7]||0)>8)return bad('contadores');
-  cost+=itemCost(d.price,a[1]);}
+  cost+=keyCost(a[0],a[1]);}
  const pets=k.p||[];if(pets.length>3)return bad('companheiros');
  for(const p of pets){if(!p)continue;if(!PETS[p[0]]||!(p[1]>=1&&p[1]<=4))return bad('companheiro');cost+=itemCost(PETS[p[0]].price,p[1]);}
  if(cost>goldCap(k.r))return bad('mochila cara demais para a rodada');
@@ -332,6 +339,6 @@ function verifyDaily(e,dayIx){const bad=m=>({ok:false,why:m});
 function ghostPlausible(o,asc){if(!o)return {ok:false,why:'código'};
  return buildPlausible({c:o.c,sub:o.s||null,bl:o.bl||[],b:o.b,lv:o.lv||0,i:o.i,p:o.p||[],w:GOAL,r:SURV_GOAL+LIVES+1,a:asc||0,ch:null});}
 window.AlforjeSim={setState(s){state=s;return s;},getState(){return state;},setDiff(h,d){DIFF={hp:h,dmg:d};},
- forgeTier,blessTier,salamanderHeat,newStop,DOT_K,addDot,
+ forgeTier,blessTier,keyCost,salamanderHeat,newStop,DOT_K,addDot,
  dayStr,dailyClass,battleSeed,BR,snapOf,seedRoute,stateFromSnap,simulate,goldCap,buildPlausible,verifyDaily,ghostPlausible,MAXFIGHTS,hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step};
 })();

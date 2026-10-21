@@ -316,6 +316,16 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   sh.egg = 99999; check(M.buy(sh, T0, 'egg') === false, 'loja: ovo no limite recusa');
 }
 
+// v1.2 (rodada 2) — decisão 10: na jornada, os bônus valem 100% na A0 e caem até 30% na A10
+{
+  const q = mk(); q.gear = { weapon: 20, armor: 20, ring: 20, bag: 20 }; q.xp = 1e9; q.pets = { raven: 10 }; q.petOn = 'raven';
+  const full = M.permOf(q), a0 = M.permFor(q, 0), a5 = M.permFor(q, 5), a10 = M.permFor(q, 10);
+  check(eq(a0, full), 'v1.2: permFor na A0 = permOf (100%)');
+  check(Math.abs(M.permScale(5) - .65) < 1e-9 && Math.abs(M.permScale(10) - .3) < 1e-9 && M.permScale(12) === M.permScale(10), 'v1.2: escala 100% → 65% (A5) → 30% (A10), sem passar do teto');
+  const f10 = M.permScale(10); check(a10.hp === Math.round(29 * f10) && a10.block === Math.round(38 * f10) && Math.abs(a10.dmgPct - .19 * f10) < 1e-9 && Math.abs(a10.crit - .095 * f10) < 1e-9 && a10.gold === Math.floor(9 * f10), `v1.2: A10 com tudo no máximo: +${a10.hp} vida, +${a10.block} escudo, +${(a10.dmgPct * 100).toFixed(1)}% dano, +${(a10.crit * 100).toFixed(2)}% crítico, +${a10.gold} ouro`);
+  check(Math.abs(a10.pet.mul - (1 + (full.pet.mul - 1) * f10)) < 1e-9 && a5.hp < a0.hp && a10.hp < a5.hp, 'v1.2: o bônus do companheiro também escala; A0 > A5 > A10');
+}
+
 // v1.2 — decisão 12: Ascensão libera com 2 vitórias de jornada no nível atual
 {
   const p = { asc: {}, sticker: {} };

@@ -13,7 +13,7 @@ const TAGS={fogo:{name:'Fogo',col:'#ff8a3a',t3:'+1 em cada queimadura aplicada',
 const TAGKEYS=Object.keys(TAGS);
 const ITEMS={
  sword:{name:'Espada Curta',w:1,h:2,price:3,type:'weapon',dmg:4,cd:1.6,crit:.05,wt:2,fx:'slash',tags:['metal']},
- dagger:{name:'Adaga',w:1,h:1,price:2,type:'weapon',dmg:2,cd:.9,crit:.2,wt:1,fx:'stab',tags:['metal']},
+ dagger:{name:'Adaga',w:1,h:1,price:3,type:'weapon',dmg:2,cd:.9,crit:.2,wt:1,fx:'stab',tags:['metal']},
  axe:{name:'Machado de Guerra',w:2,h:2,price:6,type:'weapon',dmg:10,cd:2.8,crit:.05,wt:3,fx:'smash',tags:['metal']},
  bow:{name:'Arco Longo',w:1,h:3,price:5,type:'weapon',dmg:6,cd:2.0,crit:.1,wt:2,fx:'arrow',tint:'bowtint',tags:['natureza']},
  staff:{name:'Cajado de Brasa',w:1,h:3,price:5,type:'weapon',dmg:2,cd:1.7,crit:0,burn:2,wt:2,fx:'fire',tags:['fogo']},
@@ -109,13 +109,13 @@ const CLASSES={
   desc:'+15% de crítico, críticos 2,5×, carga 6, mochila larga 7×3. O primeiro golpe de cada arma é crítico.'},
  pyro:{name:'Piromante',hp:45,burnBonus:1,crit:0,critMult:2,cap:5,flip:false,bag:[4,5],skill:'Combustão',fireFree:1,
   kits:[{name:'Cajado e tocha',items:[['staff',0,0],['torch',1,0]]},{name:'Adaga e pergaminho',items:[['firedagger',0,0],['torch',1,0],['scroll',0,1]]}],
-  desc:'45 de vida, +1 em toda queimadura, carga 5 (armas de Fogo não pesam), mochila alta 4×5. Com 10 de queimadura, o inimigo explode (24 + rodada).'},
- paladin:{name:'Paladino',hp:52,crit:0,critMult:2,cap:7,flip:true,bag:[5,4],skill:'Luz Sagrada',unlock:1,
+  desc:'45 de vida, +1 em toda queimadura, carga 5 (armas de Fogo não pesam), mochila alta 4×5. Com 10 de queimadura, o inimigo explode (16 + rodada).'},
+ paladin:{name:'Paladino',hp:64,crit:0,critMult:2,cap:7,flip:true,bag:[5,4],skill:'Luz Sagrada',unlock:1,
   kits:[{name:'Martelo e frasco',items:[['hammer',0,0],['potion',1,0]]},{name:'Mangual e água benta',items:[['flail',0,0],['holywater',1,0]]}],
-  desc:'52 de vida, curas +50%, carga 7. A cada 8s, +5 de vida e +5 de escudo. Desbloqueia com 5 vitórias numa jornada ou 10 vitórias no total.'},
- alchemist:{name:'Alquimista',hp:50,crit:0,critMult:2,cap:6,flip:false,bag:[5,4],skill:'Mistura Volátil',unlock:2,
+  desc:'64 de vida, curas +50%, carga 7. A cada 8s, +10 de vida e +10 de escudo. Desbloqueia com 5 vitórias numa jornada ou 10 vitórias no total.'},
+ alchemist:{name:'Alquimista',hp:76,crit:0,critMult:2,cap:6,flip:false,bag:[5,4],skill:'Mistura Volátil',unlock:2,
   kits:[{name:'Bomba e frasco',items:[['bomb',0,0],['potion',1,0],['mortar',1,1]]},{name:'Ácido e almofariz',items:[['acidflask',0,0],['mortar',1,0],['frostflask',0,1]]}],
-  desc:'50 de vida, carga 6. Mistura Volátil: cada cura de item também atinge o inimigo com 60% do valor, ignorando escudo, e aplica 1 de veneno. Desbloqueia ao completar uma jornada ou com 20 vitórias no total.'}
+  desc:'76 de vida, carga 6. Mistura Volátil: cada cura de item também atinge o inimigo com 90% do valor, ignorando escudo, e aplica 1 de veneno. Desbloqueia ao completar uma jornada ou com 20 vitórias no total.'}
 };
 const CLASSKEYS=Object.keys(CLASSES);
 const SUBS={
@@ -123,7 +123,7 @@ const SUBS={
  rogue:[{id:'assassina',name:'Assassina',desc:'Críticos causam 3× o dano.'},{id:'envenenadora',name:'Envenenadora',desc:'Cada crítico aplica 2 de veneno.'}],
  pyro:[{id:'pirotecnico',name:'Pirotécnico',desc:'A queimadura no inimigo não diminui com o tempo.'},{id:'cinzeiro',name:'Cinzeiro',desc:'Combustão dispara com 7 de queimadura e causa +50% de dano.'}],
  alchemist:[{id:'boticario',name:'Boticário',desc:'Curas de itens +40%.'},{id:'demolidor',name:'Demolidor',desc:'Mistura Volátil causa o valor inteiro da cura e também aplica 2 de queimadura.'}],
- paladin:[{id:'cruzado',name:'Cruzado',desc:'Luz Sagrada a cada 6s, com +7 de vida e +7 de escudo.'},{id:'inquisidor',name:'Inquisidor',desc:'Armas Sagradas ganham Purga 1 e todas as armas +10% de crítico.'}]
+ paladin:[{id:'cruzado',name:'Cruzado',desc:'Luz Sagrada a cada 6s, com +12 de vida e +12 de escudo.'},{id:'inquisidor',name:'Inquisidor',desc:'Armas Sagradas ganham Purga 1 e todas as armas +10% de crítico.'}]
 };
 const SUBOF=id=>{for(const k in SUBS)for(const s of SUBS[k])if(s.id===id)return s;return null;};
 const POCKETS={afiado:{name:'Bolso Afiado',short:'crít.',desc:'armas aqui ganham +10% de crítico',col:'#ffd76a'},leve:{name:'Bolso Leve',short:'leve',desc:'armas aqui pesam 1 a menos',col:'#9cd2f2'},
@@ -164,7 +164,7 @@ const STOPS=[
   {name:'Javali Furioso',art:'boar',h:34,claw:1,arch:'bruto',line:'(bufa, raspa o chão e não pede licença)'},
   {name:'Cogumelo Venenoso',art:'mushroom',h:42,claw:1,arch:'veneno',line:'(solta uma nuvem de esporos e fecha a cara)'},
   {name:'Goblin Saqueador',art:'goblin2',h:40,flipImg:1,arch:'enxame',line:'Tudo que brilha é meu. O que não brilha, eu levo também.'}]},
- {biome:'road',hp:66,dps:4.8,elite:1,v:[
+ {biome:'road',hp:75,dps:5.5,elite:1,v:[
   {name:'Bandido da Estrada',art:'bandit',h:48,arch:'veneno',line:'Pedágio, viajante. Aceito ouro, itens ou a sua dignidade.'},
   {name:'Mercenário Cansado',art:'merc',h:48,arch:'espinhos',line:'Não é pessoal. É só o turno da noite.'},
   {name:'Ladrão de Estrada',art:'bandit2',h:48,flipImg:1,arch:'veneno',line:'A lâmina é envenenada. A conversa também.'}]},
@@ -179,12 +179,12 @@ const STOPS=[
   {name:'Basilisco',art:'basilisk',h:42,claw:1,flipImg:1,arch:'bruto',line:'Não olhe nos meus olhos. Brincadeira. Olhe, sim.'},
   {name:'Slime Venenoso',art:'slime',h:34,claw:1,arch:'veneno',line:'(borbulha, e um osso velho boia lá dentro)'},
   {name:'Goblin Xamã',art:'shaman',h:42,arch:'fogo',line:'Os espíritos disseram que você vinha. Disseram também que ia perder.'}]},
- {biome:'castle',hp:135,dps:9.2,elite:1,v:[
+ {biome:'castle',hp:155,dps:10.2,elite:1,v:[
   {name:'Harpia',art:'harpy',h:50,claw:1,flipImg:1,arch:'enxame',line:'Que bolsa linda. Já é minha, só você não sabe ainda.'},
   {name:'Cavaleiro Caído',art:'fknight',h:54,arch:'espinhos',line:'Jurei proteger este portão. Ninguém disse até quando.'},
   {name:'Arqueiro Fantasma',art:'skarcher',h:52,arch:'veneno',line:'Já errei uma flecha. Uma vez. Em 1132.'},
   {name:'Cavaleiro Sombrio',art:'darkknight',h:54,arch:'bruto',line:'A luz não entra aqui. Você também não deveria.'}]},
- {biome:'mine',hp:165,dps:11,v:[
+ {biome:'mine',hp:160,dps:10,v:[
   {name:'Minotauro',art:'minotaur',h:62,claw:1,flipImg:1,arch:'bruto',line:'Labirinto? Que labirinto? Eu só ando reto.'},
   {name:'Troll da Ponte',art:'troll',h:58,claw:1,arch:'regen',line:'Ponte cobra pedágio. Troll cobra o resto.'},
   {name:'Gárgula',art:'gargoyle',h:50,claw:1,arch:'espinhos',line:'(estala o pescoço de pedra, com calma)'},
@@ -195,16 +195,18 @@ const STOPS=[
   {name:'Salamandra Anciã',art:'lavasal',h:44,claw:1,arch:'bruto',line:'(o chão derrete onde ela pisa)'},
   {name:'Cão de Vulcão',art:'hellhound',h:42,claw:1,arch:'fogo',line:'(rosna, e sai fumaça do focinho)'},
   {name:'Bruxa Pestilenta',art:'plaguewitch',h:50,arch:'veneno',line:'Uma gota cura. Duas, nem tanto. Quer adivinhar quantas tem aqui?'}]},
- {biome:'crypt',hp:155,dps:10.5,elite:1,v:[
+ {biome:'crypt',hp:190,dps:12.7,elite:1,v:[
   {name:'Lich Menor',art:'lich',h:56,arch:'espinhos',line:'Mais um herói. Tenho uma prateleira só para mochilas.'},
   {name:'Ceifador',art:'reaper',h:58,arch:'veneno',line:'Não vim por você. Vim pelo que está na sua mochila.'},
   {name:'Gárgula de Obsidiana',art:'obsidian',h:50,claw:1,arch:'espinhos',line:'(a pedra dela ainda está quente do vulcão)'}]},
- {biome:'volcano',hp:345,dps:20,boss:1,v:[
+ {biome:'volcano',hp:460,dps:20,boss:1,v:[
   {name:'Wyrm Rubro',art:'wyrm',h:70,claw:1,arch:'chefe',line:'O velho também chegou até aqui. Quer ver o que sobrou dele?'}]}
 ];
 const BAGCOST=[5,8,11], MAXEXP=3, MAXCOLS=7, MAXROWS=6, CHEST_ROWS=2, GOAL=10, SURV_GOAL=14, LIVES=5, SILVER_WIN=6;
 /* v1.2: força extra dos inimigos por nível de Ascensão, cumulativa: [por nível da A1 à A5, por nível da A6 à A10] */
-const ASC_FOE={hp:[.12,.03],dmg:[.12,.03]};
+const ASC_FOE={hp:[.6,.15],dmg:[.06,.02],early:.4,elite:.4,boss:.22};
+/* A6+: elites com 2 modificadores a partir desta parada (índice; 7 = parada 8). As elites das paradas 3 e 6 ficam com 1. */
+const ASC_MOD2=7;
 /* Bênçãos (EVE-01): b = bronze (elites 3, 8 e 9), p = prata (elite 6, depois da 6ª vitória: SILVER_WIN) */
 const BLESS={
  mascate:{t:'b',name:'Mascate Generoso',desc:'+1 vaga na loja.'},
@@ -275,6 +277,6 @@ const MERCH={
  over:['Mochila pesada demais! Armas demais deixam todas lentas.'],
  surv:['Daqui para o norte eu não vendo fiado. Nem para você.']
 };
-Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH});
+Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH});
 window.AlforjeData=Object.freeze(D);
 })();
