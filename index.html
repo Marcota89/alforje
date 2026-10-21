@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="stylesheet" href="css/fonts.css"><link rel="stylesheet" href="css/kit.css"><link rel="stylesheet" href="css/run.css"><link rel="stylesheet" href="css/windows.css"><link rel="stylesheet" href="css/legacy.css"></head><body>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="stylesheet" href="css/fonts.css"><link rel="stylesheet" href="css/kit.css"><link rel="stylesheet" href="css/run.css"><link rel="stylesheet" href="css/windows.css"><link rel="stylesheet" href="css/menu.css"><link rel="stylesheet" href="css/legacy.css"></head><body>
 <title>Alforje</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#130b07">
@@ -35,6 +35,17 @@
   </section>
   <nav id="actions" aria-label="Ações"></nav>
 </div>
+<section class="menu" id="menu" hidden aria-label="Menu">
+  <header class="mtop" id="mtop"></header>
+  <main class="mpage" id="mpage" tabindex="-1"></main>
+  <nav class="k-tabs" id="mtabs" aria-label="Abas">
+    <button class="k-tab" data-nav="codex"><span class="ti" aria-hidden="true">📖</span>Codex</button>
+    <button class="k-tab" data-nav="missoes"><span class="ti" aria-hidden="true">📜</span>Missões<span class="k-dot" id="missDot" hidden>!</span></button>
+    <button class="k-tab mid" data-nav="jogar"><span class="ti" aria-hidden="true">⚔️</span>Jogar</button>
+    <button class="k-tab" data-nav="placar"><span class="ti" aria-hidden="true">🥇</span>Placar</button>
+    <button class="k-tab" data-nav="mais"><span class="ti" aria-hidden="true">☰</span>Mais</button>
+  </nav>
+</section>
 <aside class="drawer k-win" id="drawer" hidden aria-label="Gaveta">
   <div class="dhead"><b class="k-rib" id="dtitle"></b><button class="iconbtn" id="dclose" aria-label="Fechar gaveta">✕</button></div>
   <div class="dbody">

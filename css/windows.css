@@ -1,5 +1,5 @@
 /* Janelas (Tarefa 6): overlay/modal com fita, gaveta, ficha (#pop), ficha completa (#sheet), aviso (#toast), tutorial (#coach), abertura (#splash) e "Gire o celular" (#rotmsg).
-   Tudo escopado por contêiner. Conteúdo antigo (.btn, .cls, tabelas...) dentro das janelas ganha o visual claro aqui até as Tarefas 7 e 8 trocarem a marcação. */
+   Tudo escopado por contêiner. Conteúdo antigo (.btn...) que ainda resta dentro das janelas ganha o visual claro aqui; as telas do menu saíram das janelas na Tarefa 8 (css/menu.css). */
 
 /* fontes novas nas janelas (legacy.css ainda redefine --f-* com as antigas até a Tarefa 9) */
 #overlay .modal,#drawer,#pop,#sheet,#toast,#coach,#splash,#rotmsg{--f-title:'Lilita One',system-ui,sans-serif;--f-body:'Nunito',system-ui,sans-serif;--f-num:'Lilita One',system-ui,sans-serif}
@@ -43,24 +43,14 @@
 :is(#overlay .modal,#drawer,#sheet,#pop) .btn img{height:14px;width:auto;image-rendering:pixelated}
 
 /* painéis antigos (escuros) viram cartões creme */
-:is(#overlay .modal,#drawer,#sheet,#pop) :is(.chal,.brow,.mrow2,.achv,.hrow,.ccell,.skin){background:linear-gradient(180deg,#fffdf4,#fff0cb);border:2px solid rgba(240,138,28,.6);border-radius:12px;color:var(--ink-brown);box-shadow:0 2px 0 rgba(165,82,10,.35)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .cls{background:linear-gradient(180deg,#fffdf4,#ffe9b8);border:3px solid var(--orange);border-radius:14px;box-shadow:0 3px 0 var(--orange-d);color:var(--ink-brown)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .cls:hover:not(:disabled){border-color:#ffb020}
-:is(#overlay .modal,#drawer,#sheet,#pop) .cls span{color:var(--muted)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .cls .subs{color:#7a35d6!important}
-:is(#overlay .modal,#drawer,#sheet,#pop) :is(.chal.on,.skin.on,.brow.me,.achv.on){border-color:var(--orange-d);box-shadow:0 0 0 2px #ffd34d,0 2px 0 rgba(165,82,10,.35)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .mtab{background:rgba(90,42,0,.1);border:2px solid var(--orange);color:var(--ink-brown);min-height:40px;font-size:14px}
-:is(#overlay .modal,#drawer,#sheet,#pop) .mtab.on{background:linear-gradient(180deg,#ffd04a,#f08a1c);color:var(--ink-brown);border-color:#fff;box-shadow:0 2px 0 var(--orange-d)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .mini{background:#fff;border:2px solid var(--orange);color:var(--ink-brown);border-radius:12px;min-height:40px;min-width:40px;font-weight:900}
-:is(#overlay .modal,#drawer,#sheet,#pop) .mini.on{background:linear-gradient(180deg,#ffd04a,#f08a1c);color:var(--ink-brown);border-color:var(--orange-d)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .fld input,:is(#overlay .modal,#drawer,#sheet,#pop) .fld textarea{color:var(--ink-brown);background:#fff;border:2px solid var(--orange);border-radius:10px}
-:is(#overlay .modal,#drawer,#sheet,#pop) .fld input[type=range]{accent-color:var(--orange);margin:0;padding:0;border:0;background:none}
 :is(#overlay .modal,#drawer,#sheet,#pop) .chk input{accent-color:var(--orange)}
-:is(#overlay .modal,#drawer,#sheet,#pop) :is(.cls b,.brow b,.mtab,.ph b,table.st th,.dots){font-weight:400}
+:is(#overlay .modal,#drawer,#sheet,#pop) :is(.ph b,table.st th){font-weight:400}
 :is(#overlay .modal,#drawer,#sheet,#pop) table.odds tr.cur td{background:rgba(240,138,28,.2);color:var(--orange-d)}
 :is(#overlay .modal,#drawer,#sheet,#pop) :is([style*="color:#"],th[style*="--t"]){background:var(--pill-bg);padding:1px 8px;border-radius:9px}
-:is(#overlay .modal,#drawer,#sheet,#pop) .dots i{background:rgba(90,42,0,.3)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .dots i.on{background:var(--orange)}
+
+/* menu da jornada (runMenu): grade de botões */
+#overlay .modal .menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+#overlay .modal .menu-grid .k-btn{font-size:15px;padding:6px 8px}
 
 /* ===== Conteúdo das janelas da jornada (Tarefa 7) ===== */
 /* escolhas (Bênção, subclasse, ampliar a mochila): cartões grandes clicáveis com ícone */
