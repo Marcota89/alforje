@@ -874,24 +874,25 @@ async function runPost(won){if(!CLOUD.ready||OPT().stats===0)return;
 /* ----- imagem de resultado para compartilhar ----- */
 function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
 async function shareCard(){toast('Montando a imagem…');const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+ try{await Promise.all([document.fonts.load("400 92px 'Lilita One'"),document.fonts.load("900 44px Nunito"),document.fonts.load("700 34px Nunito")]);}catch(e){}
  const won=state.surv?state.wins>=SURV_GOAL:state.wins>=GOAL;
- const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2a190d');g.addColorStop(1,'#0b0705');x.fillStyle=g;x.fillRect(0,0,W,H);
- x.strokeStyle='#e2a43c';x.lineWidth=10;x.strokeRect(24,24,W-48,H-48);x.strokeStyle='#6b4428';x.lineWidth=4;x.strokeRect(44,44,W-88,H-88);
- x.textAlign='center';x.fillStyle='#f2c14e';x.font="900 92px Cinzel, Georgia, serif";x.fillText('ALFORJE',W/2,160);
- x.fillStyle=won?'#8ff09a':'#ff9a7a';x.font="700 46px Cinzel, Georgia, serif";x.fillText(won?(state.surv?'O Norte foi vencido':'Jornada vencida!'):'Fim da jornada',W/2,232);
+ const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2c1b5e');g.addColorStop(.55,'#55298c');g.addColorStop(1,'#a8408f');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.strokeStyle='#ffd34d';x.lineWidth=10;x.strokeRect(24,24,W-48,H-48);x.strokeStyle='#f08a1c';x.lineWidth=4;x.strokeRect(44,44,W-88,H-88);
+ x.textAlign='center';x.fillStyle='#ffd34d';x.font="400 92px 'Lilita One', system-ui, sans-serif";x.fillText('ALFORJE',W/2,160);
+ x.fillStyle=won?'#86f36f':'#ff8a6a';x.font="400 46px 'Lilita One', system-ui, sans-serif";x.fillText(won?(state.surv?'O Norte foi vencido':'Jornada vencida!'):'Fim da jornada',W/2,232);
  const por=await loadImg(`a/hp_${state.cls}_idle.webp`)||await loadImg(`a/h_${state.cls}.webp`);
  if(por){const k=Math.min(300/por.height,300/por.width);x.imageSmoothingEnabled=true;x.drawImage(por,150-por.width*k/2+60,270,por.width*k,por.height*k);}
- x.textAlign='left';x.fillStyle='#f4e6c8';x.font="700 44px 'Alegreya Sans', system-ui, sans-serif";
+ x.textAlign='left';x.fillStyle='#fff8e4';x.font="900 44px Nunito, system-ui, sans-serif";
  const lines=[`${CLASSES[state.cls].name}${state.sub&&SUBOF(state.sub)?' · '+SUBOF(state.sub).name:''}`,`${state.wins} vitórias${state.asc?' · Ascensão '+state.asc:''}`,`${score()} pontos`,
   state.mode==='daily'?`Desafio Diário ${todayStr()}`:state.mode==='seed'?`Seed ${state.seed}`:`${state.lives} vida${state.lives===1?'':'s'} sobrando`];
- lines.forEach((l,i)=>{x.fillStyle=i===2?'#f2c14e':'#f4e6c8';x.fillText(l,470,330+i*66);});
+ lines.forEach((l,i)=>{x.fillStyle=i===2?'#ffd34d':'#fff8e4';x.fillText(l,470,330+i*66);});
  const D=dims('bag'),cs=Math.min(110,Math.floor(900/D.cols),Math.floor(560/D.rows)),gx=(W-D.cols*cs)/2,gy=640;
- for(let yy=0;yy<D.rows;yy++)for(let xx=0;xx<D.cols;xx++){x.fillStyle='#1f130b';x.fillRect(gx+xx*cs+3,gy+yy*cs+3,cs-6,cs-6);x.strokeStyle='#5a3a20';x.lineWidth=3;x.strokeRect(gx+xx*cs+3,gy+yy*cs+3,cs-6,cs-6);}
- const TC=['#c8b89a','#4aa8ff','#b462ff','#ffc23a'];
+ for(let yy=0;yy<D.rows;yy++)for(let xx=0;xx<D.cols;xx++){x.fillStyle='#f6e2b8';x.fillRect(gx+xx*cs+3,gy+yy*cs+3,cs-6,cs-6);x.strokeStyle='#e2b26a';x.lineWidth=3;x.strokeRect(gx+xx*cs+3,gy+yy*cs+3,cs-6,cs-6);}
+ const TC=['#9aa6b2','#2f9bff','#b462ff','#ffb020'];
  for(const it of inWhere('bag')){const im=await loadImg(artURL(it.key,it.tier));const bx=gx+it.x*cs+6,by=gy+it.y*cs+6,bw=it.w*cs-12,bh=it.h*cs-12;
-  x.fillStyle='rgba(60,36,20,.85)';x.fillRect(bx,by,bw,bh);x.strokeStyle=TC[it.tier-1];x.lineWidth=5;x.strokeRect(bx,by,bw,bh);
+  x.fillStyle='rgba(255,255,255,.88)';x.fillRect(bx,by,bw,bh);x.strokeStyle=TC[it.tier-1];x.lineWidth=5;x.strokeRect(bx,by,bw,bh);
   if(im){const rot=it.w!==ITEMS[it.key].w;x.save();x.translate(bx+bw/2,by+bh/2);if(rot)x.rotate(Math.PI/2);const ww=rot?bh:bw,hh=rot?bw:bh,k=Math.min(ww*.86/im.width,hh*.86/im.height);x.drawImage(im,-im.width*k/2,-im.height*k/2,im.width*k,im.height*k);x.restore();}}
- x.textAlign='center';x.fillStyle='#b59a76';x.font="500 34px 'Alegreya Sans', system-ui, sans-serif";x.fillText('Monte a sua mochila. Será que você chega mais longe?',W/2,H-80);
+ x.textAlign='center';x.fillStyle='#ffe5ad';x.font="700 34px Nunito, system-ui, sans-serif";x.fillText('Monte a sua mochila. Será que você chega mais longe?',W/2,H-80);
  c.toBlob(async blob=>{if(!blob){toast('Não deu para criar a imagem');return;}
   try{const f=new File([blob],'alforje.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Alforje'});return;}}catch(e){}
   const u=URL.createObjectURL(blob);overlay(`<h2>Sua jornada</h2><img src="${u}" alt="Imagem do resultado" style="width:100%;border-radius:6px"><p class="muted center small">Segure a imagem para salvar ou compartilhar.</p><a class="k-btn o" download="alforje-${state.cls}-${state.wins}v.png" href="${u}">Baixar imagem</a>${backBtn()}`);},'image/png');}

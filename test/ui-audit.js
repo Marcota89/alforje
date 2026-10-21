@@ -39,16 +39,15 @@
     }
     return false;
   }
-  // true se o elemento mora dentro de um ancestral que rola na horizontal e que está inteiro na tela (ex.: loja com 6+ ofertas)
+  // true se o elemento mora dentro de uma faixa de rolagem horizontal intencional (marcada com data-hscroll, ex.: loja com 6+ ofertas),
+  // que de fato rola só na horizontal e está inteira na tela. Outros contêineres (janelas, gavetas) não isentam nada.
   function inHScroller(el) {
-    for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
-      const c = getComputedStyle(p);
-      if ((c.overflowX === 'auto' || c.overflowX === 'scroll') && p.scrollWidth > p.clientWidth) {
-        const pr = p.getBoundingClientRect();
-        return pr.left >= 0 && pr.right <= innerWidth;
-      }
-    }
-    return false;
+    const p = el.parentElement && el.parentElement.closest('[data-hscroll]');
+    if (!p) return false;
+    const c = getComputedStyle(p);
+    if (!(c.overflowX === 'auto' || c.overflowX === 'scroll') || p.scrollWidth <= p.clientWidth || p.scrollHeight > p.clientHeight + 1) return false;
+    const pr = p.getBoundingClientRect();
+    return pr.left >= 0 && pr.right <= innerWidth;
   }
   // true se outra camada cobre o centro do elemento (que não seja ele, descendente ou ancestral)
   function covered(el) {
@@ -63,6 +62,9 @@
   window.alforjeAudit = function () {
     const out = [];
     const add = m => { if (out.indexOf(m) < 0) out.push(m); };
+    // animações de entrada (ex.: .modal.win-in parte de opacity:0) ficam paradas no 1º quadro quando a aba está em segundo plano;
+    // termina as finitas antes de medir, senão a janela inteira passa como invisível e nada dentro dela é auditado
+    if (document.getAnimations) document.getAnimations().forEach(a => { try { if (a.effect && a.effect.getComputedTiming().endTime !== Infinity) a.finish(); } catch (e) {} });
     if (document.documentElement.scrollWidth > innerWidth) add('rolagem lateral');
     document.querySelectorAll('body *').forEach(el => {
       if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;

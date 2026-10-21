@@ -261,6 +261,7 @@ body.eco .spark{display:none}
 /* botão "Girar" durante o arrasto */
 .rotfab{position:fixed;right:12px;top:calc(118px + env(safe-area-inset-top,0px));z-index:65;min-height:52px;padding:0 18px;border-radius:26px;border:3px solid #fff;background:linear-gradient(180deg,#ffd04a,#f08a1c);box-shadow:0 4px 0 var(--orange-d);color:#fff;text-shadow:0 2px 0 var(--orange-d);font:400 17px/1 var(--f-title);letter-spacing:.02em;touch-action:none;cursor:pointer}
 body.lefty .rotfab{right:auto;left:12px}
+.rotfab:focus-visible{outline:3px solid var(--ink-brown);outline-offset:2px}
 /* balão do Mascate Brás sobre a faixa da loja */
 .bubble{position:absolute;left:8px;right:8px;bottom:calc(100% + 6px);z-index:20;background:linear-gradient(180deg,var(--cream-1),var(--cream-2));color:var(--ink-brown);font:700 13.5px/1.3 var(--f-body);padding:6px 10px;border-radius:12px;border:3px solid var(--orange);box-shadow:0 3px 0 var(--orange-d);cursor:pointer}
 .bubble b{font-weight:900;color:var(--orange-d)}

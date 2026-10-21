@@ -97,7 +97,7 @@ img.sil{filter:brightness(0) drop-shadow(0 0 1px rgba(90,42,0,.6))!important;opa
 #overlay .modal .score small{font:400 14px/1.2 var(--f-title);color:var(--orange-d);letter-spacing:.06em}
 #overlay .modal .score strong{font:400 52px/1.05 var(--f-num);color:var(--orange);-webkit-text-stroke:1px var(--orange-d);text-shadow:0 3px 0 var(--orange-d);letter-spacing:.02em}
 #overlay .modal .score em{font:900 13px/1.2 var(--f-body);font-style:normal;color:var(--muted)}
-.bonus{color:var(--gold)}
+:is(#overlay .modal,#drawer,#sheet,#pop,#menu) .bonus{color:var(--gold)}
 #overlay .modal .bonus{color:var(--orange-d);font-weight:900}
 
 /* tabelas (.st): resultado da luta, Afinidades, chances da loja */
