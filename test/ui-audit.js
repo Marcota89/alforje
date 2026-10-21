@@ -31,6 +31,23 @@
     for (const n of el.childNodes) if (n.nodeType === 3 && n.textContent.trim()) return true;
     return false;
   }
+  // true se o elemento mora dentro de um ancestral que rola na vertical (alcançável rolando)
+  function inVScroller(el) {
+    for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+      const c = getComputedStyle(p);
+      if ((c.overflowY === 'auto' || c.overflowY === 'scroll') && p.scrollHeight > p.clientHeight) return true;
+    }
+    return false;
+  }
+  // true se outra camada cobre o centro do elemento (que não seja ele, descendente ou ancestral)
+  function covered(el) {
+    const r = el.getBoundingClientRect();
+    const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
+    const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
+    const t = document.elementFromPoint(x, y);
+    if (!t) return false;
+    return !(t === el || el.contains(t) || t.contains(el));
+  }
   window.alforjeAudit = function () {
     const out = [];
     const add = m => { if (out.indexOf(m) < 0) out.push(m); };
@@ -38,12 +55,13 @@
     document.querySelectorAll('body *').forEach(el => {
       if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
       if (!visible(el)) return;
+      if (covered(el)) return;
       const cs = getComputedStyle(el);
       if (hasOwnText(el) && cs.textOverflow !== 'ellipsis' && el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0)
         add('texto cortado: ' + sel(el));
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') {
         const r = el.getBoundingClientRect();
-        if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) add('fora da tela: ' + sel(el));
+        if ((r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) && !inVScroller(el)) add('fora da tela: ' + sel(el));
         if (r.width < 40 || r.height < 40) add('alvo pequeno: ' + sel(el));
       }
     });
