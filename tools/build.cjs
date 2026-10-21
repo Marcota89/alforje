@@ -17,7 +17,7 @@ const STYLES = ['css/fonts.css', 'css/kit.css', 'css/run.css', 'css/windows.css'
 const links = STYLES.map(href => `<link rel="stylesheet" href="${href}">`).join('');
 
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
-const scripts = ['js/config.js', SUPABASE_JS, 'js/data.js', 'js/sim.js', 'js/meta.js', 'js/cloud.js', 'js/main.js']
+const scripts = ['js/config.js', SUPABASE_JS, 'js/data.js', 'js/sim.js', 'js/meta.js', 'js/save.js', 'js/cloud.js', 'js/main.js']
   .map(src => `<script src="${src}" charset="utf-8"></script>`).join('\n');
 
 const html = `<!doctype html>

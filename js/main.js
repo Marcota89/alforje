@@ -44,23 +44,30 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 
 
 /* ================= PROFILE (codex, ascension, history, achievements) ================= */
-const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.0';
+const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.1';
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
 function META(){return window.AlforjeMeta?window.AlforjeMeta.ensureMeta(PROF,Date.now()):null;}
-function loadProf(){try{const p=JSON.parse(localStorage.getItem(PROFKEY));if(p&&p.codex)PROF=Object.assign(freshProf(),p);}catch(e){}
+/* PROF_HOLD: o perfil salvo estava ilegível (cópia em alforje-prof6-bak); o perfil novo não grava por cima até a nuvem responder */
+let PROF_HOLD=false;
+function loadProf(){let raw=null;try{raw=localStorage.getItem(PROFKEY);}catch(e){}
+ if(raw!=null){let p=null;try{p=JSON.parse(raw);}catch(e){}
+  if(p&&typeof p==='object'&&!Array.isArray(p)&&p.codex&&typeof p.codex==='object')PROF=window.AlforjeSave.fixProf(Object.assign(freshProf(),p),freshProf());
+  else{PROF_HOLD=true;try{localStorage.setItem(PROFKEY+'-bak',raw);}catch(e){}}}
  try{const old=+localStorage.getItem('alforje-best')||0;if(old>PROF.best)PROF.best=old;}catch(e){}
  /* não usa saveProf aqui: markDirty ainda não enxerga CLOUD nesta altura do arquivo */
- META();try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}}
-function saveProf(){try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
+ META();if(!PROF_HOLD)try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}}
+function saveProf(){if(PROF_HOLD)return;try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
 loadProf();
 const counts=()=>state&&state.mode!=='seed';
 /* evento das metas do dia (a meta soma sozinha; quem chama decide se vale) */
 function gev(ev,n){try{const m=META();if(!m)return;window.AlforjeMeta.goalEvent(m,Date.now(),ev,n);saveProf();}catch(e){}}
 /* compra e fusão podem ser desfeitas: ficam na fila do estado (o Desfazer a restaura) e só contam ao lutar */
 function gq(ev){state.gq=state.gq||{};state.gq[ev]=(state.gq[ev]||0)+1;}
-function gqFlush(){const q=state.gq;state.gq=null;if(q)for(const ev in q)gev(ev,q[ev]);}
+function pq(op){(state.pq=state.pq||[]).push(op);}
+function qFlush(q,p){if(q)for(const ev in q)gev(ev,q[ev]);
+ if(p)for(const op of p){try{if(op[0]==='cx')codexAdd(op[1],op[2]);else if(op[0]==='m')mission(op[1]);else if(op[0]==='a')ach(op[1]);}catch(e){}}}
 function cx(key){return PROF.codex.items[key]||(PROF.codex.items[key]={seen:0,bought:0,merged:0,forged:0,wins:0});}
 function codexSee(key){if(!counts()||!ITEMS[key])return;cx(key).seen++;}
 function codexAdd(key,f,n){if(!counts()||!ITEMS[key])return;cx(key)[f]+=n||1;}
@@ -77,7 +84,15 @@ let state=null,B=null,CS=56;
 /* toda troca do estado da partida passa por aqui, para o módulo de simulação enxergar o mesmo objeto */
 function setState(s){state=s;SIM.setState(s);return s;}
 function save(){try{if(state.phase!=='battle'){localStorage.setItem(RUNKEY,JSON.stringify(state));markDirty();}}catch(e){}}
-function load(){try{const s=JSON.parse(localStorage.getItem(RUNKEY));if(s&&s.items&&s.bag)return s;}catch(e){}return null;}
+/* a luta grava a partida na entrada (fase 'battle', fila já aplicada): recarregar no meio resolve a mesma luta */
+function saveFight(){try{localStorage.setItem(RUNKEY,JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})));markDirty();}catch(e){}}
+let RUN_BAD=false;
+function dropRun(raw,why){RUN_BAD=true;try{console.warn('alforje: jornada salva descartada ('+why+')');}catch(e){}
+ try{if(raw)localStorage.setItem(RUNKEY+'-bak',raw);localStorage.removeItem(RUNKEY);}catch(e){}}
+function checkRun(s,raw){if(s==null)return null;const why=window.AlforjeSave.runProblem(s);
+ if(why){dropRun(raw||JSON.stringify(s),why);return null;}return window.AlforjeSave.fillRun(s,fresh());}
+function load(){let raw=null;try{raw=localStorage.getItem(RUNKEY);}catch(e){}if(raw==null)return null;
+ let s=null;try{s=JSON.parse(raw);}catch(e){dropRun(raw,'JSON');return null;}return checkRun(s,raw);}
 
 const $=s=>document.querySelector(s);
 function maxCols(s){s=s||state;const narrow=typeof window!=='undefined'&&window.innerWidth<400;return narrow?Math.max(6,Math.min(MAXCOLS,s.bag.cols)):MAXCOLS;}/* plano mobile: até 6 colunas em telas estreitas */
@@ -564,8 +579,8 @@ function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;co
 let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
 function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,sel:null}));}
 function undo(){if(!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
-function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;codexAdd(target.key,'merged');mission('merge');gq('merge');
- if(target.tier===4){state.mood='legend';ach('legend');mission('legend');}toast(`Fundido! ${ITEMS[target.key].name} agora é ${TIERS[target.tier-1]}${target.tier===3?' e despertou':''}`);}
+function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;pq(['cx',target.key,'merged']);pq(['m','merge']);gq('merge');
+ if(target.tier===4){state.mood='legend';pq(['a','legend']);pq(['m','legend']);}toast(`Fundido! ${ITEMS[target.key].name} agora é ${TIERS[target.tier-1]}${target.tier===3?' e despertou':''}`);}
 const canMerge=()=>state.chal!=='nofuse';
 function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4&&it.where==='bag')||state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4));
  if(twin){mergeInto(twin);return true;}const d=ITEMS[key];const sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);if(!sp)return false;
@@ -574,7 +589,7 @@ function addPet(key,tier){const twin=state.pets.find(p=>p&&p.key===key&&p.tier==
  const i=state.pets.indexOf(null);if(i<0)return false;state.pets[i]={key,tier,ch:PET_CHARGES};return true;}
 function buy(i){const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
  snapshot();const ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
- state.gold-=p;state.shop[i]=null;if(!o.pet)codexAdd(o.key,'bought');gq('buy');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
+ state.gold-=p;state.shop[i]=null;if(!o.pet)pq(['cx',o.key,'bought']);gq('buy');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
 function sell(id,ok){const it=state.items.find(i=>i.id===id);if(!it)return;
  if(it.tier>=3&&!ok){confirmBox(`Vender ${ITEMS[it.key].name} ${TIERS[it.tier-1]}?`,`Itens Épicos e Lendários não voltam. Você recebe ${sellPrice(it.key,it.tier)} de ouro.`,'Vender',()=>sell(id,true));return;}
  snapshot();const v=sellPrice(it.key,it.tier);state.gold+=v;state.items=state.items.filter(i=>i!==it);sfx('coin');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Vendido por ${v} de ouro`);}
@@ -583,7 +598,7 @@ function sellPet(i,ok){const p=state.pets[i];if(!p)return;if(p.tier>=3&&!ok){con
 function rotate(id){const it=state.items.find(i=>i.id===id);if(!it)return;if(canPlace(it.where,it.x,it.y,it.h,it.w,it.id)){[it.w,it.h]=[it.h,it.w];sfx('click');save();render();}else toast('Sem espaço para girar aqui');}
 function reroll(){const c=rerollCost();if(state.gold<c)return;state.gold-=c;if(state.freeReroll)state.freeReroll=false;else state.rerollN++;state.undo=null;rollShop();sfx('click');state.sel=null;save();render();sayMerchant();}
 function hammer(id){const it=state.items.find(i=>i.id===id);if(!it||it.tier>=4||state.hammerUsed)return;const c=hammerCost(it);if(state.gold<c){toast('Ouro insuficiente');return;}
- snapshot();state.gold-=c;state.hammerUsed=true;state.freeHammer=false;it.tier++;mergedId=it.id;sfx('merge');codexAdd(it.key,'merged');if(it.tier===4){state.mood='legend';ach('legend');}
+ snapshot();state.gold-=c;state.hammerUsed=true;state.freeHammer=false;it.tier++;mergedId=it.id;sfx('merge');pq(['cx',it.key,'merged']);if(it.tier===4){state.mood='legend';pq(['a','legend']);}
  toast(`Martelo do Mascate: ${ITEMS[it.key].name} agora é ${TIERS[it.tier-1]}`);state.sel=null;save();render();}
 /* ITM-06: expansion with shape choice + pocket modifier */
 function expandOptions(){const s=state.bag,o=[],pk=rshuffle(POCKETKEYS);
@@ -616,12 +631,15 @@ function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque
   overlay(`<h2>Lutar já?</h2><p class="center">Você ainda tem <b>${state.gold}</b> de ouro e há itens que cabem no bolso. Guardar rende juros (+${interest()} agora).</p>
   <label class="chk"><input type="checkbox" id="noAskChk"> Não perguntar de novo</label><div class="two"><button class="k-btn g" id="fightGo">Lutar assim mesmo</button><button class="k-btn v" id="closeOv">Voltar à loja</button></div>`);return;}
  if(state.gold>=30)ach('rich');if(state.pets.filter(Boolean).length===3&&state.chal!=='nopets')ach('pets3');
- state.sel=null;state.undo=null;state.mood='';gqFlush();
+ state.sel=null;state.undo=null;state.mood='';const q=state.gq,pq0=state.pq;state.gq=null;state.pq=null;
  if(state.mode==='daily')state.pfPending=snapOf(state);/* prova do placar: a mochila exatamente como entrou nesta luta */
- state.phase='battle';B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
- const f=foeDef();if(f.art)codexFoe(f.art,false);closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
+ state.phase='battle';saveFight();qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
+ const f=foeDef();if(f.art)codexFoe(f.art,false);saveProf();closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
 let finishing=false;
 function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='lose';B.ev.length=0;}
+/* partida salva no meio de uma luta (recarregou, fechou o app ou veio da nuvem): a mesma montagem (newBattle) roda até o fim
+   com o mesmo passo fixo da luta ao vivo e cai no resultado, como se o jogador tivesse assistido */
+function resumeFight(){showRun();B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];skip();render();finish();}
 setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;setTimeout(()=>{finishing=false;finish();},700);}},100);
 function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier=r.tier;a.key=r.res;state.items=state.items.filter(i=>i!==r.b);done.push(`${ITEMS[r.a.key].name} (${TIERS[a.tier-1]})`);
  if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');gev('forge');}
@@ -798,14 +816,17 @@ async function cloudInit(){try{if(!API||testOffline())return;const uid=await API
  const d=await API.loadSave();if(testOffline())return;CLOUD.ready=true;
  let lt=0;try{lt=+localStorage.getItem('alforje-ts')||0;}catch(e){}
  const ct=d?(+d.t||0):0;
- if(d&&d.prof&&ct>lt+2000)cloudAdopt(d);else if(lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
- }catch(e){}}
+ const hold=PROF_HOLD;PROF_HOLD=false;
+ if(d&&d.prof&&(ct>lt+2000||hold))cloudAdopt(d);else if(!hold&&lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
+ }catch(e){}finally{PROF_HOLD=false;}}
 function cloudAdopt(d){if(state&&state.phase==='battle'){setTimeout(()=>cloudAdopt(d),3000);return;}
- try{const p=JSON.parse(d.prof);if(!p||!p.codex)return;PROF=Object.assign(freshProf(),p);META();
+ try{const p=JSON.parse(d.prof);if(!p||typeof p!=='object'||!p.codex||typeof p.codex!=='object')return;PROF=window.AlforjeSave.fixProf(Object.assign(freshProf(),p),freshProf());META();
   let s=null;if(d.run){try{s=JSON.parse(d.run);}catch(e){}}
-  if(s&&s.items&&s.bag){if(s.phase==='battle'||s.phase==='result')s.phase='shop';setState(s);}
-  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(d.run)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
-  applyOpts();applySkin();closeOverlay();resumeView();toast('☁ Progresso recuperado da nuvem',1);}catch(e){}}
+  s=checkRun(s,d.run);if(s){if(s.phase==='result')s.phase='shop';setState(s);}
+  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(s)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
+  applyOpts();applySkin();closeOverlay();
+  try{if(state.cls&&state.phase==='battle')resumeFight();else resumeView();}catch(e){bootFail(e);}
+  toast(RUN_BAD?'Jornada salva estava corrompida e foi descartada':'☁ Progresso recuperado da nuvem',1);RUN_BAD=false;}catch(e){}}
 function resumeView(){if(!state.cls||state.phase==='class'){campScreen();return;}showRun();
  if(state.phase==='end'){render();endScreen(state.surv?state.wins>=SURV_GOAL:state.wins>=GOAL,'');}
  else{render();if(state.cur)showCur();else if(state.queue&&state.queue.length)nextQueue();}}
@@ -1222,6 +1243,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
+ <li><b>v8.1</b>: correções. Recarregar no meio da luta agora mostra o resultado dela (a luta não volta para a loja); jornada ou perfil salvos com defeito não travam mais a abertura; compra arrastando ou por toque conta para a meta do dia; Desfazer não deixa mais missão, conquista ou Codex de uma fusão desfeita; mexer no relógio não reabre o bônus diário.</li>
  <li><b>v8</b>: a viagem ganhou fôlego. <b>Energia</b>: 30 no máximo, +1 a cada 8 minutos, e cada jornada custa 10 (Diário e Duelo são grátis; uma propaganda rende +10). <b>Bônus diário</b> de 7 dias, <b>metas do dia</b> com baús de prêmio, <b>Equipar</b>, <b>Pets</b> e <b>Loja</b> de rubis, e um <b>nível do herói</b> que cresce a cada vitória. Codex, Missões e Placar foram para o ☰ Mais.</li>
  <li><b>Depois da luta</b>: tabela por item (acionamentos, dano, críticos, escudo, cura e status), aba do inimigo e registro completo copiável.</li>
  <li><b>Tipos e Afinidades</b>: 6 tipos, bônus com 3 e 5 itens, e 4 Flâmulas que reforçam um tipo inteiro.</li>
@@ -1301,7 +1323,7 @@ function endDrag(px,py){
  const t=target(px,py),di=dragInfo();
  if(t&&t.sell){sell(drag.id);return;}
  if(t&&t.ok){
-  if(drag.src==='shop'){const p=offerPrice(di.o);if(p>state.gold){toast('Ouro insuficiente');buzz(40);render();return;}snapshot();state.gold-=p;state.shop[drag.idx]=null;codexAdd(di.key,'bought');sfx('buy');
+  if(drag.src==='shop'){const p=offerPrice(di.o);if(p>state.gold){toast('Ouro insuficiente');buzz(40);render();return;}snapshot();state.gold-=p;state.shop[drag.idx]=null;pq(['cx',di.key,'bought']);gq('buy');sfx('buy');
    if(t.merge)mergeInto(t.merge);else state.items.push({id:state.nid++,key:di.key,tier:di.tier,where:t.where,x:t.cx,y:t.cy,w:di.w,h:di.h});sayMerchant();toastUndo(`Comprado: ${ITEMS[di.key].name}`);SNAP=t.merge?null:state.nid-1;}
   else{const it=state.items.find(i=>i.id===drag.id);
    if(t.merge){snapshot();state.items=state.items.filter(i=>i!==it);mergeInto(t.merge);}
@@ -1324,7 +1346,7 @@ function gridTap(g,e){if(!OPT().tapMove||state.phase!=='shop'||!state.sel)return
   if(canPlace(where,x,y,it.w,it.h,it.id)){Object.assign(it,{where,x,y});sfx('click');buzz(10);state.sel=null;save();render();return true;}toast('Não cabe aí');return true;}
  if(state.sel.shop!=null){const o=state.shop[state.sel.shop];if(!o||o.pet)return false;const d=ITEMS[o.key],x=Math.min(gx,D.cols-d.w),y=Math.min(gy,D.rows-d.h),p=offerPrice(o);
   if(p>state.gold){toast('Ouro insuficiente');return true;}if(!canPlace(where,x,y,d.w,d.h)){toast('Não cabe aí');return true;}
-  snapshot();state.gold-=p;state.shop[state.sel.shop]=null;codexAdd(o.key,'bought');state.items.push({id:state.nid++,key:o.key,tier:o.tier,where,x,y,w:d.w,h:d.h});sfx('buy');buzz(10);SNAP=state.nid-1;state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${ITEMS[o.key].name}`);return true;}
+  snapshot();state.gold-=p;state.shop[state.sel.shop]=null;pq(['cx',o.key,'bought']);gq('buy');state.items.push({id:state.nid++,key:o.key,tier:o.tier,where,x,y,w:d.w,h:d.h});sfx('buy');buzz(10);SNAP=state.nid-1;state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${ITEMS[o.key].name}`);return true;}
  return false;}
 
 document.addEventListener('pointerdown',e=>{
@@ -1446,15 +1468,22 @@ window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set
  expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,adStop,closeOverlay,menuTick,menuTicking:()=>!!menuT,equipScreen,petsScreen,dailyScreen,shopScreen,
  get B(){return B;},set B(b){B=b;}};
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
-function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);setState((data&&data.state)||load()||fresh());
- if(!state.bag||!state.items){setState(fresh());}
+/* não deu para retomar: guarda a jornada em alforje-run6-bak, descarta e abre o acampamento */
+function bootFail(e){try{console.error('alforje: falha ao retomar',e);}catch(x){}
+ let raw=null;try{raw=localStorage.getItem(RUNKEY)||(state?JSON.stringify(Object.assign({},state,{undo:null})):null);}catch(x){}
+ dropRun(raw,'retomar');B=null;try{closeOverlay();}catch(x){}setState(fresh());RET='camp';try{campScreen();}catch(x){try{console.error(x);}catch(y){}}}
+function boot(data){setState((data&&data.state&&checkRun(data.state))||load()||fresh());
  const h=location.hash.match(/seed=([^&]+)/);if(h){MENU.mode='seed';MENU.seed=decodeURIComponent(h[1]);}
- if(state.phase==='battle'||state.phase==='result')state.phase='shop';
+ if(state.phase==='result')state.phase='shop';
  achRetro();
  if(state.phase==='class'||!state.cls){if(state.phase!=='class')setState(fresh());campScreen();RET='camp';if(PROF.ver!==VER&&(PROF.totalWins||PROF.history.length||localStorage.getItem('alforje-run4')))newsScreen();else if(PROF.ver!==VER){PROF.ver=VER;saveProf();}}
- else resumeView();
+ else if(state.phase==='battle')resumeFight();
+ else resumeView();}
+function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);
+ try{boot(data);}catch(e){bootFail(e);}
+ if(RUN_BAD){RUN_BAD=false;setTimeout(()=>toast('Jornada salva estava corrompida e foi descartada',1),600);}
  cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);hideSplash();}
-try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({state:Object.assign({},state,{phase:state.phase==='battle'?'shop':state.phase})}));}catch(e){}
+try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({state:Object.assign({},state,{undo:null})}));}catch(e){}
 if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(start);else start(window.claude&&window.claude.hot&&window.claude.hot.data||{});
 
 })();

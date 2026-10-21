@@ -9,6 +9,7 @@ Jogo de mochila e fusão no navegador: organize itens numa grade, funda iguais a
 | `index.html` | Página do jogo, gerada por `tools/build.cjs` a partir de `tools/head.html` |
 | `js/data.js` | Tabelas: itens, classes, paradas, inimigos, bênçãos e textos |
 | `js/sim.js` | Mochila, inimigos e simulação de combate determinística (roda também no servidor) |
+| `js/save.js` | Conferência da jornada e do perfil salvos (dados ruins são guardados à parte e descartados, sem travar a abertura) |
 | `js/cloud.js` | Conta de convidado e chamadas ao Supabase |
 | `js/main.js` | Interface, loja, animação e menus |
 | `css/*.css` | Estilos; `tools/build.cjs` os liga ao `index.html` na ordem da lista `STYLES` |

@@ -214,7 +214,7 @@ window.navMeta = async () => {
     A.MENU.mode = 'normal'; A.state.phase = 'class'; A.pickClass('warrior');
     const s = JSON.parse(JSON.stringify(A.state)); delete s.perm; const e0 = A.PROF.meta.energy;
     A.cloudAdopt({ t: Date.now() + 1e4, prof: JSON.stringify(A.PROF), run: JSON.stringify(s) });
-    R.restored = A.PROF.meta.energy === e0 && A.state.perm === undefined && A.state.cls === 'warrior';
+    R.restored = A.PROF.meta.energy === e0 && A.state.perm == null && A.state.cls === 'warrior';
     // 5) nuvem com perfil sem meta: migra ao adotar
     const cp = JSON.parse(JSON.stringify(A.PROF)); delete cp.meta; cp.totalWins = 7;
     A.cloudAdopt({ t: Date.now() + 2e4, prof: JSON.stringify(cp), run: JSON.stringify(s) });
