@@ -241,8 +241,8 @@ let last=performance.now(),acc=0,raf=0,lastMeter=0,lastDraw=0;
 const CV={K:2,ox:0,oy:0,dpr:1,w:480,h:250,bK:2,bx:0,by:0};
 function sizeCanvas(){const r=cv.getBoundingClientRect();if(!r.width||!r.height)return;const dpr=Math.min(3,window.devicePixelRatio||1),w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);
  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}const bK=Math.max(w/AW,h/AH);
- /* os lutadores ficam sempre abaixo do placar (HUD): se a arena for baixa, eles encolhem um pouco, o cenário não */
- const hudEl=document.getElementById('hud'),hud=(hudEl&&hudEl.offsetHeight||0)*dpr;const TOPY=GY-84;
+ /* o placar VS fica fora da arena (#vs): se a arena for baixa, os lutadores encolhem um pouco, o cenário não */
+ const hud=0,TOPY=GY-84;
  const K=Math.max(bK*.55,Math.min(bK,(h-hud-3*dpr)/(AH-TOPY)));
  Object.assign(CV,{K,dpr,w,h,ox:(w-AW*K)/2,oy:h-AH*K,bK,bx:(w-AW*bK)/2,by:h-AH*bK});}
 const PORTRAIT_ONLY=window.matchMedia?window.matchMedia('(orientation: landscape) and (max-height: 500px)'):{matches:false};
@@ -265,40 +265,41 @@ function loop(now){if(ECO&&now-lastDraw<31){raf=requestAnimationFrame(loop);retu
 /* ================= HUD & DOM ================= */
 /* ================= LAYOUT: tela única em retrato (plano mobile, fase 1) ================= */
 const OPT=()=>Object.assign({scale:100,big:0,left:0,tapMove:0,volFx:70,volMus:30,eco:0},PROF.opt||{});
+const VSH=46;
 let CCS=44,CARD=64,BASEMODE='shop',DRAWER=null;
 const csOf=w=>w==='chest'?CCS:CS;
 function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/100;
  const W=Math.min(app.clientWidth||innerWidth,480),H=app.clientHeight||innerHeight;
  document.body.classList.toggle('big',!!o.big);document.body.classList.toggle('lefty',!!o.left);
  const n=Math.max(5,(state&&state.shop?state.shop.length:5)||5),cols=bagDims().cols,rows=bagDims().rows;
- const top=48,intent=44,aff=22,act=60,gaps=6*4,arenaMin=120;
+ const top=48,vs=Math.max(VSH,($('#vs')&&$('#vs').offsetHeight)||0),intent=40,aff=22,act=60,gaps=6*4,arenaMin=96;
  let cs,card,baseH,arenaH,scroll;
  for(let tries=0;tries<8;tries++){
   card=Math.floor((W-16-(n-1)*6)/n);scroll=n>5&&card<58;if(scroll)card=Math.floor((W-16-4*6)/5.35);card=Math.min(Math.round(86*ui),card);
   baseH=Math.max(card+30,2*44+28);
   /* arena mínima proporcional à largura (≈0,44×L), sem deixar a célula da mochila abaixo de 46 px */
-  const free=H-top-intent-aff-act-baseH-gaps-8,am=Math.max(arenaMin,Math.min(Math.round(W*.44),free-rows*46));
+  const free=H-top-vs-intent-aff-act-baseH-gaps-8,am=Math.max(arenaMin,Math.min(Math.round(W*.44),free-rows*46));
   const availBag=free-am;
   cs=Math.min(Math.round(64*ui),Math.floor((W-24)/cols),Math.floor(availBag/rows));
   if(cs>=44||ui<=.9)break;ui-=.05;}
  cs=Math.max(40,cs);CS=cs;CARD=card;
  CCS=Math.max(40,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24)/chestCols())));
- const bagH=rows*cs+8;arenaH=Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-intent-bagH-aff-baseH-act-gaps));
+ const bagH=rows*cs+8;arenaH=Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
  const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');
  app.classList.toggle('roomy',arenaH>=170);$('#shop').classList.toggle('scroll',!!scroll);
  sizeCanvas();placeSellZone();}
 function stats(){const s=$('#stats');if(!state.cls){s.innerHTML='';$('#petsmini').hidden=true;return;}
  const L=state.surv?state.survLives:state.lives,goal=state.surv?SURV_GOAL:GOAL,it=interest();
- s.innerHTML=`<span class="chip" title="Parada">P${Math.min(state.wins+1,goal)}${state.asc?`<small>A${state.asc}</small>`:''}</span>
- <span class="chip" title="Vitórias"><img src="${spr('trophy')}" alt="">${state.wins}/${goal}</span>
- <span class="chip life" aria-label="${L} vidas"><img src="${spr('heart')}" alt="">${L}</span>
- <span class="chip gold" title="Ouro e juros da próxima parada"><img src="${spr('coin')}" alt="">${state.gold}${it?`<small>+${it}</small>`:''}</span>`;
+ s.innerHTML=`<span class="k-pill" title="Parada">P${Math.min(state.wins+1,goal)}${state.asc?`<small>A${state.asc}</small>`:''}</span>
+ <span class="k-pill" title="Vitórias"><img src="${spr('trophy')}" alt="">${state.wins}/${goal}</span>
+ <span class="k-pill life" aria-label="${L} vidas"><img src="${spr('heart')}" alt="">${L}</span>
+ <span class="k-pill gold" title="Ouro e juros da próxima parada"><img src="${spr('coin')}" alt="">${state.gold}${it?`<small>+${it}</small>`:''}</span>`;
  const pm=$('#petsmini');pm.hidden=state.chal==='nopets';
  pm.innerHTML=state.pets.map(p=>p?`<img src="a/p_${p.key}.webp" alt="" style="--tier:${tierVar(p.tier)}">`:'<i></i>').join('');
  pm.setAttribute('aria-label','Companheiros: '+(state.pets.filter(Boolean).map(p=>PETS[p.key].name).join(', ')||'nenhum'));}
 function sideHTML(side,name,F,tags){return `<div class="side ${side}"><div class="fname">${name}</div>
- <div class="bar"><i style="width:${Math.max(0,F.hp/F.max*100)}%"></i>${F.block>0?`<b style="width:${Math.min(100,F.block/F.max*100)}%"></b>`:''}</div>
- <div class="hpt">${Math.max(0,Math.ceil(F.hp))}/${F.max}${F.block>0?` · ${F.block} escudo`:''}</div><div class="tags">${tags}</div></div>`;}
+ <div class="bar"><i style="width:${Math.max(0,F.hp/F.max*100)}%"></i>${F.block>0?`<b style="width:${Math.min(100,F.block/F.max*100)}%"></b>`:''}
+ <div class="hpt">${Math.max(0,Math.ceil(F.hp))}/${F.max}${F.block>0?` · ${F.block} escudo`:''}</div></div><div class="tags">${tags}</div></div>`;}
 function foeArsenal(F,f){const L=[];
  for(const w of F.weapons)L.push(`<li><b>${w.label||'Ataque'}</b>: ${w.dmg} de dano a cada ${w.cd}s${w.crit?` · ${Math.round(w.crit*100)}% crít.`:''}${w.burn?` · +${w.burn} queimadura`:''}${w.poison?` · +${w.poison} veneno`:''}${w.frost?` · +${w.frost} Gelo`:''}${w.pierce?' · perfura':''}</li>`);
  if(F.block)L.push(`<li>Começa com <b>${F.block}</b> de escudo</li>`);if(F.reflect)L.push(`<li>Reflete <b>${F.reflect}</b> por golpe recebido</li>`);

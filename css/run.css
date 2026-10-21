@@ -1,0 +1,55 @@
+/* Casca da jornada: topo com pílulas, placar VS, arena e faixa do inimigo (como no esboço). Usa o kit (kit.css). */
+
+/* topo (48px) */
+.topbar{height:48px;display:flex;align-items:center;gap:6px;padding:0 8px;background:none;border:0;box-shadow:none}
+.topbar .stats{flex:1;display:flex;gap:3px;align-items:center;flex-wrap:nowrap;overflow:hidden;min-width:0}
+.topbar .k-pill{font-family:'Nunito',system-ui,sans-serif;padding:0 6px;gap:3px;flex:none}
+.topbar .k-pill img{height:14px;width:auto;image-rendering:pixelated}
+.topbar .k-pill small{font-size:10px;color:#8ff09a;margin-left:1px}
+.topbar .k-pill.gold{color:#ffe27a}
+.petsmini{min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;gap:1px;padding:0 6px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:22px;cursor:pointer}
+.petsmini img{width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 0 2px var(--tier))}
+.petsmini i{width:8px;height:8px;border-radius:50%;border:1px dashed #cdbcff;margin:0 2px}
+.topbar .iconbtn{min-width:44px;width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,#ffd04a,#f08a1c);border:3px solid #fff;box-shadow:0 3px 0 var(--orange-d);color:var(--ink-brown);font-size:20px;padding:0}
+.topbar .iconbtn:focus-visible,.petsmini:focus-visible{outline:3px solid var(--pill-edge);outline-offset:2px}
+
+/* placar VS (fora da arena, acima dela) */
+.vs{margin:0 8px;padding:1px 8px;min-height:46px;display:flex;align-items:center;box-shadow:0 3px 0 var(--orange-d)}
+.hud{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+.side{display:grid;gap:0;min-width:0;align-content:center}
+.side.e{justify-items:end;text-align:right}
+.fname{font:400 13px/13px 'Lilita One',system-ui,sans-serif;color:var(--ink-brown);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.fname em{font-style:normal;color:var(--orange-d);font-size:11px}
+.bar{position:relative;width:100%;height:13px;border-radius:7px;background:#f3e2c0;border:1px solid #c98a3a;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;transition:width .15s}
+.side.p .bar i{background:linear-gradient(90deg,#86f36f,#25a845)}
+.side.e .bar i{background:linear-gradient(90deg,#ff8a6a,#e0303a)}
+.bar b{position:absolute;left:0;right:auto;bottom:0;height:4px;background:linear-gradient(90deg,#8fd0ff,#2f7bff)}
+.side.e .bar i,.side.e .bar b{left:auto;right:0}
+.hpt{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font:400 11px/11px 'Lilita One',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-brown);white-space:nowrap;text-shadow:0 0 2px #fff,1px 0 0 #fff,-1px 0 0 #fff}
+.tags{display:flex;gap:3px;flex-wrap:nowrap;min-height:12px;overflow:hidden}
+.side.e .tags{justify-content:flex-end}
+.tag{font:400 11px/12px 'Lilita One',system-ui,sans-serif;padding:0 5px;border-radius:6px;background:rgba(90,42,0,.12);color:var(--ink-brown);white-space:nowrap}
+.tag.dps{color:var(--orange-d)} .tag.elite{color:#c81e3a}
+.mid{text-align:center;font:400 8px/9px 'Lilita One',system-ui,sans-serif;color:var(--orange-d)}
+.mid strong{display:block;font:400 18px/18px 'Lilita One',system-ui,sans-serif;color:var(--orange);text-shadow:0 2px 0 #fff}
+body.big .fname{font-size:14px;line-height:16px}
+body.big .hpt,body.big .tag{font-size:12px}
+body.big .topbar .k-pill{font-size:12.5px}
+
+/* arena: moldura branca de 3px, cantos de 14px */
+.arena{position:relative;overflow:hidden;margin:0 8px;height:var(--arenah,140px);flex:none;background:#000;border:3px solid #fff;border-radius:14px;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.stage{position:relative}
+.arena .stage{height:100%}
+.arena canvas{display:block;width:100%;height:100%}
+
+/* faixa do inimigo (40px): pílula escura, rótulo do arquétipo em laranja */
+.foeinfo.intent{align-self:stretch;width:auto;margin:0 8px;height:40px;display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:20px;cursor:pointer;text-align:left;font:900 13px/1 'Nunito',system-ui,sans-serif;color:#fff;white-space:nowrap;overflow:hidden}
+.foeinfo.intent b{font:400 13px/1 'Lilita One',system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--orange);flex:none}
+.foeinfo.intent .ct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.foeinfo.intent .info{font-style:normal;color:var(--pill-edge);flex:none;font-size:16px}
+.foeinfo.intent .modtag{flex:none;font-size:11px}
+.foeinfo.intent:focus-visible{outline:3px solid var(--pill-edge);outline-offset:2px}
+body.big .foeinfo.intent{font-size:14px}
+
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
