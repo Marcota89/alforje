@@ -1,8 +1,7 @@
 /* Menu com abas (Tarefa 8): casca #menu = barra de pílulas (#mtop), página com rolagem própria (#mpage) e abas embaixo (#mtabs).
    Fundo de céu (--sky). A jornada (#app) e o menu nunca aparecem juntos: page() mostra o menu, showRun() volta para a jornada. */
 
-#menu{--f-title:'Lilita One',system-ui,sans-serif;--f-body:'Nunito',system-ui,sans-serif;--f-num:'Lilita One',system-ui,sans-serif;
-  --ink:#5a2a00;--muted:#8a5426;--gold:#a5520a;--red:#c81e3a;--green:#1c8a3a;--blue:#1f6fcf;
+#menu{--ink:#5a2a00;--muted:#8a5426;--gold:#a5520a;--red:#c81e3a;--green:#1c8a3a;--blue:#1f6fcf;
   position:fixed;top:0;bottom:0;left:0;right:0;z-index:10;box-sizing:border-box;width:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;
   padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
   background:var(--sky);color:var(--ink-brown);font-family:var(--f-body)}

@@ -603,7 +603,7 @@ function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque
  const cheap=state.shop.filter(Boolean).map(offerPrice);
  if(!force&&!state.noAsk&&!PROF.noAsk&&cheap.length&&Math.min(...cheap)<=state.gold){
   overlay(`<h2>Lutar já?</h2><p class="center">Você ainda tem <b>${state.gold}</b> de ouro e há itens que cabem no bolso. Guardar rende juros (+${interest()} agora).</p>
-  <label class="chk"><input type="checkbox" id="noAskChk"> Não perguntar de novo</label><div class="two"><button class="btn primary" id="fightGo">Lutar assim mesmo</button><button class="btn" id="closeOv">Voltar à loja</button></div>`);return;}
+  <label class="chk"><input type="checkbox" id="noAskChk"> Não perguntar de novo</label><div class="two"><button class="k-btn g" id="fightGo">Lutar assim mesmo</button><button class="k-btn v" id="closeOv">Voltar à loja</button></div>`);return;}
  if(state.gold>=30)ach('rich');if(state.pets.filter(Boolean).length===3&&state.chal!=='nopets')ach('pets3');
  state.sel=null;state.undo=null;state.mood='';
  if(state.mode==='daily')state.pfPending=snapOf(state);/* prova do placar: a mochila exatamente como entrou nesta luta */
@@ -894,7 +894,7 @@ async function shareCard(){toast('Montando a imagem…');const W=1080,H=1350,c=d
  x.textAlign='center';x.fillStyle='#b59a76';x.font="500 34px 'Alegreya Sans', system-ui, sans-serif";x.fillText('Monte a sua mochila. Será que você chega mais longe?',W/2,H-80);
  c.toBlob(async blob=>{if(!blob){toast('Não deu para criar a imagem');return;}
   try{const f=new File([blob],'alforje.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Alforje'});return;}}catch(e){}
-  const u=URL.createObjectURL(blob);overlay(`<h2>Sua jornada</h2><img src="${u}" alt="Imagem do resultado" style="width:100%;border-radius:6px"><p class="muted center small">Segure a imagem para salvar ou compartilhar.</p><a class="btn gold" download="alforje-${state.cls}-${state.wins}v.png" href="${u}">Baixar imagem</a>${backBtn()}`);},'image/png');}
+  const u=URL.createObjectURL(blob);overlay(`<h2>Sua jornada</h2><img src="${u}" alt="Imagem do resultado" style="width:100%;border-radius:6px"><p class="muted center small">Segure a imagem para salvar ou compartilhar.</p><a class="k-btn o" download="alforje-${state.cls}-${state.wins}v.png" href="${u}">Baixar imagem</a>${backBtn()}`);},'image/png');}
 
 /* ================= OVERLAYS & SCREENS ================= */
 /* A janela: o 1º <h2> vira a fita (.bad vermelha de derrota, .good verde de vitória, padrão para o resto). O foco vai para a janela e fica preso nela. */
@@ -1187,7 +1187,7 @@ document.addEventListener('click',e=>{
  else if(id==='reroll')reroll();else if(id==='expand')expandScreen(false);else if(id==='skip')skip();
  else if(id==='chestBtn'){BASEMODE=BASEMODE==='chest'?'shop':'chest';state.sel=null;renderShop();renderPop();}
  else if(id==='moreBtn')openDrawer('more');else if(id==='petsmini')openDrawer('pets');else if(id==='dclose')closeDrawer();
- else if(id==='foeinfo'){if(state.phase==='battle'&&B)toast(statusText(),1);else if(state.cls){const f=foeDef(),F=makeFoe(),A=ARCH[f.arch],rr=readyRecipes();overlay(`<h2>${f.name}</h2><p class="center"><b>${A.label}</b>${f.elite?' · Elite':''}${f.boss?' · Chefe':''}</p><p class="story">${f.line}</p><p>${A.counter}.</p>${rr.length?`<p class="bonus">⚒ ${rr.length} receita${rr.length>1?'s':''} pronta${rr.length>1?'s':''} para forjar ao vencer.</p>`:''}<h4>Arsenal</h4>${foeArsenal(F,f)}<button class="btn primary" id="closeOv">Voltar à loja</button>`);}}
+ else if(id==='foeinfo'){if(state.phase==='battle'&&B)toast(statusText(),1);else if(state.cls){const f=foeDef(),F=makeFoe(),A=ARCH[f.arch],rr=readyRecipes();overlay(`<h2>${f.name}</h2><p class="center"><b>${A.label}</b>${f.elite?' · Elite':''}${f.boss?' · Chefe':''}</p><p class="story">${f.line}</p><p>${A.counter}.</p>${rr.length?`<p class="bonus">⚒ ${rr.length} receita${rr.length>1?'s':''} pronta${rr.length>1?'s':''} para forjar ao vencer.</p>`:''}<h4>Arsenal</h4>${foeArsenal(F,f)}<button class="k-btn g" id="closeOv">Voltar à loja</button>`);}}
  else if(id==='moreInfo'){state.selMore=true;renderPop();renderSheet();}else if(id==='lessBtn'){state.selMore=false;renderSheet();renderPop();}
  else if(t.dataset.exp!=null)doExpand(+t.dataset.exp,!!t.dataset.free);
  else if(t.dataset.speed){speed=+t.dataset.speed;try{localStorage.setItem('alforje-speed',speed);}catch(_){}renderShop();}

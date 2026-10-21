@@ -1,5 +1,12 @@
 /* Casca da jornada: topo com pílulas, placar VS, arena e faixa do inimigo (como no esboço). Usa o kit (kit.css). */
 
+/* coluna da jornada: tela única em retrato, fundo de entardecer; no computador, coluna central de até 480px */
+:root{--cs:56px}
+.app{position:relative;max-width:480px;width:100%;margin:0 auto;height:100vh;height:100svh;display:flex;flex-direction:column;gap:4px;overflow:hidden;box-sizing:border-box;
+ padding:env(safe-area-inset-top,0px) max(0px,env(safe-area-inset-right,0px)) 0 max(0px,env(safe-area-inset-left,0px));background:var(--dusk)}
+.app>*{flex:none;min-width:0}
+@media (min-width:481px){.app{box-shadow:0 0 40px rgba(0,0,0,.6)}}
+
 /* topo (48px) */
 .topbar{height:48px;display:flex;align-items:center;gap:6px;padding:0 8px;background:none;border:0;box-shadow:none}
 .topbar .stats{flex:1;display:flex;gap:3px;align-items:center;flex-wrap:nowrap;overflow:hidden;min-width:0}
@@ -10,7 +17,7 @@
 .petsmini{min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;gap:1px;padding:0 6px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:22px;cursor:pointer}
 .petsmini img{width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 0 2px var(--tier))}
 .petsmini i{width:8px;height:8px;border-radius:50%;border:1px dashed #cdbcff;margin:0 2px}
-.topbar .iconbtn{min-width:44px;width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,#ffd04a,#f08a1c);border:3px solid #fff;box-shadow:0 3px 0 var(--orange-d);color:var(--ink-brown);font-size:20px;padding:0}
+.topbar .iconbtn{display:grid;place-items:center;cursor:pointer;min-width:44px;width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,#ffd04a,#f08a1c);border:3px solid #fff;box-shadow:0 3px 0 var(--orange-d);color:var(--ink-brown);font-size:20px;padding:0}
 .topbar .iconbtn:focus-visible,.petsmini:focus-visible{outline:3px solid var(--pill-edge);outline-offset:2px}
 
 /* placar VS (fora da arena, acima dela) */
@@ -49,6 +56,7 @@ body.big .topbar .k-pill{font-size:12.5px}
 .foeinfo.intent b{font:400 13px/1 'Lilita One',system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--orange);flex:none}
 .foeinfo.intent .ct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .foeinfo.intent .info{font-style:normal;color:var(--pill-edge);flex:none;font-size:16px}
+.modtag{font:400 12px/1.4 var(--f-title);letter-spacing:.02em;color:var(--ink-brown);background:linear-gradient(180deg,#ffb08a,#d0603a);padding:0 6px;border-radius:6px}
 .foeinfo.intent .modtag{flex:none;font-size:11px}
 .foeinfo.intent:focus-visible{outline:3px solid var(--pill-edge);outline-offset:2px}
 body.big .foeinfo.intent{font-size:14px}
@@ -226,3 +234,57 @@ body.big #meter .mrow,body.big #meter .mrow b,body.big #meter h5{font-size:14px}
 #floats .float.blk{color:#8cc8ff}
 #floats .float.banner{font-size:24px;color:#ffd34d;animation:banner 1.2s ease-out forwards}
 @media (prefers-reduced-motion:reduce){#floats .float,#floats .float.banner{animation:fade .9s linear forwards}#meter .mrow.hit{background:none}}
+
+/* ===== arrasto, efeitos e balão do mascate (Tarefa 9, vindos do legacy.css) ===== */
+/* brilho de raridade e estrelinhas na arte dos itens */
+.foil{pointer-events:none;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;background-size:300% 300%;animation:foil 2.6s linear infinite;mix-blend-mode:screen}
+.foil.t2{background-image:linear-gradient(115deg,transparent 40%,rgba(140,200,255,.6) 50%,transparent 60%);animation-duration:3.6s}
+.foil.t3{background-image:linear-gradient(115deg,#ff6ad5,#c774e8,#ad8cff,#8795e8,#94d0ff,#6affd0,#ff6ad5);opacity:.45;mix-blend-mode:overlay}
+.foil.t4{background-image:linear-gradient(115deg,transparent 30%,rgba(255,240,170,.9) 45%,rgba(255,200,60,.6) 50%,transparent 65%);animation-duration:2s}
+.twinkle{position:absolute;width:4px;height:4px;background:#fff6c8;box-shadow:0 0 6px #ffd060;animation:twinkle 1.6s steps(4) infinite;pointer-events:none;z-index:3}
+/* item fora da zona (inativo) e "não forjar" */
+:is(#bag,#chest) .zoneoff{position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(90,42,0,.45) 0 4px,transparent 4px 8px);z-index:2}
+:is(#bag,#chest,.ghost) .nf{position:absolute;left:4px;bottom:1px;font-size:12px;font-weight:900;color:#c81e3a;text-shadow:0 0 2px #fff,0 0 2px #fff;z-index:3}
+/* arrasto: prévia do encaixe, item fantasma e dica */
+#bag .preview,#chest .preview{position:absolute;pointer-events:none;border:3px solid #25a845;background:rgba(37,168,69,.22);z-index:5;border-radius:9px}
+#bag .preview.bad,#chest .preview.bad{border-color:#d8282f;background:rgba(216,40,47,.22)}
+#bag .preview.merge,#chest .preview.merge{border-color:var(--orange);background:rgba(255,211,77,.35)}
+.ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:60;padding:2px}
+body.sell-hot .ghost{opacity:.5}
+.tip{position:fixed;left:0;top:0;z-index:61;pointer-events:none;max-width:250px;display:grid;gap:2px;padding:6px 10px;border-radius:12px;background:var(--pill-bg);border:2px solid var(--pill-edge);box-shadow:0 3px 0 rgba(0,0,0,.35);color:#fff;font:700 13px/1.3 var(--f-body)}
+.tip b{font:400 14px/1.2 var(--f-title);letter-spacing:.02em;color:var(--pill-edge)}
+.tip .g{color:#8ff09a} .tip .r{color:#ff8a7a} .tip .o{color:var(--pill-edge)}
+body.big .tip{font-size:14.5px}
+/* faíscas da fusão */
+.spark{position:absolute;width:6px;height:6px;background:var(--pill-edge);pointer-events:none;z-index:6;animation:spark .6s ease-out forwards}
+body.eco .spark{display:none}
+/* botão "Girar" durante o arrasto */
+.rotfab{position:fixed;right:12px;top:calc(118px + env(safe-area-inset-top,0px));z-index:65;min-height:52px;padding:0 18px;border-radius:26px;border:3px solid #fff;background:linear-gradient(180deg,#ffd04a,#f08a1c);box-shadow:0 4px 0 var(--orange-d);color:#fff;text-shadow:0 2px 0 var(--orange-d);font:400 17px/1 var(--f-title);letter-spacing:.02em;touch-action:none;cursor:pointer}
+body.lefty .rotfab{right:auto;left:12px}
+/* balão do Mascate Brás sobre a faixa da loja */
+.bubble{position:absolute;left:8px;right:8px;bottom:calc(100% + 6px);z-index:20;background:linear-gradient(180deg,var(--cream-1),var(--cream-2));color:var(--ink-brown);font:700 13.5px/1.3 var(--f-body);padding:6px 10px;border-radius:12px;border:3px solid var(--orange);box-shadow:0 3px 0 var(--orange-d);cursor:pointer}
+.bubble b{font-weight:900;color:var(--orange-d)}
+.bubble::after{content:"";position:absolute;bottom:-10px;left:28px;border:8px solid transparent;border-top-color:var(--orange);border-bottom:0}
+body.big .bubble{font-size:15px}
+body.is-dragging .bubble{display:none!important}
+
+/* animações da jornada */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes spin{to{--ang:360deg}}
+@keyframes bob{50%{translate:0 -3px}}
+@keyframes up{0%{transform:translate(-50%,0);opacity:1}100%{transform:translate(-50%,-42px);opacity:0}}
+@keyframes banner{0%{transform:translate(-50%,6px) scale(.6);opacity:0}20%{transform:translate(-50%,0) scale(1.15);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-14px);opacity:0}}
+@keyframes jump{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-6px) scale(1.08,.94);filter:brightness(1.6)}100%{transform:none;filter:none}}
+@keyframes buff{0%{filter:brightness(2) saturate(1.5)}100%{filter:none}}
+@keyframes merged{0%,50%{filter:brightness(2.4)}100%{filter:none}}
+@keyframes foil{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.4)}}
+@keyframes glow{50%{filter:brightness(1.35)}}
+@keyframes dash{to{stroke-dashoffset:-24}}
+@keyframes fade{to{opacity:0}}
+@keyframes spark{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+@keyframes snapin{0%{transform:scale(1.16)}55%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes gshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+@media (prefers-reduced-motion:reduce){
+  :is(#bag,#chest) .item:is(.fire,.merged,.syn,.rgl,.buff,.snap) .face,.foil,.twinkle,#bag .teth line,:is(#bag,#chest,.ghost) .face.t4::before,#bag.shake,#chest.shake{animation:none!important}
+}

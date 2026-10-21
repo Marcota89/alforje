@@ -1,9 +1,7 @@
 /* Janelas (Tarefa 6): overlay/modal com fita, gaveta, ficha (#pop), ficha completa (#sheet), aviso (#toast), tutorial (#coach), abertura (#splash) e "Gire o celular" (#rotmsg).
-   Tudo escopado por contêiner. Conteúdo antigo (.btn...) que ainda resta dentro das janelas ganha o visual claro aqui; as telas do menu saíram das janelas na Tarefa 8 (css/menu.css). */
+   Tudo escopado por contêiner; as telas do menu saíram das janelas na Tarefa 8 (css/menu.css). */
 
-/* fontes novas nas janelas (legacy.css ainda redefine --f-* com as antigas até a Tarefa 9) */
-#overlay .modal,#drawer,#pop,#sheet,#toast,#coach,#splash,#rotmsg{--f-title:'Lilita One',system-ui,sans-serif;--f-body:'Nunito',system-ui,sans-serif;--f-num:'Lilita One',system-ui,sans-serif}
-/* texto sobre o creme: o conteúdo antigo usa --ink/--muted/--gold claros */
+/* texto sobre o creme: cores de apoio do conteúdo (--ink/--muted/--gold...) em versão escura */
 :is(#overlay .modal,#drawer,#sheet,#pop){--ink:#5a2a00;--muted:#8a5426;--gold:#a5520a;--red:#c81e3a;--green:#1c8a3a;--blue:#1f6fcf;color:var(--ink-brown);font-family:var(--f-body)}
 :is(#overlay .modal,#drawer,#sheet,#pop) :focus-visible{outline:3px solid var(--ink-brown);outline-offset:2px}
 
@@ -18,8 +16,8 @@
 /* a fita entra no fluxo (quebra de linha em títulos longos) e sobrepõe a borda de cima em 17px */
 #overlay .modal>.k-rib,#sheet .in>.k-rib{position:relative;left:auto;top:auto;transform:none;align-self:center;justify-self:center;width:max-content;max-width:calc(100% + 8px);margin:-47px 0 0;white-space:normal;overflow:visible;text-overflow:clip;text-wrap:balance;font-size:20px;line-height:1.1}
 /* botão final grudado embaixo quando a janela rola */
-#overlay .modal>.two:last-child,#overlay .modal>.btn.primary:last-child,#overlay .modal>.k-btn:last-child{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2}
-#overlay .modal.scrolls>:is(.btn.primary,.k-btn):last-child:not(:focus-visible){outline:10px solid var(--cream-2);outline-offset:0}
+#overlay .modal>.two:last-child,#overlay .modal>.k-btn:last-child{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2}
+#overlay .modal.scrolls>.k-btn:last-child:not(:focus-visible){outline:10px solid var(--cream-2);outline-offset:0}
 #overlay .modal.scrolls>.two:last-child{padding-top:10px;margin-top:-10px;background:linear-gradient(180deg,rgba(255,229,173,0),var(--cream-2) 10px)}
 #overlay .modal #next{min-height:56px;font-size:20px}
 
@@ -32,15 +30,27 @@
 :is(#overlay .modal,#drawer,#sheet,#pop) .why{color:#1c8a3a}
 :is(#overlay .modal,#drawer,#sheet,#pop) summary{color:var(--orange-d);font-weight:900}
 
-/* botões antigos (.btn) dentro das janelas no estilo do kit: normal violeta, .primary verde, .gold laranja */
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 14px;border:3px solid #fff;border-radius:15px;color:#fff;font:400 16px/1.1 var(--f-title);letter-spacing:.02em;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s,box-shadow .08s,filter .12s;
-  background:linear-gradient(180deg,#7a5cd6,#4b2fa0);box-shadow:0 4px 0 #2c1a66;text-shadow:0 2px 0 #2c1a66}
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn.primary{background:linear-gradient(180deg,#86f36f,#25a845);box-shadow:0 4px 0 #157a2c;text-shadow:0 2px 0 #157a2c;font-size:18px}
-:is(#overlay .modal,#drawer,#sheet,#pop) :is(.btn.gold,.btn.on){background:linear-gradient(180deg,#ffd04a,#f08a1c);box-shadow:0 4px 0 #a5520a;text-shadow:0 2px 0 #a5520a}
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn.sm{font-size:14px;padding:4px 10px}
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn:disabled{filter:grayscale(.85) brightness(.9);opacity:.7;cursor:default}
-:is(#overlay .modal,#drawer,#sheet,#pop) .btn img{height:14px;width:auto;image-rendering:pixelated}
+/* utilitários de texto e layout do conteúdo das janelas (vindos do legacy.css) */
+:is(#overlay .modal,#drawer,#sheet,#pop) .small{font-size:13px}
+:is(#overlay .modal,#drawer,#sheet,#pop) .center{text-align:center}
+:is(#overlay .modal,#drawer,#sheet,#pop) .muted{color:var(--muted)}
+:is(#overlay .modal,#drawer,#sheet,#pop) .warn{color:var(--red)}
+:is(#overlay .modal,#drawer,#sheet,#pop) .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+:is(#overlay .modal,#drawer,#sheet,#pop) .chk{display:flex;gap:10px;align-items:center;justify-content:flex-start;min-height:44px;font:700 14px/1.3 var(--f-body);color:var(--ink-brown)}
+:is(#overlay .modal,#drawer,#sheet,#pop) .chk input{flex:none;width:22px;height:22px;margin:0}
+#overlay .modal a.k-btn{text-decoration:none}
+/* receitas (janela "Receitas" da jornada; o Codex do menu tem as suas em menu.css) */
+:is(#overlay .modal,#drawer) .recipes{display:grid;gap:6px;font-size:14.5px}
+:is(#overlay .modal,#drawer) .recipes div{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+:is(#overlay .modal,#drawer) .recipes img{height:24px;width:auto}
+:is(#overlay .modal,#drawer) .recipes .cat{color:var(--muted);font-size:13px}
+/* silhueta de item/inimigo ainda não descoberto (receitas e Codex) */
+img.sil{filter:brightness(0) drop-shadow(0 0 1px rgba(90,42,0,.6))!important;opacity:.55}
+/* arsenal do inimigo (janela da faixa do inimigo) */
+#overlay .modal .arsenal{margin:0;padding-left:18px;display:grid;gap:2px;font-size:14px;color:var(--ink-brown)}
+#overlay .modal .arsenal li::marker{color:var(--orange-d)}
+#overlay .modal .arsenal li.mod{color:#c2410c}
+#overlay .modal .arsenal li.mod i{color:var(--muted)}
 
 /* painéis antigos (escuros) viram cartões creme */
 :is(#overlay .modal,#drawer,#sheet,#pop) .chk input{accent-color:var(--orange)}
@@ -128,7 +138,16 @@ body.big #overlay .modal table.st{font-size:15px}
 #drawer .dbody{overflow:auto;overscroll-behavior:contain;min-height:0}
 #drawer .dpane{display:grid;gap:8px}
 #drawer .dpane .pets{display:flex;gap:10px;justify-content:center}
-#drawer .dpane .slot{width:64px;height:64px;--gold:#f2c14e;--red:#ff8a7a}
+/* companheiros: casas claras como as da mochila, borda na cor da raridade quando ocupadas */
+#drawer .dpane .slot{position:relative;width:64px;height:64px;padding:0;display:grid;place-items:center;cursor:pointer;background:var(--cellbg);border:2px solid var(--celledge);border-radius:12px;box-shadow:inset 0 2px 0 rgba(90,42,0,.12)}
+#drawer .dpane .slot.full{background:#fff;border:3px solid var(--tier);box-shadow:0 3px 0 rgba(0,0,0,.2)}
+#drawer .dpane .slot img{max-width:50px;max-height:46px;animation:bob 1.6s ease-in-out infinite}
+#drawer .dpane .slot.sel{outline:3px solid var(--orange);outline-offset:2px}
+#drawer .dpane .slot.fire{animation:jump .22s ease-out}
+#drawer .dpane .slot .pp{position:absolute;left:4px;top:4px;display:flex;gap:2px}
+#drawer .dpane .slot .pp i{width:6px;height:6px;border-radius:50%;background:var(--tier);box-shadow:0 0 0 1.5px var(--ink-brown)}
+#drawer .dpane .slot .ch{position:absolute;right:4px;bottom:2px;font:400 12px/1 var(--f-num);color:var(--orange-d);text-shadow:0 0 2px #fff}
+#drawer .pkleg{margin:0;flex-basis:100%;text-align:center;font-size:13px;font-weight:700;color:var(--c)}
 #drawer .dpane .scene{position:relative;overflow:hidden;margin:0;border:3px solid var(--orange);border-radius:14px;box-shadow:0 3px 0 var(--orange-d)}
 #drawer .dpane .scene img{width:100%;height:96px;object-fit:cover;display:block}
 #drawer .dpane p{margin:0}
@@ -209,5 +228,6 @@ body.big #sheet ul{font-size:16.5px}
 
 @media (prefers-reduced-motion:reduce){
   #overlay .modal,#splash img,#coach .hole{animation:none!important}
-  #splash,#coach .hole,:is(#overlay .modal,#drawer,#sheet,#pop) .btn,#overlay .modal .choice{transition:none!important}
+  #splash,#coach .hole,#overlay .modal .choice{transition:none!important}
+  #drawer .dpane .slot img,#drawer .dpane .slot.fire{animation:none!important}
 }

@@ -13,7 +13,7 @@ const reset = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(sa
   + 'img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
 
 // Folhas de estilo, em ordem de cascata. Cada tarefa acrescenta seus arquivos aqui.
-const STYLES = ['css/fonts.css', 'css/kit.css', 'css/run.css', 'css/windows.css', 'css/menu.css', 'css/legacy.css'];
+const STYLES = ['css/fonts.css', 'css/kit.css', 'css/run.css', 'css/windows.css', 'css/menu.css'];
 const links = STYLES.map(href => `<link rel="stylesheet" href="${href}">`).join('');
 
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';

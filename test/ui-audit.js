@@ -39,6 +39,17 @@
     }
     return false;
   }
+  // true se o elemento mora dentro de um ancestral que rola na horizontal e que está inteiro na tela (ex.: loja com 6+ ofertas)
+  function inHScroller(el) {
+    for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+      const c = getComputedStyle(p);
+      if ((c.overflowX === 'auto' || c.overflowX === 'scroll') && p.scrollWidth > p.clientWidth) {
+        const pr = p.getBoundingClientRect();
+        return pr.left >= 0 && pr.right <= innerWidth;
+      }
+    }
+    return false;
+  }
   // true se outra camada cobre o centro do elemento (que não seja ele, descendente ou ancestral)
   function covered(el) {
     const r = el.getBoundingClientRect();
@@ -62,7 +73,7 @@
         add('texto cortado: ' + sel(el));
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') {
         const r = el.getBoundingClientRect();
-        if (r.left < 0 || r.right > innerWidth || ((r.top < 0 || r.bottom > innerHeight) && !inVScroller(el))) add('fora da tela: ' + sel(el));
+        if (((r.left < 0 || r.right > innerWidth) && !inHScroller(el)) || ((r.top < 0 || r.bottom > innerHeight) && !inVScroller(el))) add('fora da tela: ' + sel(el));
         // #aff apertado (data-tight) é atalho secundário: o mesmo painel abre por Mais > Afinidades com alvo >= 44
         if ((r.width < 40 || r.height < 40) && !el.hasAttribute('data-tight')) add('alvo pequeno: ' + sel(el));
       }
