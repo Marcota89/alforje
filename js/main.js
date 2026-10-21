@@ -504,11 +504,11 @@ function renderSheet(){const sh=$('#sheet');const s=state.sel;if(!s||!state.selM
  src=pet?'a/p_'+key+'.webp':artURL(key,tier);name=pet?PETS[key].name:ITEMS[key].name;
  const lines=pet?describePet(key,tier,po):describe(key,tier,it);
  sh.hidden=false;$('#pop').hidden=true;
- sh.innerHTML=`<div class="in framed" style="--tier:${tierVar(tier)}"><i class="handle" aria-hidden="true"></i><h3><span class="ic"><img src="${src}" alt="" class="${pet?'':(ITEMS[key].tint||'')}"></span>${name}</h3>
- <div class="tiername">${TIERS[tier-1]}${pet?' · companheiro':` · ${ITEMS[key].w}×${ITEMS[key].h}`}</div>
- <ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul>
- ${it&&state.phase==='shop'?`<div class="row">${it.tier<4?`<button class="btn gold" id="hammer" ${state.hammerUsed||state.gold<hammerCost(it)?'disabled':''}>Martelo · ${hammerCost(it)}</button>`:''}${RECIPES.some(r=>r[0]===key||r[1]===key)?`<button class="btn" id="noforge">${it.noforge?'Liberar forja':'Não forjar'}</button>`:''}</div>`:''}
- <div class="row"><button class="btn" id="lessBtn">Voltar</button><button class="btn" id="close">Fechar</button></div></div>`;}
+ sh.innerHTML=`<div class="in k-win" style="--tier:${tierVar(tier)}"><h3 class="k-rib">${name}</h3>
+ <div class="sbody"><div class="shead"><span class="ic k-card"><img src="${src}" alt="" class="${pet?'':(ITEMS[key].tint||'')}"></span><span class="tiername">${TIERS[tier-1]}${pet?' · companheiro':` · ${ITEMS[key].w}×${ITEMS[key].h}`}</span></div>
+ <ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul></div>
+ ${it&&state.phase==='shop'?`<div class="row">${it.tier<4?`<button class="k-btn o" id="hammer" ${state.hammerUsed||state.gold<hammerCost(it)?'disabled':''}>Martelo · ${hammerCost(it)}</button>`:''}${RECIPES.some(r=>r[0]===key||r[1]===key)?`<button class="k-btn v" id="noforge">${it.noforge?'Liberar forja':'Não forjar'}</button>`:''}</div>`:''}
+ <div class="row"><button class="k-btn v" id="lessBtn">Voltar</button><button class="k-btn g" id="close">Fechar</button></div></div>`;}
 /* Popover (plano, fase 2): ficha curta ACIMA do objeto tocado, nunca cobrindo-o */
 function popAnchor(){const s=state.sel;if(!s)return null;if(s.shop!=null)return document.querySelector(`.card[data-idx="${s.shop}"]`);
  if(s.pet!=null)return DRAWER==='pets'?document.querySelector(`.slot[data-pet="${s.pet}"]`):$('#petsmini');return document.querySelector(`.item[data-id="${s.id}"]`);}
@@ -519,14 +519,14 @@ function renderPop(){const p=$('#pop');const s=state.sel;
  const anc=popAnchor();if(!anc){p.hidden=true;return;}
  let key,tier,it=null,pet=false,po=null,btns='',sub='';
  if(s.shop!=null){const o=state.shop[s.shop];if(!o){state.sel=null;p.hidden=true;return;}key=o.key;tier=o.tier;pet=!!o.pet;const pr=offerPrice(o),lk=state.shop.filter(x=>x&&x.locked).length;
-  btns=state.phase==='shop'?`<button class="btn primary" id="buy" ${pr>state.gold?'disabled':''}>Comprar · ${pr}</button><button class="btn" id="lockBtn" ${!o.locked&&lk>=lockLimit()?'disabled':''}>${o.locked?'Liberar':`Reservar ${lk}/${lockLimit()}`}</button>`:'';}
+  btns=state.phase==='shop'?`<button class="k-btn g" id="buy" ${pr>state.gold?'disabled':''}>Comprar · ${pr}</button><button class="k-btn v" id="lockBtn" ${!o.locked&&lk>=lockLimit()?'disabled':''}>${o.locked?'Liberar':`Reservar ${lk}/${lockLimit()}`}</button>`:'';}
  else if(s.pet!=null){po=state.pets[s.pet];if(!po){state.sel=null;p.hidden=true;return;}key=po.key;tier=po.tier;pet=true;
-  btns=state.phase==='shop'?`<button class="btn gold" id="petAct" ${po.ch>0?'':'disabled'}>${PETS[key].act} (${po.ch||0})</button><button class="btn" id="sellPet">Vender · ${sellPrice(key,tier,true)}</button>`:'';}
+  btns=state.phase==='shop'?`<button class="k-btn o" id="petAct" ${po.ch>0?'':'disabled'}>${PETS[key].act} (${po.ch||0})</button><button class="k-btn v" id="sellPet">Vender · ${sellPrice(key,tier,true)}</button>`:'';}
  else{it=state.items.find(i=>i.id===s.id);if(!it){state.sel=null;p.hidden=true;return;}key=it.key;tier=it.tier;const hc=it.tier<4?hammerCost(it):0;
-  btns=state.phase==='shop'?`${it.w!==it.h?'<button class="btn" id="rot">⟳ Girar</button>':''}<button class="btn" id="sell">Vender · ${sellPrice(key,tier)}</button>`:'';
+  btns=state.phase==='shop'?`${it.w!==it.h?'<button class="k-btn v" id="rot">⟳ Girar</button>':''}<button class="k-btn v" id="sell">Vender · ${sellPrice(key,tier)}</button>`:'';
   sub=it.where==='chest'?' · no Baú':'';}
  const name=pet?PETS[key].name:ITEMS[key].name,lines=popLines(key,tier,it,pet,po);
- p.innerHTML=`<i class="arrow"></i><div class="ph"><b style="color:${tierVar(tier)}">${name}</b><span>${TIERS[tier-1]}${sub}${pet?'':' '+tagDots(key)}</span></div><ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul><div class="pb">${btns}<button class="btn" id="moreInfo" aria-label="Mais detalhes">Mais</button></div>`;
+ p.innerHTML=`<i class="arrow"></i><div class="ph"><b>${name}</b><span>${TIERS[tier-1]}${sub}${pet?'':' '+tagDots(key)}</span></div><ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul><div class="pb">${btns}<button class="k-btn v" id="moreInfo" aria-label="Mais detalhes">Mais</button></div>`;
  p.style.setProperty('--tier',tierVar(tier));p.hidden=false;placePop(p,anc);const mb=$('#mline');if(mb)mb.hidden=true;}
 function placePop(p,anc){const r=anc.getBoundingClientRect(),W=innerWidth,H=innerHeight,m=8;p.style.left='0px';p.style.top='0px';
  const pw=Math.min(300,W-2*m);p.style.width=pw+'px';const ph=p.offsetHeight;
@@ -540,10 +540,10 @@ function renderDrawer(){const d=$('#drawer');if(!DRAWER||!state.cls||state.phase
  $('#dtitle').textContent={pets:'Companheiros',mascate:'Mascate & Forja',aff:'Afinidades e bolsos',more:'Mais'}[DRAWER]||'';
  if(DRAWER==='aff')$('#affFull').innerHTML=affFull();
  if(DRAWER==='mascate')$('#mlineFull').innerHTML=`<b>Mascate Brás:</b> ${merchantLine()}`;
- if(DRAWER==='more')$('#moreList').innerHTML=`${state.skipOffer&&state.phase==='shop'?`<button class="btn gold" id="skipShop">Pular loja: ${ETIQ[state.skipOffer].name}</button>`:''}
-  <button class="btn" data-pane="pets">Companheiros</button><button class="btn" data-pane="mascate">Mascate & Forja</button><button class="btn" data-pane="aff">Afinidades</button>
-  <button class="btn" id="recipesBtn">Receitas</button><button class="btn" id="oddsBtn">Chances da loja</button><button class="btn" id="copyBuild">Copiar build</button>
-  <button class="btn" id="missBtn">Missões${missionsReady()?' ●':''}</button><button class="btn" id="optBtn">Opções</button><button class="btn" id="helpBtn2">Menu</button>`;}
+ if(DRAWER==='more')$('#moreList').innerHTML=`${state.skipOffer&&state.phase==='shop'?`<button class="k-btn o" id="skipShop">Pular loja: ${ETIQ[state.skipOffer].name}</button>`:''}
+  <button class="k-btn v" data-pane="pets">Companheiros</button><button class="k-btn v" data-pane="mascate">Mascate & Forja</button><button class="k-btn v" data-pane="aff">Afinidades</button>
+  <button class="k-btn v" id="recipesBtn">Receitas</button><button class="k-btn v" id="oddsBtn">Chances da loja</button><button class="k-btn v" id="copyBuild">Copiar build</button>
+  <button class="k-btn v" id="missBtn">Missões${missionsReady()?' ●':''}</button><button class="k-btn v" id="optBtn">Opções</button><button class="k-btn v" id="helpBtn2">Menu</button>`;}
 function openDrawer(p){DRAWER=DRAWER===p?null:p;state.sel=null;state.selMore=false;renderPop();renderSheet();renderDrawer();}
 function closeDrawer(){if(!DRAWER)return;DRAWER=null;renderDrawer();}
 function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;const r=b.getBoundingClientRect();
@@ -638,7 +638,7 @@ function finish(){if(state.phase!=='battle')return;BASEMODE='shop';V.p.dead=0;V.
   state.skipOffer=[1,3,7].includes(state.wins)?rpick(ETIQKEYS):null;}
  save();
  const rule=win?'':(state.stopLosses===1?`Revanche: ${f.name} volta igual, sem ficar mais forte. Esta derrota custou 1 vida e paga ${cons} de consolo.`:`Segunda derrota seguida nesta parada: custou 1 vida e não paga consolo.`);
- overlay(`<h2 class="${win?'':'bad'}">${win?'Vitória!':'Derrota'}</h2>
+ overlay(`<h2 class="${win?'good':'bad'}">${win?'Vitória!':'Derrota'}</h2>
  <p>${win?`Você derrotou ${f.name} em ${t}s e terminou com ${hpLeft} de vida.`:`${f.name} venceu em ${t}s.`} ${rule}</p>
  ${forged.length?`<div class="forge"><b>⚒ Forja</b>${forged.map(n=>`<span>Nasceu: ${n}</span>`).join('')}</div>`:''}
  ${report}
@@ -673,7 +673,7 @@ function eventChoose(a){const e=state.event;state.event=null;
  sfx('click');nextQueue();}
 function endScreen(won,report){$('#app').classList.remove('in-battle');const surv=state.surv;const canSurv=won&&!surv&&state.mode!=='duel';
  const sc=score();
- overlay(`<h2 class="${won?'':'bad'}">${surv?(won?'O Norte foi vencido':'Fim da Sobrevivência'):won?'A viagem terminou':'Fim da jornada'}</h2>
+ overlay(`<h2 class="${won?'good':'bad'}">${surv?(won?'O Norte foi vencido':'Fim da Sobrevivência'):won?'A viagem terminou':'Fim da jornada'}</h2>
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>
  <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`} Pontuação: <b>${sc}</b>${state.asc?` (Ascensão ${state.asc}: +${state.asc*5}%)`:''}.</p>
  ${won&&!surv&&state.mode==='normal'&&state.asc<10?`<p class="bonus center">Ascensão ${Math.min(10,state.asc+1)} liberada para ${CLASSES[state.cls].name}.</p>`:''}
@@ -731,7 +731,7 @@ function flashItem(id){requestAnimationFrame(()=>{const el=document.querySelecto
 function snapNew(){const it=state.items[state.items.length-1];if(it){SNAP=null;flashItem(it.id);}}
 function shakeGrid(w){const g=$('#'+w);if(!g)return;g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),380);}
 function toastUndo(m){const t=$('#toast');t.textContent='';const s=document.createElement('span');s.textContent=m;t.appendChild(s);
- if(state.undo){const b=document.createElement('button');b.id='undoT';b.className='tbtn';b.textContent='Desfazer';t.appendChild(b);}
+ if(state.undo){const b=document.createElement('button');b.id='undoT';b.className='k-btn o tbtn';b.textContent='Desfazer';t.appendChild(b);}
  t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600);}
 function skipEnd(){if(state.phase==='battle'&&B&&B.done)finish();}
 /* ----- destaque na loja: fusão possível ou receita com algo que você tem ----- */
@@ -855,7 +855,8 @@ function coachTick(){const c=$('#coach');if(!c)return;if(COACH.step<0||!state||!
  c.hidden=false;const h=c.querySelector('.hole');Object.assign(h.style,{left:(r.left-pad)+'px',top:(r.top-pad)+'px',width:(r.width+pad*2)+'px',height:(r.height+pad*2)+'px'});
  const b=c.querySelector('.cbub');b.querySelector('p').textContent=txt;b.querySelector('small').textContent=`Passo ${COACH.step+1} de 3`;
  b.querySelector('#coachOk').hidden=COACH.step!==2;
- const bh=b.offsetHeight||120,below=r.top<innerHeight/2;b.style.top=(below?Math.min(innerHeight-bh-8,r.bottom+14):Math.max(8,r.top-bh-14))+'px';}
+ const bh=b.offsetHeight||120,below=r.top<innerHeight/2;b.style.top=(below?Math.min(innerHeight-bh-8,r.bottom+14):Math.max(8,r.top-bh-14))+'px';
+ b.dataset.side=below?'below':'above';b.style.setProperty('--ax',Math.max(22,Math.min(b.offsetWidth-22,r.left+r.width/2-b.getBoundingClientRect().left))+'px');}
 setInterval(()=>{if(COACH.step>=0)coachTick();},500);
 /* ----- duelo automático: fantasmas de outros jogadores ----- */
 async function ghostPost(){if(!CLOUD.ready||state.mode==='duel'||state.mode==='seed')return;
@@ -895,10 +896,20 @@ async function shareCard(){toast('Montando a imagem…');const W=1080,H=1350,c=d
   const u=URL.createObjectURL(blob);overlay(`<h2>Sua jornada</h2><img src="${u}" alt="Imagem do resultado" style="width:100%;border-radius:6px"><p class="muted center small">Segure a imagem para salvar ou compartilhar.</p><a class="btn gold" download="alforje-${state.cls}-${state.wins}v.png" href="${u}">Baixar imagem</a>${backBtn()}`);},'image/png');}
 
 /* ================= OVERLAYS & SCREENS ================= */
-function overlay(html){const o=$('#overlay');o.innerHTML=`<div class="modal framed" role="dialog" aria-modal="true">${html}</div>`;o.hidden=false;$('#sheet').hidden=true;o.scrollTop=0;}
-function closeOverlay(){$('#overlay').hidden=true;}
+/* A janela: o 1º <h2> vira a fita (.bad vermelha de derrota, .good verde de vitória, padrão para o resto). O foco vai para a janela e fica preso nela. */
+let overlayFrom=null;
+function overlayScroll(){const o=$('#overlay'),m=o.firstChild;if(m&&m.classList)m.classList.toggle('scrolls',o.scrollHeight>o.clientHeight+1);}/* só rola => botão final grudado com fundo */
+const overlayRO=new ResizeObserver(overlayScroll);
+function overlay(html){const o=$('#overlay'),was=o.hidden;if(was)overlayFrom=document.activeElement;
+ const m=/^\s*<h2(?: class="([^"]*)")?>/.exec(html);if(m)html=html.replace(m[0],`<h2 class="k-rib${m[1]?' '+m[1]:''}" id="dlgT">`);
+ o.innerHTML=`<div class="modal k-win${was?' win-in':''}" role="dialog" aria-modal="true"${m?' aria-labelledby="dlgT"':''} tabindex="-1">${html}</div>`;o.hidden=false;$('#sheet').hidden=true;o.scrollTop=0;o.firstChild.focus({preventScroll:true});overlayScroll();overlayRO.disconnect();overlayRO.observe(o.firstChild);}
+function closeOverlay(){$('#overlay').hidden=true;if(overlayFrom&&overlayFrom.isConnected&&overlayFrom.focus)overlayFrom.focus({preventScroll:true});overlayFrom=null;}
+document.addEventListener('keydown',e=>{if(e.key!=='Tab')return;const o=$('#overlay');if(o.hidden)return;const m=o.firstChild;
+ const f=[...o.querySelectorAll('button,a[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);
+ if(!f.length){e.preventDefault();m.focus();return;}const a=document.activeElement,first=f[0],last=f[f.length-1];
+ if(e.shiftKey&&(a===first||a===m||!o.contains(a))){e.preventDefault();last.focus();}else if(!e.shiftKey&&(a===last||!o.contains(a))){e.preventDefault();first.focus();}});
 let confirmFn=null;
-function confirmBox(title,text,okLabel,fn){confirmFn=fn;overlay(`<h2>${title}</h2><p class="center">${text}</p><div class="two"><button class="btn primary" id="cfOk">${okLabel}</button><button class="btn" id="cfNo">Cancelar</button></div>`);}
+function confirmBox(title,text,okLabel,fn){confirmFn=fn;overlay(`<h2>${title}</h2><p class="center">${text}</p><div class="two"><button class="k-btn g" id="cfOk">${okLabel}</button><button class="k-btn v" id="cfNo">Cancelar</button></div>`);}
 const HOWTO=`<ol class="howto">
  <li><b>Compre</b> arrastando do Mercador para a Mochila (ou toque e use Comprar). Linhas verdes mostram sinergias; douradas, receitas.</li>
  <li><b>Alcance</b>: Pedra, Tocha, Veneno, Anel, Cristal e Água Benta nos lados; Trevo nas diagonais; Pena na fileira; Estandarte na coluna. As <b>Flâmulas</b> afetam todas as armas do tipo delas, em qualquer lugar.</li>
