@@ -228,6 +228,37 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   const hh = mk(); hh.egg = 1; hh.food = 99999; for (const kk of D.PETKEYS) hh.pets[kk] = 1;
   check(M.hatch(hh, () => 0) === null && hh.egg === 1, 'hatch com rações no limite: não consome o ovo');
   check(M.dayKey(NaN) === new Date().toISOString().slice(0, 10), 'dayKey não finito vira hoje');
+
+  // Ruling 5: prêmio de conta do Diário/Duelo só na 1ª jornada do dia
+  const rw = mk();
+  check(M.rewardOk(rw, T0, 'daily') && M.rewardOk(rw, T0, 'duel') && M.rewardOk(rw, T0, 'normal'), 'prêmio: tudo liberado no começo do dia');
+  M.markReward(rw, T0, 'daily');
+  check(M.rewardOk(rw, T0, 'daily') === false && M.rewardOk(rw, T0, 'duel') === true, 'prêmio: Diário pago bloqueia só o Diário');
+  M.markReward(rw, T0, 'duel'); M.markReward(rw, T0, 'normal');
+  check(M.rewardOk(rw, T0, 'duel') === false && M.rewardOk(rw, T0, 'normal') && M.rewardOk(rw, T0, 'seed') && M.rewardOk(rw, T0, 'challenge') && rw.rw.normal === undefined, 'prêmio: Duelo bloqueia; normal, seed e desafio nunca');
+  check(M.rewardOk(rw, T0 + DAY, 'daily') && M.rewardOk(rw, T0 + DAY, 'duel') && rw.rw.daily === 0, 'prêmio: dia novo libera de novo');
+  M.markReward(rw, T0 + DAY, 'daily');
+  check(M.rewardOk(rw, T0 + DAY - 3600000, 'daily') === false, 'prêmio: relógio para trás não libera');
+  const oldM = M.ensureMeta({ totalWins: 0, meta: { v: 1, day: '2026-10-21', energy: 30, eAt: T0 } }, T0);
+  check(oldM.rw.daily === 0 && oldM.rw.duel === 0, 'prêmio: meta antiga ganha o contador');
+
+  // Ruling 6: dia salvo muito à frente do relógio = correção
+  const ck = mk(); M.claimCal(ck, T0, false); M.adUse(ck, T0, 'shop');
+  ck.day = '2026-10-22'; ck.cal.last = '2026-10-22'; M.markReward(ck, T0, 'daily');
+  check(M.calToday(ck, T0).claimed && ck.day === '2026-10-22', 'relógio 1 dia à frente: segue travado (Ruling 1)');
+  ck.day = '2026-10-24'; ck.cal.last = '2026-10-24'; ck.rw.daily = 1; ck.goals.pts = 40;
+  const ct = M.calToday(ck, T0);
+  check(ck.day === '2026-10-21' && ck.ad.shop === 0 && ck.goals.pts === 0 && ck.rw.daily === 0 && !ct.claimed, 'relógio 3 dias à frente: dia refeito, contadores e calendário liberados');
+  ck.day = '2026-10-23';
+  M.goalsToday(ck, T0); check(ck.day === '2026-10-23', 'exatamente 2 dias à frente: ainda não corrige');
+
+  // Ruling 7: compra que não cabe inteira é recusada
+  const sh = mk(); sh.ruby = 100; sh.energy = 80;
+  check(M.buy(sh, T0, 'energy30') === false && sh.ruby === 100 && sh.energy === 80 && sh.buys.energy30 === 0, 'loja: energia 80 + 30 > 99 recusa sem gastar rubis');
+  sh.energy = 69; check(M.buy(sh, T0, 'energy30') && sh.energy === 99 && sh.ruby === 85, 'loja: energia que cabe justo (69 + 30 = 99) compra');
+  sh.stone = 99998; check(M.buy(sh, T0, 'stone3') === false && sh.ruby === 85 && sh.stone === 99998, 'loja: 3 pedras com 99998 recusa');
+  sh.stone = 99996; check(M.buy(sh, T0, 'stone3') && sh.stone === 99999, 'loja: 3 pedras que cabem compra');
+  sh.egg = 99999; check(M.buy(sh, T0, 'egg') === false, 'loja: ovo no limite recusa');
 }
 
 console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');

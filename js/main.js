@@ -688,7 +688,7 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>
  <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`}</p>
  <div class="k-card score"><small>Pontuação:</small><strong>${sc}</strong>${state.asc?`<em>(Ascensão ${state.asc}: +${state.asc*5}%)</em>`:''}</div>
- ${state.acct?`<p class="bonus center">Na conta: +${state.acct.gold} ouro, +${state.acct.stone} pedra${state.acct.stone===1?'':'s'}, +${state.acct.xp} XP</p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
+ ${state.acct&&state.acct.none?`<p class="muted small center">Recompensa de conta do ${state.mode==='duel'?'Duelo':'Diário'} já recebida hoje.</p>`:state.acct?`<p class="bonus center">Na conta: +${state.acct.gold} ouro, +${state.acct.stone} pedra${state.acct.stone===1?'':'s'}, +${state.acct.xp} XP</p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
  ${won&&!surv&&state.mode==='normal'&&state.asc<10?`<p class="bonus center">Ascensão ${Math.min(10,state.asc+1)} liberada para ${CLASSES[state.cls].name}.</p>`:''}
  ${state.mode==='seed'?'<p class="muted">Partida com seed manual: não conta para Ascensão, Codex nem conquistas.</p>':''}
  ${report||''}
@@ -722,10 +722,11 @@ function recordJourney(won){if(state.recorded)return;state.recorded=true;
   build:inWhere('bag').map(i=>[i.key,i.tier]),code:buildCode()});PROF.history=PROF.history.slice(0,20);saveProf();
  if(won&&counts())ghostPost();runPost(won);}
 /* o que a jornada rende à conta: uma vez por jornada (state.acct marca); o resumo fica no estado para a janela final */
-function journeyAcct(won){if(state.acct)return;const M=window.AlforjeMeta,m=META();if(!m)return;const r=M.journeyRewards(state.wins,won,state.asc||0,state.mode);
- const up=M.addXp(m,r.xp);M.applyReward(m,{gold:r.gold,stone:r.stone});state.acct={gold:r.gold,stone:r.stone,xp:r.xp,lv:M.levelOf(m.xp).lv,up:up>0};gev('journey');}
+function journeyAcct(won){if(state.acct)return;const M=window.AlforjeMeta,m=META();if(!m)return;const r=M.journeyRewards(state.wins,won,state.asc||0,state.mode),now=Date.now(),ok=M.rewardOk(m,now,state.mode);
+ if(ok)M.markReward(m,now,state.mode);else{r.gold=0;r.stone=0;r.xp=0;}
+ const up=M.addXp(m,r.xp);M.applyReward(m,{gold:r.gold,stone:r.stone});state.acct={gold:r.gold,stone:r.stone,xp:r.xp,lv:M.levelOf(m.xp).lv,up:up>0,none:!ok};gev('journey');}
 /* Sobrevivência: paga só a diferença para a fórmula com o total de vitórias (bônus de 10 vitórias uma vez, 10 XP por vitória) */
-function survAcct(){const a=state.acct,M=window.AlforjeMeta,m=META();if(!a||!m)return;const r=M.journeyRewards(state.wins,true,state.asc||0,state.mode);
+function survAcct(){const a=state.acct,M=window.AlforjeMeta,m=META();if(!a||!m||a.none)return;const r=M.journeyRewards(state.wins,true,state.asc||0,state.mode);
  const d={gold:Math.max(0,r.gold-a.gold),stone:Math.max(0,r.stone-a.stone),xp:Math.max(0,r.xp-a.xp)};if(!d.gold&&!d.stone&&!d.xp)return;
  const up=M.addXp(m,d.xp);M.applyReward(m,{gold:d.gold,stone:d.stone});a.gold+=d.gold;a.stone+=d.stone;a.xp+=d.xp;a.lv=M.levelOf(m.xp).lv;a.up=a.up||up>0;saveProf();}
 function recordSurv(){survAcct();const h=PROF.history[0];PROF.bestSurv=Math.max(PROF.bestSurv||0,state.wins);if(state.wins>=SURV_GOAL)ach('surv');
@@ -944,7 +945,8 @@ const HOWTO=`<ol class="howto">
  <li><b>Forje</b>: ingredientes encostados viram item novo ao vencer. Algumas receitas pedem um catalisador encostado, que não é consumido.</li>
  <li><b>Status</b>: queimadura (1s, diminui), veneno (2s, não diminui) e Gelo (−2% de velocidade por ponto) ignoram escudo. Purga quebra escudo, desliga reflexo e corta cura.</li>
  <li><b>Elites</b> (paradas 3, 6, 9) têm um modificador e dão uma <b>Bênção</b>. Na parada 5 você escolhe uma <b>subclasse</b>. Perder custa 1 vida; a revanche é contra o mesmo inimigo, e a 2ª derrota seguida na parada não paga consolo.</li>
- <li><b>Gatilhos</b> disparam o próprio efeito, mas nunca acionam outros gatilhos.</li></ol>`;
+ <li><b>Gatilhos</b> disparam o próprio efeito, mas nunca acionam outros gatilhos.</li>
+ <li><b>Energia</b>: cada jornada gasta 10 (máximo 30, +1 a cada 8 min). Diário e Duelo não gastam; propaganda dá +10.</li></ol>`;
 function recipeBook(){return `<div class="recipes">${RECIPES.map(r=>{const known=PROF.codex.recipes[r[2]];return `<div><img src="${artURL(r[0])}" alt="">${ITEMS[r[0]].name} + <img src="${artURL(r[1])}" alt="">${ITEMS[r[1]].name}${r[3]?` <span class="cat">(+ <img src="${artURL(r[3])}" alt="">${ITEMS[r[3]].name} encostado)</span>`:''} → <img src="${artURL(r[2])}" alt="" class="${known?'':'sil'}"><b>${known?ITEMS[r[2]].name:'???'}</b></div>`;}).join('')}</div><p class="muted small">Raridade do forjado = média dos dois ingredientes, arredondada para cima. Receitas forjadas ficam reveladas para sempre.</p>`;}
 function oddsTable(){const rows=[];for(let s=1;s<=10;s++){const o=odds(s);rows.push(`<tr${s===curStop()?' class="cur"':''}><td>${s}</td>${o.map(v=>`<td>${v?v+'%':'–'}</td>`).join('')}</tr>`);}
  return `<table class="st odds"><thead><tr><th>Parada</th><th style="color:var(--t1)">Comum</th><th style="color:var(--t2)">Raro</th><th style="color:var(--t3)">Épico</th><th style="color:var(--t4)">Lendário</th></tr></thead><tbody>${rows.join('')}</tbody></table>
@@ -1109,8 +1111,8 @@ function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t
  else if(id==='adShop')watchAd('shop',ok=>{toast(ok?`+${ok} 💰 de ouro`:`Ouro no máximo (${fmtN(AM.CAP)})`);menuRefresh();});}
 const SHOP_UI={energy30:['⚡','+30 de energia'],stone3:['🪨','3 pedras'],food5:['🍖','5 rações'],egg:['🥚','1 ovo de companheiro']};
 function shopScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Loja','loja');return;}
- const cards=Object.keys(AM.SHOP).map(key=>{const o=AM.SHOP[key],u=SHOP_UI[key],n=o.limit?m.buys[key]||0:0,out=!!o.limit&&n>=o.limit,full=m[o.kind]>=(o.kind==='energy'?AM.ENERGY_CAP:AM.CAP),poor=m.ruby<o.ruby;
-  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):poor?`Faltam ${o.ruby-m.ruby} 💎`:'';
+ const cards=Object.keys(AM.SHOP).map(key=>{const o=AM.SHOP[key],u=SHOP_UI[key],n=o.limit?m.buys[key]||0:0,out=!!o.limit&&n>=o.limit,full=m[o.kind]>=(o.kind==='energy'?AM.ENERGY_CAP:AM.CAP),poor=m.ruby<o.ruby,cap=o.kind==='energy'?AM.ENERGY_CAP:AM.CAP,fits=(m[o.kind]||0)+o.n<=cap;
+  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):!fits?`Não cabe: ${o.kind==='energy'?'energia':'limite'} ${m[o.kind]||0}/${cap}`:poor?`Faltam ${o.ruby-m.ruby} 💎`:'';
   return `<div class="k-card shopc"><span class="si" aria-hidden="true">${u[0]}</span><div class="st"><b>${u[1]}</b><small>${o.limit?`${n}/${o.limit} hoje · `:''}Você tem ${fmtN(m[o.kind])}${why?` · ${why}`:''}</small></div><button class="k-btn g" data-buy="${key}" ${why?'disabled':''} aria-label="Comprar ${u[1]} por ${o.ruby} rubis${why?'. '+why:''}">💎 ${o.ruby}</button></div>`;}).join('');
  const used=m.ad.shop>=AM.AD_LIMIT.shop,gfull=m.gold>=AM.CAP;
  page(`<h2>Loja</h2>
@@ -1220,6 +1222,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
+ <li><b>v8</b>: a viagem ganhou fôlego. <b>Energia</b>: 30 no máximo, +1 a cada 8 minutos, e cada jornada custa 10 (Diário e Duelo são grátis; uma propaganda rende +10). <b>Bônus diário</b> de 7 dias, <b>metas do dia</b> com baús de prêmio, <b>Equipar</b>, <b>Pets</b> e <b>Loja</b> de rubis, e um <b>nível do herói</b> que cresce a cada vitória. Codex, Missões e Placar foram para o ☰ Mais.</li>
  <li><b>Depois da luta</b>: tabela por item (acionamentos, dano, críticos, escudo, cura e status), aba do inimigo e registro completo copiável.</li>
  <li><b>Tipos e Afinidades</b>: 6 tipos, bônus com 3 e 5 itens, e 4 Flâmulas que reforçam um tipo inteiro.</li>
  <li><b>54 itens (46 na loja + 8 forjados)</b>, incluindo Gelo (deixa o inimigo lento), Purga (quebra escudo, reflexo e cura), economia (Cofre, Medalhão) e itens que crescem durante a jornada.</li>

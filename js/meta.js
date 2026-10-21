@@ -32,8 +32,10 @@ const isObj=o=>o&&typeof o==='object'&&!Array.isArray(o);
 const isNum=n=>typeof n==='number'&&Number.isFinite(n);
 /* o dia da meta só avança (comparação de strings ISO): relógio para trás não reabre nada */
 function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&isObj(g.p)&&Array.isArray(g.done)&&isNum(g.pts)&&Array.isArray(g.chests)&&g.chests.length===CHESTS.length;}
-function rollDay(m,now){const dk=dayKey(now);
- if(typeof m.day!=='string'||dk>m.day){m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.goals=newGoals(m.day);return m;}
+/* exceção: dia salvo mais de 2 dias à frente do relógio = relógio corrigido; refaz o dia (e solta o calendário preso no futuro) */
+function rollDay(m,now){const dk=dayKey(now),ahead=typeof m.day==='string'&&m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS;
+ if(typeof m.day!=='string'||dk>m.day||ahead){if(ahead&&m.cal&&typeof m.cal.last==='string'&&m.cal.last>dk)m.cal.last=dayKey(Date.parse(dk)-DAY_MS);
+  m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.goals=newGoals(m.day);return m;}
  if(!goalsOk(m.goals))m.goals=newGoals(m.day);
  return m;}
 /* preenche com o padrão o que faltar numa meta antiga ou parcial */
@@ -51,6 +53,8 @@ function backfill(m,prof,now){
  if(typeof m.day!=='string')m.day='';
  if(!isObj(m.ad))m.ad={};
  for(const k in AD_LIMIT)if(!isNum(m.ad[k]))m.ad[k]=0;
+ if(!isObj(m.rw))m.rw={};
+ for(const k of ['daily','duel'])if(!isNum(m.rw[k]))m.rw[k]=0;
  if(!isObj(m.buys))m.buys={};
  if(!isNum(m.buys.energy30))m.buys.energy30=0;
  if(!Array.isArray(m.achBase))m.achBase=Object.keys(prof.ach||{});
@@ -131,12 +135,17 @@ function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:
  if(mode==='daily'||mode==='duel'){gold=Math.floor(gold/2);stone=0;}
  return {gold,stone,xp:10*wins};}
 
+/* Diário e Duelo pagam prêmio de conta só na 1ª jornada de cada modo por dia UTC */
+function rewardOk(m,now,mode){rollDay(m,now);return !(mode==='daily'||mode==='duel')||!(m.rw[mode]>0);}
+function markReward(m,now,mode){rollDay(m,now);if(mode==='daily'||mode==='duel')m.rw[mode]=(m.rw[mode]||0)+1;}
+
 /* ===== propaganda, loja, conquistas ===== */
 /* devolve false se recusou; senão o que entrou (energia/ouro) ou true (dobro). No limite (99 de energia, 99999 de ouro) recusa sem gastar a vez. */
 function adUse(m,now,kind){rollDay(m,now);if(!(kind in AD_LIMIT)||m.ad[kind]>=AD_LIMIT[kind])return false;
  if(kind==='energy'&&m.energy>=ENERGY_CAP||kind==='shop'&&m.gold>=CAP)return false;
  m.ad[kind]++;if(kind==='energy')return addRes(m,'energy',AD_ENERGY);if(kind==='shop')return addRes(m,'gold',AD_GOLD);return true;}
 function buy(m,now,offer){rollDay(m,now);const o=SHOP[offer];if(!o||m.ruby<o.ruby)return false;
+ if((m[o.kind]||0)+o.n>(o.kind==='energy'?ENERGY_CAP:CAP))return false;
  if(o.limit&&(m.buys[offer]||0)>=o.limit)return false;
  m.ruby-=o.ruby;addRes(m,o.kind,o.n);if(o.limit)m.buys[offer]=(m.buys[offer]||0)+1;return true;}
 function achRuby(m,achKeys){let n=0;
@@ -145,5 +154,5 @@ function achRuby(m,achKeys){let n=0;
 
 window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
- levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,adUse,buy,achRuby};
+ levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,rewardOk,markReward,adUse,buy,achRuby};
 })();
