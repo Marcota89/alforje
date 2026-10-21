@@ -187,6 +187,9 @@
 #mpage .camp>.cgo{width:100%;min-height:58px;flex-direction:column;gap:2px;border-radius:18px;font-size:23px;box-shadow:0 5px 0 #157a2c}
 #mpage .cgo small{font:900 12px/1 var(--f-body)}
 #mpage .camp>.cad{align-self:center;max-width:100%;padding:0 16px;font:900 13px/1.15 var(--f-body)}
+/* fundo do acampamento (a/bg_camp.webp, 720x1280): céu atrás das pílulas, herói na grama aberta, grama escura atrás das abas */
+#menu.pcamp{background:#1b1036 url(../a/bg_camp.webp) center 62%/cover no-repeat}
+#menu.pcamp .chero::after{background:rgba(0,0,0,.3)}
 /* janela da propaganda (contagem) */
 #overlay .modal .adc{font:400 56px/1 var(--f-num);color:var(--orange-d)}
 #mpage .dots{display:flex;gap:6px;justify-content:center}
@@ -197,7 +200,10 @@
 /* ===== Diário (calendário de 7 dias + metas com trilha de baús) e Loja ===== */
 #mpage .dcal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 #mpage .dcell{position:relative;min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;padding:4px 2px;background:#fff;border:2px solid #f3c27a;border-radius:12px;overflow:hidden;text-align:center;font:900 11px/1.2 var(--f-body);color:var(--ink-brown)}
-#mpage .dcell .di{font-size:25px;line-height:1.1}
+#mpage .dcell .di{font-size:25px;line-height:1.1;white-space:nowrap}
+#mpage .dcell .di .ri-ico{margin:0}
+#mpage .dcell.d7 .di .ri-ico{width:1.5em;height:1.5em}
+#mpage .dcell .rw{white-space:nowrap}
 #mpage .dcell .dv{font-size:12px}
 #mpage .dcell.got{opacity:.6}
 #mpage .dcell.got::after{content:"✔";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:32px;color:#1c8a3a;background:rgba(255,255,255,.4)}
@@ -214,7 +220,10 @@
 #mpage .dbar b{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink-brown);opacity:.45}
 #mpage .dchests{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 #mpage .dch{display:grid;justify-items:center;align-content:center;gap:1px;min-height:68px;padding:4px 2px;margin:0;background:#fff;border:3px solid #f3c27a;border-radius:12px;color:var(--ink-brown);font:900 11px/1.15 var(--f-body);cursor:pointer;-webkit-tap-highlight-color:transparent}
-#mpage .dch .ci{font-size:23px;line-height:1.1}
+#mpage .dch .ci{position:relative;font-size:23px;line-height:1.1}
+#mpage .dch .ci .ri-ico{width:1.45em;height:1.45em;margin:0}
+#mpage .dch .gotk{position:absolute;right:-8px;bottom:-4px;font:900 18px/1 var(--f-body);font-style:normal;color:#1c8a3a;text-shadow:0 0 3px #fff,0 0 3px #fff}
+#mpage .dch small .rw{white-space:nowrap}
 #mpage .dch b{font:400 16px/1 var(--f-num)}
 #mpage .dch small{font-size:11px}
 #mpage .dch:disabled{cursor:default;opacity:.65}
@@ -232,7 +241,8 @@
 #mpage .dgoal.ok{background:#f1ede2}
 #mpage .shopl{display:grid;gap:8px}
 #mpage .shopc{display:flex;align-items:center;gap:10px;padding:10px}
-#mpage .shopc .si{flex:none;min-width:44px;text-align:center;font-size:30px}
+#mpage .shopc .si{flex:none;min-width:44px;text-align:center;font-size:30px;line-height:1}
+#mpage .shopc .si .ri-ico{margin:0}
 #mpage .shopc .st{flex:1;min-width:0;display:grid;gap:2px}
 #mpage .shopc .st b{font:400 18px/1.1 var(--f-title)}
 #mpage .shopc .st small{font:900 12.5px/1.25 var(--f-body);color:var(--muted)}
@@ -259,6 +269,9 @@
 #mpage .eqst li{min-width:0}
 #mpage .eqst li>span{display:inline-block;min-width:22px;text-align:center}
 #mpage .pethd{text-align:center;gap:8px}
+/* pedras, rações e ovos (Equipar e Pets) */
+#mpage .resrow{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:-6px 0 2px}
+#mpage .resrow .k-pill{height:28px;padding:0 10px;font-size:13px}
 #mpage .pethd .pcnt{font:900 14px/1.25 var(--f-body)}
 #mpage .pethd .k-btn{width:100%}
 #mpage .pethd small,#mpage .petc small{font:800 12.5px/1.3 var(--f-body);color:var(--muted)}

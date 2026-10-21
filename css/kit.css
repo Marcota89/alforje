@@ -26,6 +26,11 @@ body.eco *,body.eco *::before,body.eco *::after{animation-duration:0s!important;
 .k-pill{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 4px 0 8px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:13px;color:#fff;font:900 12px/1 var(--f-body);white-space:nowrap}
 .k-pill .plus{margin-left:auto;width:18px;height:18px;border-radius:50%;background:#35cf68;border:1px solid #157a2c;color:#fff;font:900 13px/16px var(--f-body);text-align:center;padding:0}
 
+/* Ícone de recurso (energia, ouro, rubi, pedra, ração, ovo e baús): imagem do tamanho do texto, sempre com o nome em palavras ao lado ou no aria-label */
+.ri-ico{display:inline-block;width:1.15em;height:1.15em;margin-right:.12em;object-fit:contain;vertical-align:-.22em;flex:none}
+/* dentro de botões flex (gap 6px) o ícone encosta no número */
+.k-btn>.ri-ico{margin:0 -2px 0 -3px}
+
 /* Botões */
 .k-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border:3px solid #fff;border-radius:15px;color:#fff;font:400 17px/1 var(--f-title);letter-spacing:.02em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s,box-shadow .08s,filter .12s;
   background:linear-gradient(180deg,#86f36f,#25a845);box-shadow:0 4px 0 #157a2c;text-shadow:0 2px 0 #157a2c}

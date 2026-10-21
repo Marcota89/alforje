@@ -99,6 +99,7 @@ img.sil{filter:brightness(0) drop-shadow(0 0 1px rgba(90,42,0,.6))!important;opa
 #overlay .modal .score em{font:900 13px/1.2 var(--f-body);font-style:normal;color:var(--muted)}
 :is(#overlay .modal,#drawer,#sheet,#pop,#menu) .bonus{color:var(--gold)}
 #overlay .modal .bonus{color:var(--orange-d);font-weight:900}
+#overlay .modal .acct .rw{white-space:nowrap}
 
 /* tabelas (.st): resultado da luta, Afinidades, chances da loja */
 :is(#overlay .modal,#drawer,#sheet) table.st{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
@@ -190,7 +191,7 @@ body.big #sheet ul{font-size:16.5px}
 
 /* ===== Aviso (#toast) ===== */
 #toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:80;display:flex;align-items:center;justify-content:center;gap:10px;max-width:calc(100% - 32px);pointer-events:auto;padding:6px 16px;min-height:34px;border-radius:20px;background:var(--pill-bg);border:2px solid var(--pill-edge);color:#fff;font:900 14px/1.25 var(--f-body);text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.35)}
-#toast span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#toast span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;overflow-wrap:anywhere}
 #toast .tbtn{flex:none;min-height:40px;min-width:44px;padding:0 12px;font-size:14px;border-width:2px;border-radius:14px;white-space:nowrap}
 
 /* ===== Tutorial guiado (#coach) ===== */
@@ -200,6 +201,7 @@ body.big #sheet ul{font-size:16.5px}
 #coach .cbub{position:fixed;left:16px;right:16px;max-width:448px;margin:0 auto;pointer-events:auto;display:grid;gap:6px;padding:10px 14px 12px}
 #coach .cbub::after{content:"";position:absolute;left:calc(var(--ax,50%) - 10px);width:0;height:0;border:10px solid transparent}
 #coach .cbub[data-side=below]::after{top:-13px;border-top:0;border-bottom-color:var(--orange)}
+#coach .cbub[data-side=far]::after{display:none}
 #coach .cbub[data-side=above]::after{bottom:-13px;border-bottom:0;border-top-color:var(--orange)}
 #coach .cbub small{font:400 12px/1 var(--f-title);letter-spacing:.06em;color:var(--orange-d);text-transform:uppercase}
 #coach .cbub p{margin:0;font-size:16px;line-height:1.35}
@@ -209,9 +211,8 @@ body.big #sheet ul{font-size:16.5px}
 /* ===== Abertura (#splash) ===== */
 #splash{position:fixed;inset:0;z-index:120;display:grid;place-items:center;background:var(--sky);transition:opacity .45s}
 #splash>div{display:grid;justify-items:center;gap:14px}
-#splash img{width:110px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 6px 0 rgba(90,42,0,.25));animation:splashbob 1.6s ease-in-out infinite}
+#splash .slogo{width:min(82vw,340px);height:auto;filter:drop-shadow(0 6px 0 rgba(90,42,0,.25));animation:splashbob 1.6s ease-in-out infinite}
 @keyframes splashbob{50%{translate:0 -3px}}
-#splash .k-rib{position:static;transform:none;padding:6px 30px;font-size:30px;max-width:none}
 #splash small{font:900 13px/1.2 var(--f-body);color:var(--ink-brown)}
 #splash.out{opacity:0;pointer-events:none}
 

@@ -144,7 +144,7 @@ window.navCamp = async () => {
     // 1) aba Jogar fora da jornada: Acampamento, pílulas e "+1 em m:ss" andando
     q('[data-nav="jogar"]').click();
     const m = A.META(); m.energy = 18; m.eAt = Date.now() - 60000; m.ad.energy = 0; A.campScreen();
-    R.camp = !!q('#mpage .camp') && !!q('#campGo') && /JORNADA/.test(q('#campGo').textContent) && /⚡ 10/.test(q('#campGo').textContent)
+    R.camp = !!q('#mpage .camp') && !!q('#campGo') && /JORNADA/.test(q('#campGo').textContent) && /10/.test(q('#campGo small').textContent) && !!q('#campGo img.ri-ico[src*="ui_energy"]')
       && q('#mtabs [data-nav="jogar"]').classList.contains('on') && /0\/3 hoje/.test(q('#adEnergy').textContent);
     R.pills = /18\/30/.test(q('#pEn').textContent) && !!q('#pGold') && !!q('#pRuby');
     // o relógio roda com o menu na tela (painel escondido segura os timers: além de esperar, o tick é chamado direto)
@@ -152,13 +152,13 @@ window.navCamp = async () => {
     R.timer = A.menuTicking() && /^\+1 em \d+:\d\d$/.test(t0) && t0 !== t1 && q('.camp [data-et]').textContent === t1;
     // 2) JORNADA -> escolha de herói (custo no COMEÇAR) -> Voltar -> Acampamento
     q('#campGo').click(); q('[data-mode="normal"]').click();
-    R.hero = !!q('#goBtn') && !!q('#back') && /COMEÇAR ⚡10/.test(q('#goBtn').textContent);
+    R.hero = !!q('#goBtn') && !!q('#back') && /COMEÇAR 10/.test(q('#goBtn').textContent) && !!q('#goBtn img[src*="ui_energy"]');
     q('[data-mode="daily"]').click(); R.freeDaily = /COMEÇAR · grátis/.test(q('#goBtn').textContent);
     q('[data-mode="normal"]').click(); q('#back').click();
     R.backToCamp = !!q('#campGo') && !q('#goBtn');
     // 3) energia 0: COMEÇAR (normal) abre a janela de energia e não cria jornada
     m.energy = 0; m.eAt = Date.now(); q('#campGo').click(); q('#goBtn').click();
-    R.noEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && /Faltam/.test(q('#overlay').textContent) && !!q('#overlay #adEnergy') && !!q('#overlay #neShop') && !!q('#overlay #neGoals')
+    R.noEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && /Faltam/.test(q('#overlay').textContent) && !!q('#overlay #adEnergy') && !!q('#overlay #neShop') && !!q('#overlay #neGoals') && !!q('#overlay #neDaily') && /Diário e Duelo não gastam energia/.test(q('#overlay').textContent)
       && A.state.phase === 'class' && !A.state.cls;
     // 4) propaganda de energia: 3 s sem botão para fechar, depois +10 e "1/3 hoje"
     q('#overlay #adEnergy').click();
@@ -176,7 +176,7 @@ window.navCamp = async () => {
     A.watchAd('energy'); R.capNoAd = q('#overlay').hidden && A.META().ad.energy === 2;
     // 6) "Faltam" e N/3 vivos: a janela de energia acompanha a energia sem redesenhar
     m.energy = 3; m.eAt = Date.now(); A.noEnergy(); m.energy = 7; await wait(1100); A.menuTick();
-    R.liveNeed = q('#overlay [data-need]').textContent === '⚡ 3' && /2\/3 hoje/.test(q('#overlay #adEnergy').textContent);
+    R.liveNeed = q('#overlay [data-need]').textContent === '3' && /2\/3 hoje/.test(q('#overlay #adEnergy').textContent);
     A.closeOverlay();
     // 7) com o menu escondido o relógio para
     A.showRun(); const h0 = q('#pEn [data-et]').textContent; await wait(1100); R.tickStops = !A.menuTicking() && q('#pEn [data-et]').textContent === h0;
@@ -387,25 +387,29 @@ window.navGear = async () => {
     R.cellText = /Nv 1/.test(cells[0].textContent) && /\+0% dano/.test(cells[0].textContent) && /Comum/.test(cells[0].textContent);
     R.dotEq = !!dot('equip') && /melhoria/.test(q('#mtabs [data-nav="equip"]').getAttribute('aria-label'));
     R.dotPets = !!dot('pets') && /ovo/.test(q('#mtabs [data-nav="pets"]').getAttribute('aria-label'));
-    R.btn1 = !q('#eqUp').disabled && /MELHORAR · 🪨 1 · 💰 50/.test(q('#eqUp').textContent);
+    // custos e bônus vêm de meta.js (o balanceamento v1.2 mudou os números): o nível L custa gearCost(L)
+    const C1 = AM.gearCost(1), C2 = AM.gearCost(2), C3 = AM.gearCost(3), pc = v => String(+v.toFixed(1)).replace('.', ','), W3 = AM.gearBonus('weapon', 3);
+    const upTxt = c => new RegExp('MELHORAR · ' + c.stone + ' · ' + c.gold.toLocaleString('pt-BR'));
+    R.btn1 = !q('#eqUp').disabled && upTxt(C1).test(q('#eqUp').textContent);
     audits.push(aud());
     // 2) arma até o nível 3: 1 pedra + 50 ouro, depois 2 pedras + 100 ouro
     q('#eqUp').click();
-    R.up1 = m.gear.weapon === 2 && m.stone === 9 && m.gold === 950 && /MELHORAR · 🪨 2 · 💰 100/.test(q('#eqUp').textContent) && /Nv 2/.test(q('.eqs.sel').textContent);
+    R.up1 = m.gear.weapon === 2 && m.stone === 10 - C1.stone && m.gold === 1000 - C1.gold && upTxt(C2).test(q('#eqUp').textContent) && /Nv 2/.test(q('.eqs.sel').textContent);
     R.goal = m.goals.p.upgrade1 === 1 && m.goals.done.includes('upgrade1') && m.goals.pts === 20;
     q('#eqUp').click();
-    R.up2 = m.gear.weapon === 3 && m.stone === 7 && m.gold === 850 && m.gear.armor === 1 && /\+4% dano/.test(q('.eqs.sel').textContent);
+    R.up2 = m.gear.weapon === 3 && m.stone === 10 - C1.stone - C2.stone && m.gold === 1000 - C1.gold - C2.gold && m.gear.armor === 1 && q('.eqs.sel').textContent.includes('+' + pc(W3) + '% dano');
     const p = AM.permOf(m);
-    R.perm = Math.abs(p.dmgPct - .04) < 1e-9 && p.block === 0 && p.crit === 0 && p.gold === 0 && p.hp === 0 && /Dano \+4%/.test(q('.eqst').textContent);
+    R.perm = Math.abs(p.dmgPct - W3 / 100) < 1e-9 && p.block === 0 && p.crit === 0 && p.gold === 0 && p.hp === 0 && q('.eqst').textContent.includes('Dano +' + pc(W3) + '%');
     // 3) escolher outra peça: só ela é marcada e melhorada
     q('[data-slot="armor"]').click();
     R.selArmor = q('[data-slot="armor"]').getAttribute('aria-pressed') === 'true' && q('[data-slot="weapon"]').getAttribute('aria-pressed') === 'false' && /Armadura/.test(q('.eqd').textContent);
-    q('#eqUp').click(); R.upArmor = m.gear.armor === 2 && m.gear.weapon === 3 && m.stone === 6 && m.gold === 800 && /Escudo \+3/.test(q('.eqst').textContent);
+    const gA = 1000 - 2 * C1.gold - C2.gold;
+    q('#eqUp').click(); R.upArmor = m.gear.armor === 2 && m.gear.weapon === 3 && m.stone === 10 - 2 * C1.stone - C2.stone && m.gold === gA && q('.eqst').textContent.includes('Escudo +' + AM.gearBonus('armor', 2));
     // 4) sem recursos: botão desabilitado, texto do que falta, sem ponto na aba, clique não muda nada
     m.stone = 0; A.equipScreen();
-    R.poor = q('#eqUp').disabled && /Faltam 2 🪨/.test(q('.eqd').textContent) && !dot('equip');
-    const g0 = JSON.stringify(m.gear); q('#eqUp').click(); R.poorNo = JSON.stringify(m.gear) === g0 && m.gold === 800;
-    m.stone = 5; m.gold = 10; m.gear.armor = 3; A.equipScreen(); R.poorGold = q('#eqUp').disabled && /Faltam 140 💰/.test(q('.eqd').textContent);
+    R.poor = q('#eqUp').disabled && new RegExp('Faltam ' + C2.stone + ' ').test(q('.eqd').textContent) && !dot('equip');
+    const g0 = JSON.stringify(m.gear); q('#eqUp').click(); R.poorNo = JSON.stringify(m.gear) === g0 && m.gold === gA;
+    m.stone = 5; m.gold = 10; m.gear.armor = 3; A.equipScreen(); R.poorGold = q('#eqUp').disabled && new RegExp('Faltam ' + (C3.gold - 10).toLocaleString('pt-BR') + ' ').test(q('.eqd').textContent);
     // nível 20: máximo
     m.stone = 99; m.gold = 9999; m.gear.armor = 20; A.equipScreen();
     R.max = q('#eqUp').disabled && /NÍVEL MÁXIMO/.test(q('#eqUp').textContent) && q('.eqs.sel').classList.contains('t4') && /Lendário/.test(q('.eqs.sel').textContent);
@@ -413,7 +417,7 @@ window.navGear = async () => {
     // 5) jornada nova recebe os bônus da arma (nível 3)
     m.gear.armor = 1; m.stone = 0; m.gold = 0; m.egg = 1; m.food = 20; m.pets = {}; m.petOn = null; A.MENU.mode = 'normal'; A.MENU.chal = null; fresh();
     A.pickClass('warrior');
-    R.journeyPerm = A.state.cls === 'warrior' && A.state.mode === 'normal' && Math.abs(A.state.perm.dmgPct - .04) < 1e-9 && A.state.perm.block === 0;
+    R.journeyPerm = A.state.cls === 'warrior' && A.state.mode === 'normal' && Math.abs(A.state.perm.dmgPct - W3 / 100) < 1e-9 && A.state.perm.block === 0;
     R.journeyNoPet = !A.state.pets[0];
     // 6) Pets: 5 em silhueta, chocar o ovo dá um pet novo
     q('[data-nav="pets"]').click();
@@ -427,7 +431,7 @@ window.navGear = async () => {
     // 7) alimentar: Nv 1 -> 2 custa 2 rações; conta como meta 'upgrade'
     m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; A.petsScreen();
     q(`[data-feed="${k}"]`).click();
-    R.feed = m.pets[k] === 2 && m.food === 18 && m.goals.p.upgrade1 === 1 && /Nv 2\/10/.test(q('#mpage .petc:not(.lock)').textContent) && /Alimentar · 🍖 3/.test(q(`[data-feed="${k}"]`).textContent);
+    R.feed = m.pets[k] === 2 && m.food === 18 && m.goals.p.upgrade1 === 1 && /Nv 2\/10/.test(q('#mpage .petc:not(.lock)').textContent) && /Alimentar · 3/.test(q(`[data-feed="${k}"]`).textContent);
     m.food = 2; A.petsScreen(); R.feedPoor = q(`[data-feed="${k}"]`).disabled; q(`[data-feed="${k}"]`).click(); R.feedPoorNo = m.pets[k] === 2 && m.food === 2;
     m.food = 99; m.pets[k] = 10; A.petsScreen(); R.feedMax = q(`[data-feed="${k}"]`).disabled && /Nível máximo/.test(q(`[data-feed="${k}"]`).textContent);
     m.pets[k] = 2; m.food = 18;

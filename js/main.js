@@ -10,6 +10,8 @@ const artFile=(key,tier)=>TIERED.has(key)?`${key}_${tier||1}`:key;
 const artURL=(key,tier)=>'a/'+artFile(key,tier)+'.webp';
 const artDim=(key,tier)=>DIM[artFile(key,tier)]||[64,64];
 const IMGS={};
+/* ícone de recurso (a/ui_*.webp) do tamanho do texto; alt vazio quando o nome em palavras já está ao lado ou no aria-label */
+const ri=(k,alt)=>`<img class="ri-ico" src="a/ui_${k}.webp" alt="${alt||''}" loading="lazy" decoding="async">`;
 function img(name){if(IMGS[name])return IMGS[name];const i=new Image();i.decoding='async';i.src='a/'+name+'.webp';return IMGS[name]=i;}
 const WHITE={};
 function whiteOf(name){if(WHITE[name])return WHITE[name];const i=img(name);if(!i.complete||!i.naturalWidth)return null;
@@ -588,7 +590,8 @@ function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,
 const inShop=()=>!!state&&state.phase==='shop';
 function undo(){if(!inShop()||!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
 function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;pq(['cx',target.key,'merged']);pq(['m','merge']);gq('merge');
- if(target.tier===4){state.mood='legend';pq(['a','legend']);pq(['m','legend']);}toast(`Fundido! ${ITEMS[target.key].name} agora é ${TIERS[target.tier-1]}${target.tier===3?' e despertou':''}`);}
+ if(target.tier===4){state.mood='legend';pq(['a','legend']);pq(['m','legend']);}toast(fuseMsg(target));}
+const fuseMsg=it=>`Fundiu! ${ITEMS[it.key].name} ${TIERS[it.tier-1]} ✨`;
 const canMerge=()=>state.chal!=='nofuse';
 function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4&&it.where==='bag')||state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4));
  if(twin){mergeInto(twin);return true;}const d=ITEMS[key];const sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);if(!sp)return false;
@@ -596,8 +599,8 @@ function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key==
 function addPet(key,tier){const twin=state.pets.find(p=>p&&p.key===key&&p.tier===tier&&p.tier<4);if(twin){twin.tier++;sfx('merge');toast(`${PETS[key].name} evoluiu para ${TIERS[twin.tier-1]}!`);return true;}
  const i=state.pets.indexOf(null);if(i<0)return false;state.pets[i]={key,tier,ch:PET_CHARGES};return true;}
 function buy(i){if(!inShop())return;const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
- snapshot();const ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
- state.gold-=p;state.shop[i]=null;if(!o.pet)pq(['cx',o.key,'bought']);gq('buy');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
+ snapshot();const mg0=state.merges||0,ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier),fused=!o.pet&&(state.merges||0)>mg0&&state.items.find(i=>i.id===mergedId);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
+ state.gold-=p;state.shop[i]=null;if(!o.pet)pq(['cx',o.key,'bought']);gq('buy');if(!fused)sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(fused?fuseMsg(fused):`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);if(!fused)snapNew();}
 function sell(id,ok){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;
  if(it.tier>=3&&!ok){confirmBox(`Vender ${ITEMS[it.key].name} ${TIERS[it.tier-1]}?`,`Itens Épicos e Lendários não voltam. Você recebe ${sellPrice(it.key,it.tier)} de ouro.`,'Vender',()=>sell(id,true));return;}
  snapshot();const v=sellPrice(it.key,it.tier);state.gold+=v;state.items=state.items.filter(i=>i!==it);sfx('coin');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Vendido por ${v} de ouro`);}
@@ -718,7 +721,7 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>
  <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`}</p>
  <div class="k-card score"><small>Pontuação:</small><strong>${sc}</strong>${state.asc?`<em>(Ascensão ${state.asc}: +${state.asc*5}%)</em>`:''}</div>
- ${state.acct&&state.acct.none?`<p class="muted small center">Recompensa de conta do ${state.mode==='duel'?'Duelo':'Diário'} já recebida hoje.</p>`:state.acct?`<p class="bonus center">Na conta: +${state.acct.gold} ouro, +${state.acct.stone} pedra${state.acct.stone===1?'':'s'}, +${state.acct.xp} XP</p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
+ ${state.acct&&state.acct.none?`<p class="muted small center">Recompensa de conta do ${state.mode==='duel'?'Duelo':'Diário'} já recebida hoje.</p>`:state.acct?`<p class="bonus center acct">Na conta: <span class="rw">${ri('gold')}+${state.acct.gold} de ouro</span> · <span class="rw">${ri('stone')}+${state.acct.stone} pedra${state.acct.stone===1?'':'s'}</span> · <span class="rw">+${state.acct.xp} XP</span></p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
  ${won&&!surv&&state.mode==='normal'?ascLine():''}
  ${state.mode==='seed'?'<p class="muted">Partida com seed manual: não conta para Ascensão, Codex nem conquistas.</p>':''}
  ${report||''}
@@ -734,7 +737,7 @@ function startSurvival(){runFront();state.surv=true;state.survLives=3;state.surv
 function score(){const won=state.wins>=GOAL;return Math.round((state.wins*100+(won?250:0)+(state.surv?(state.wins-GOAL)*150:0)+(state.surv?state.survLives:state.lives)*25)*(1+.05*state.asc));}
 
 /* ================= PROFILE UPDATES ================= */
-function ach(id){if(!(counts()||id==='duel'&&state&&state.mode==='duel')||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();const mm=META(),rb=mm?window.AlforjeMeta.achRuby(mm,[id]):0;saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1]+(rb>0?' · +'+rb+' 💎':''),1),400);
+function ach(id){if(!(counts()||id==='duel'&&state&&state.mode==='duel')||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();const mm=META(),rb=mm?window.AlforjeMeta.achRuby(mm,[id]):0;saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1]+(rb>0?' · +'+rb+' rubi'+(rb===1?'':'s'):''),1),400);
  if(id==='frostwin')setTimeout(()=>toast('Coruja das Neves liberada na loja',1),2200);}
 function achRetro(){if(!counts())return;const r=Object.keys(PROF.codex.recipes);if(r.length>=1)ach('forge1');if(r.length>=6)ach('forge6');if(RECIPES.every(x=>PROF.codex.recipes[x[2]]))ach('forge_all');
  if(Object.values(PROF.codex.items).filter(x=>x.seen||x.bought).length>=40)ach('codex40');if(Object.values(PROF.codex.foes).filter(x=>x.beat).length>=20)ach('foes20');}
@@ -930,20 +933,26 @@ function missionsScreen(){const M=ensureMiss(),seals=PROF.seals||0;PROF.skinSeen
 var COACH={step:-1,base:0};
 const COACH_TXT=[['.card[data-idx]:not(.sold)','Segure um item da loja e arraste até a mochila. Se preferir, toque nele e use Comprar.'],
  ['#fight','Quando estiver pronto, toque em LUTAR. Só o que está na mochila luta.'],
- ['#bag','Toque num item da mochila: a ficha mostra o que ele faz. Itens encostados do jeito certo se ajudam, e as linhas verdes mostram isso.']];
+ ['#bag','Toque num item da mochila: a ficha mostra o que ele faz. Itens encostados do jeito certo se ajudam, e as linhas verdes mostram isso.'],
+ [['.card[data-idx]:not(.sold) .hint.up','#bag'],'Dois iguais se fundem: solte um item sobre outro igual, da mesma raridade, e ele sobe para a próxima raridade. Na loja, a seta ⇈ marca o par.']];
 function coachStart(){COACH.step=0;COACH.base=state.items.length;coachTick();}
+function coachNext(){if(COACH.step>=0&&COACH.step<COACH_TXT.length-1){COACH.step++;COACH.mg=state.merges||0;coachTick();}else coachEnd();}
 function coachEnd(){COACH.step=-1;PROF.tut=1;saveProf();const c=$('#coach');if(c)c.hidden=true;}
 function coachTick(){const c=$('#coach');if(!c)return;if(COACH.step<0||!state||!state.cls){c.hidden=true;return;}
  if(COACH.step===0&&state.items.length>COACH.base)COACH.step=1;
  if(COACH.step===1&&state.phase==='battle')COACH.step=2;
+ if(COACH.step===3&&(state.merges||0)>(COACH.mg||0)){coachEnd();return;}/* fundiu: aprendeu */
  if(state.phase!=='shop'||!$('#overlay').hidden||!$('#menu').hidden||(typeof drag!=='undefined'&&drag&&drag.started)){c.hidden=true;return;}
- const [sel,txt]=COACH_TXT[COACH.step];const el=document.querySelector(sel);if(!el){c.hidden=true;return;}
+ const [sel,txt]=COACH_TXT[COACH.step];let el=null;for(const s of [].concat(sel)){const e=document.querySelector(s);if(e){el=e.closest('.card')||e;break;}}if(!el){c.hidden=true;return;}
  const r=el.getBoundingClientRect();if(!r.width){c.hidden=true;return;}const pad=6;
  c.hidden=false;const h=c.querySelector('.hole');Object.assign(h.style,{left:(r.left-pad)+'px',top:(r.top-pad)+'px',width:(r.width+pad*2)+'px',height:(r.height+pad*2)+'px'});
- const b=c.querySelector('.cbub');b.querySelector('p').textContent=txt;b.querySelector('small').textContent=`Passo ${COACH.step+1} de 3`;
- b.querySelector('#coachOk').hidden=COACH.step!==2;
- const bh=b.offsetHeight||120,below=r.top<innerHeight/2;b.style.top=(below?Math.min(innerHeight-bh-8,r.bottom+14):Math.max(8,r.top-bh-14))+'px';
- b.dataset.side=below?'below':'above';b.style.setProperty('--ax',Math.max(22,Math.min(b.offsetWidth-22,r.left+r.width/2-b.getBoundingClientRect().left))+'px');}
+ const b=c.querySelector('.cbub');b.querySelector('p').textContent=txt;b.querySelector('small').textContent=`Passo ${COACH.step+1} de ${COACH_TXT.length}`;
+ b.querySelector('#coachOk').hidden=COACH.step<2;
+ /* o balão fica colado no alvo, mas nunca em cima da mochila (a última fileira some atrás dele); se não der, vai para cima da mochila, sem seta */
+ const bh=b.offsetHeight||120,bg=$('#bag'),gr=bg&&bg.getBoundingClientRect(),hit=t=>!!gr&&gr.height>0&&t<gr.bottom+4&&t+bh>gr.top-4,fits=t=>t>=8&&t+bh<=innerHeight-8;
+ const dn=r.bottom+14,up=r.top-bh-14,ok=t=>fits(t)&&!hit(t);let side=r.top<innerHeight/2?'below':'above',top=side==='below'?dn:up;
+ if(!ok(top)){const alt=side==='below'?up:dn,far=gr&&gr.top-bh-14;if(ok(alt)){top=alt;side=side==='below'?'above':'below';}else if(gr&&fits(far)&&(far+bh<=r.top-4||far>=r.bottom+4)){top=far;side='far';}else top=side==='below'?Math.min(innerHeight-bh-8,dn):Math.max(8,up);}
+ b.style.top=top+'px';b.dataset.side=side;b.style.setProperty('--ax',Math.max(22,Math.min(b.offsetWidth-22,r.left+r.width/2-b.getBoundingClientRect().left))+'px');}
 setInterval(()=>{if(COACH.step>=0)coachTick();},500);
 /* ----- duelo automático: fantasmas de outros jogadores ----- */
 function ghostPost(){if(state.mode==='duel'||state.mode==='seed')return;postQueue({k:'ghost',code:buildCode(),asc:state.asc||0});}
@@ -1038,20 +1047,22 @@ function energyBits(m){const AM=window.AlforjeMeta,now=Date.now(),ms=AM.nextEner
 function menuTop(){const m=META();
  if(!m){const p=(i,l,v)=>`<span class="k-pill" role="img" title="${l}" aria-label="${l}: ${v}"><span aria-hidden="true">${i} ${v}</span></span>`;$('#mtop').innerHTML=p('🏆','Melhor resultado',PROF.best)+p('⚔️','Lutas vencidas no total',PROF.totalWins)+p('🎖️','Selos',PROF.seals||0);return;}
  const e=energyBits(m),p=(id,c,l,v,inner)=>`<button class="mpill${c}" id="${id}" data-shop aria-label="${l}: ${v}${id==='pEn'?`, ${e.t}`:''}. Abrir a loja"><span class="k-pill"><span class="pv" aria-hidden="true">${inner}</span><span class="plus" aria-hidden="true">+</span></span></button>`;
- $('#mtop').innerHTML=p('pEn',' en','Energia',e.v,`<b>⚡ <span data-en>${e.v}</span></b><small data-et>${e.t}</small>`)+p('pGold','','Ouro',fmtN(m.gold),`<b>💰 ${fmtN(m.gold)}</b>`)+p('pRuby','','Rubis',fmtN(m.ruby),`<b>💎 ${fmtN(m.ruby)}</b>`);}
+ $('#mtop').innerHTML=p('pEn',' en','Energia',e.v,`<b>${ri('energy')}<span data-en>${e.v}</span></b><small data-et>${e.t}</small>`)+p('pGold','','Ouro',fmtN(m.gold),`<b>${ri('gold')}${fmtN(m.gold)}</b>`)+p('pRuby','','Rubis',fmtN(m.ruby),`<b>${ri('ruby')}${fmtN(m.ruby)}</b>`);}
 /* "+1 em m:ss" a cada segundo, só enquanto o menu está na tela */
 let menuT=0;
 /* texto e estado do botão de propaganda de energia (vira o dia UTC: o contador zera sozinho) */
 function adLbl(m){const AM=window.AlforjeMeta,ad=m.ad.energy,mx=AM.AD_LIMIT.energy;
- return m.energy>=AM.ENERGY_CAP?{t:`Energia no máximo (${AM.ENERGY_CAP})`,dis:true}:{t:`▶ Assistir: +10 ⚡ · ${ad}/${mx} hoje`,dis:ad>=mx};}
+ if(m.energy>=AM.ENERGY_CAP){const t=`Energia no máximo (${AM.ENERGY_CAP})`;return {t,h:t,l:t,dis:true};}
+ return {t:`▶ Assistir: +10 · ${ad}/${mx} hoje`,h:`▶ Assistir: +10 ${ri('energy')} · ${ad}/${mx} hoje`,l:`Assistir propaganda: +10 de energia, ${ad} de ${mx} hoje`,dis:ad>=mx};}
+const adBtn=(al,cls)=>`<button class="k-btn ad${cls||''}" id="adEnergy" data-ad data-t="${al.t}" aria-label="${al.l}" ${al.dis?'disabled':''}>${al.h}</button>`;
 function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}const m=META();if(!m)return;const e=energyBits(m),AM=window.AlforjeMeta;
  const b=$('#pEn'),pv=$('#pEn [data-en]');if(b&&pv&&pv.textContent!==e.v)b.setAttribute('aria-label',`Energia: ${e.v}, ${e.t}. Abrir a loja`);
  document.querySelectorAll('[data-en]').forEach(x=>{if(x.textContent!==e.v)x.textContent=e.v;});document.querySelectorAll('[data-et]').forEach(x=>{if(x.textContent!==e.t)x.textContent=e.t;});
  document.querySelectorAll('[data-eb]').forEach(x=>x.style.width=e.pct+'%');
- const nd='⚡ '+Math.max(0,AM.JOURNEY_COST-m.energy);document.querySelectorAll('[data-need]').forEach(x=>{if(x.textContent!==nd)x.textContent=nd;});
+ const nd=String(Math.max(0,AM.JOURNEY_COST-m.energy));document.querySelectorAll('[data-need]').forEach(x=>{if(x.textContent!==nd)x.textContent=nd;});
  const dd=document.querySelector('[data-day]');if(dd&&dd.dataset.day!==m.day){menuRefresh();return;}/* virou o dia UTC: bônus, metas e limites novos */
  const de=hms(AM.goalsToday(m,Date.now()).endsIn);document.querySelectorAll('[data-dend]').forEach(x=>{if(x.textContent!==de)x.textContent=de;});tabDot();
- const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.textContent!==a.t)x.textContent=a.t;if(x.disabled!==a.dis)x.disabled=a.dis;});}
+ const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.dataset.t!==a.t){x.innerHTML=a.h;x.dataset.t=a.t;x.setAttribute('aria-label',a.l);}if(x.disabled!==a.dis)x.disabled=a.dis;});}
 function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElement,was=mn.hidden;
  const o=$('#overlay');if(!o.hidden){o.hidden=true;overlayFrom=null;}confirmFn=null;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();
  if(state){state.sel=null;state.selMore=false;}['#pop','#sheet','#coach','#mline'].forEach(s=>{const e=$(s);if(e)e.hidden=true;});
@@ -1059,7 +1070,7 @@ function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElem
  let key=null;if(a&&pg.contains(a)){if(a.id)key='#'+a.id;else{const d=[...a.attributes].find(x=>x.name.startsWith('data-'));if(d)key=`[${d.name}="${CSS.escape(d.value)}"]`;}}
  const m=/^\s*<h2(?: class="([^"]*)")?>([^<]*)/.exec(html),prevT=pg.dataset.t,st=pg.scrollTop;
  if(m)html=html.replace(/^\s*<h2(?: class="([^"]*)")?>/,`<h2 class="k-rib${m[1]?' '+m[1]:''}" id="pgT">`);
- pg.innerHTML=html;pg.dataset.t=tab+'|'+(m?m[2]:'');pg.scrollTop=!was&&prevT===pg.dataset.t?st:0;
+ pg.innerHTML=html;pg.dataset.t=tab+'|'+(m?m[2]:'');mn.classList.toggle('pcamp',/^\s*<div class="camp">/.test(html));pg.scrollTop=!was&&prevT===pg.dataset.t?st:0;
  menuTop();tabDot();document.querySelectorAll('#mtabs [data-nav]').forEach(b=>{const on=b.dataset.nav===tab;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  mn.hidden=false;$('#app').hidden=true;if(!menuT)menuT=setInterval(menuTick,1000);
  let f=key&&pg.querySelector(key);if(f&&f.disabled)f=[...f.parentElement.querySelectorAll('button')].find(x=>x!==f&&!x.disabled);/* +/− no limite: o vizinho */
@@ -1074,7 +1085,7 @@ function moreScreen(){page(`<h2>Mais</h2><div class="morelist">
  <button class="k-btn v" id="codexBtn">📖 Codex</button><button class="k-btn v" id="missBtn"${missionsReady()?' aria-label="Missões semanais (visual novo liberado)"':''}>📜 Missões semanais${missionsReady()?'<span class="k-dot" aria-hidden="true">!</span>':''}</button><button class="k-btn v" id="boardBtn">🥇 Placar</button>
  <button class="k-btn v" id="achBtn">🏆 Conquistas ${Object.keys(PROF.ach).length}/${ACH.length}</button><button class="k-btn v" id="histBtn">🕘 Histórico</button><button class="k-btn v" id="howBtn">❓ Como jogar</button>
  <button class="k-btn v" id="newsBtn">✨ Novidades</button><button class="k-btn v" id="optBtn">⚙️ Opções</button></div>${backBtn()}`,'jogar');}
-/* páginas das abas Equipar, Pets, Diário e Loja: as Tarefas 5 e 6 trocam estes "Em breve" */
+/* páginas das abas Equipar, Pets, Prêmios e Loja: as Tarefas 5 e 6 trocam estes "Em breve" */
 function soonScreen(t,tab){page(`<h2>${t}</h2><div class="k-card pc"><p class="muted center">Em breve.</p></div>${backBtn()}`,tab);}
 /* ----- Equipar (4 peças) e Pets (coleção permanente) ----- */
 const GEAR_ART={weapon:'sword',armor:'plate',bag:'purse'},TIER_NAME=['','Comum','Raro','Épico','Lendário'];
@@ -1088,14 +1099,15 @@ function equipScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('E
  const cells=ks.map(s=>{const L=m.gear[s],t=AM.gearTier(L),sel=s===EQSEL,nm=AM.GEAR[s].t,ef=gearEff(s,L);
   return `<button class="eqs t${t}${sel?' sel':''}" data-slot="${s}" aria-pressed="${sel}" aria-label="${nm}, nível ${L}, ${TIER_NAME[t]}, ${ef}${canUp(m,s)?', melhoria possível':''}"><span class="lvb" aria-hidden="true">Nv ${L}</span><img src="${gearArt(s,L)}" alt=""><b aria-hidden="true">${nm}</b><span class="ef" aria-hidden="true">${ef}</span><small aria-hidden="true">${TIER_NAME[t]}</small></button>`;}).join('');
  const s=EQSEL,L=m.gear[s],nm=AM.GEAR[s].t,max=L>=AM.GEAR_MAX,c=AM.gearCost(L),ok=canUp(m,s),sf=Math.max(0,c.stone-m.stone),gf=Math.max(0,c.gold-m.gold);
- const lack=max?'Nível máximo':ok?'':`Faltam ${[sf?sf+' 🪨':'',gf?fmtN(gf)+' 💰':''].filter(Boolean).join(' e ')}`;
- const p=AM.permOf(m),st=[['❤️','Vida','+'+p.hp],['🛡️','Escudo','+'+p.block],['⚔️','Dano','+'+pct(p.dmgPct*100)+'%'],['🎯','Crítico','+'+pct(p.crit*100)+'%'],['💰','Ouro inicial','+'+p.gold]];
- page(`<h2>Equipamento</h2>
+ const lackT=max?'Nível máximo':ok?'':`Faltam ${[sf?sf+' pedra'+(sf===1?'':'s'):'',gf?fmtN(gf)+' de ouro':''].filter(Boolean).join(' e ')}`;
+ const lack=max||ok?lackT:`Faltam ${[sf?sf+' '+ri('stone','pedra'+(sf===1?'':'s')):'',gf?fmtN(gf)+' '+ri('gold','de ouro'):''].filter(Boolean).join(' e ')}`;
+ const p=AM.permOf(m),st=[['❤️','Vida','+'+p.hp],['🛡️','Escudo','+'+p.block],['⚔️','Dano','+'+pct(p.dmgPct*100)+'%'],['🎯','Crítico','+'+pct(p.crit*100)+'%'],[ri('gold'),'Ouro inicial','+'+p.gold]];
+ page(`<h2>Equipamento</h2>${resPills(m)}
  <div class="eqg" id="eqG">${cells}</div>
  <div class="k-card pc eqd"><b>${nm} · Nv ${L} · ${TIER_NAME[AM.gearTier(L)]}</b>
   <span class="eqn">${max?`Agora ${gearEff(s,L)}`:`Agora ${gearEff(s,L)} · Nv ${L+1}: ${gearEff(s,L+1)}`}</span>
-  <button class="k-btn g" id="eqUp" ${ok?'':'disabled'} aria-label="${max?nm+' no nível máximo':`Melhorar ${nm} para o nível ${L+1}: ${c.stone} pedras e ${c.gold} de ouro${lack?'. '+lack:''}`}">${max?'NÍVEL MÁXIMO':`MELHORAR · 🪨 ${c.stone} · 💰 ${fmtN(c.gold)}`}</button>
-  <small class="eqn${lack&&!max?' warn':''}">${lack||'Pronto para melhorar'} · você tem 🪨 ${fmtN(m.stone)} · 💰 ${fmtN(m.gold)}</small></div>
+  <button class="k-btn g" id="eqUp" ${ok?'':'disabled'} aria-label="${max?nm+' no nível máximo':`Melhorar ${nm} para o nível ${L+1}: ${c.stone} pedras e ${c.gold} de ouro${lackT?'. '+lackT:''}`}">${max?'NÍVEL MÁXIMO':`MELHORAR · ${ri('stone')}${c.stone} · ${ri('gold')}${fmtN(c.gold)}`}</button>
+  <small class="eqn${lack&&!max?' warn':''}">${lack||'Pronto para melhorar'} · você tem ${ri('stone','pedras')}${fmtN(m.stone)} · ${ri('gold','ouro')}${fmtN(m.gold)}</small></div>
  <ul class="k-card eqst" aria-label="Bônus no começo da jornada">${st.map(x=>`<li><span aria-hidden="true">${x[0]}</span> ${x[1]} ${x[2]}</li>`).join('')}</ul>
  <p class="muted small center">Valem inteiros na Ascensão 0 e perdem 7% por nível de Ascensão (30% na Ascensão 10). O Diário e o Duelo não usam bônus.</p>
  ${backBtn()}`,'equip');}
@@ -1106,47 +1118,49 @@ function petsScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Co
  const cards=PETKEYS.map(k=>{const P=PETS[k],L=m.pets[k]||0,own=L>0,max=L>=AM.PET_MAX,fc=AM.feedCost(L),poor=m.food<fc,on=m.petOn===k,mul=(1+.1*(L-1)).toFixed(1).replace('.',',');
   if(!own)return `<div class="k-card petc lock" role="group" aria-label="Companheiro não obtido"><img class="sil" src="a/p_${k}.webp" alt=""><div class="pt"><b>???</b><small>Ainda não obtido. Choque um ovo para descobrir.</small></div></div>`;
   return `<div class="k-card petc${on?' on':''}" role="group" aria-label="${P.name}, nível ${L} de ${AM.PET_MAX}${on?', na jornada':''}"><img src="a/p_${k}.webp" alt=""><div class="pt"><b>${P.name} <em>Nv ${L}/${AM.PET_MAX}</em></b><small>${P.desc} · efeitos ×${mul}</small><small>${P.act}: ${P.actDesc}</small></div>
-   <div class="pb2"><div class="pbx"><button class="k-btn o sm" data-feed="${k}" ${max||poor?'disabled':''} aria-label="Alimentar ${P.name}${max?': nível máximo':`: ${fc} rações${poor?'. Faltam '+(fc-m.food):''}`}">${max?'Nível máximo':`Alimentar · 🍖 ${fc}`}</button>${!max&&poor?`<small class="why" aria-hidden="true">Faltam ${fc-m.food} 🍖</small>`:''}</div><div class="pbx"><button class="k-btn ${on?'g':'v'} sm" data-take="${k}" aria-pressed="${on}">${on?'✔ Na jornada':'Levar na jornada'}</button></div></div></div>`;}).join('');
- page(`<h2>Companheiros</h2>
- <div class="k-card pc pethd" id="petH"><span class="pcnt">${have}/${PETKEYS.length} companheiros · você tem 🍖 ${fmtN(m.food)}</span>
-  <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">Chocar ovo (${m.egg}) 🥚</button>${m.egg<1?'<small class="why" aria-hidden="true">Sem ovos — ganhe no Diário ou na Loja</small>':''}
+   <div class="pb2"><div class="pbx"><button class="k-btn o sm" data-feed="${k}" ${max||poor?'disabled':''} aria-label="Alimentar ${P.name}${max?': nível máximo':`: ${fc} rações${poor?'. Faltam '+(fc-m.food):''}`}">${max?'Nível máximo':`Alimentar · ${ri('food')}${fc}`}</button>${!max&&poor?`<small class="why" aria-hidden="true">Faltam ${fc-m.food} ${ri('food')}</small>`:''}</div><div class="pbx"><button class="k-btn ${on?'g':'v'} sm" data-take="${k}" aria-pressed="${on}">${on?'✔ Na jornada':'Levar na jornada'}</button></div></div></div>`;}).join('');
+ page(`<h2>Companheiros</h2>${resPills(m)}
+ <div class="k-card pc pethd" id="petH"><span class="pcnt">${have}/${PETKEYS.length} companheiros · você tem ${ri('food','rações')}${fmtN(m.food)}</span>
+  <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">${ri('egg')} Chocar ovo (${m.egg})</button>${m.egg<1?'<small class="why" aria-hidden="true">Sem ovos — ganhe nos Prêmios ou na Loja</small>':''}
   <small>${all?'Você já tem todos: cada ovo vira 10 rações.':'Cada ovo choca um companheiro que ainda falta.'} Só um vai na jornada, na 1ª vaga, e não entra no desafio sem companheiros.</small></div>
  <div class="petl">${cards}</div>${backBtn()}`,'pets');}
 function petAct2(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;
- if(t.id==='hatch'){const r=AM.hatch(m,Math.random);if(r===null){toast(m.egg<1?'Sem ovos para chocar':'Rações no máximo');}else{saveProf();toast(r==='food'?'Você já tem todos: o ovo virou 10 🍖':`Novo companheiro: ${PETS[r].name}!`,true);}}
+ if(t.id==='hatch'){const r=AM.hatch(m,Math.random);if(r===null){toast(m.egg<1?'Sem ovos para chocar':'Rações no máximo');}else{saveProf();toast(r==='food'?'Você já tem todos: o ovo virou 10 rações':`Novo companheiro: ${PETS[r].name}!`,true);}}
  else if(t.dataset.feed){const k=t.dataset.feed;if(AM.feedPet(m,k)){gev('upgrade');toast(`${PETS[k].name} no nível ${m.pets[k]}`);}else toast('Faltam rações');}
  else if(t.dataset.take){const k=t.dataset.take;AM.setPetOn(m,m.petOn===k?null:k);saveProf();toast(m.petOn?`${PETS[k].name} vai na próxima jornada`:'Nenhum companheiro na jornada');}
  petsScreen();}
-/* ----- Diário (bônus diário + metas do dia) e Loja de rubis ----- */
-const RES_ICO={gold:'💰',energy:'⚡',stone:'🪨',food:'🍖',ruby:'💎',egg:'🥚'},RES_NAME={gold:'Ouro',energy:'Energia',stone:'Pedras',food:'Rações',ruby:'Rubis',egg:'Ovos'},RES_ORDER=['gold','energy','stone','food','ruby','egg'];
-const rwTxt=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_ICO[k]}`).join(' ');
-const rwSay=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_NAME[k].toLowerCase()}`).join(', ');
+/* ----- Prêmios (aba 'diario': bônus diário + metas do dia) e Loja de rubis ----- */
+const RES_SAY={gold:['de ouro','de ouro'],energy:['de energia','de energia'],stone:['pedra','pedras'],food:['ração','rações'],ruby:['rubi','rubis'],egg:['ovo','ovos']},RES_NAME={gold:'Ouro',energy:'Energia',stone:'Pedras',food:'Rações',ruby:'Rubis',egg:'Ovos'},RES_ORDER=['gold','energy','stone','food','ruby','egg'];
+const rwTxt=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`<span class="rw">${ri(k)}${fmtN(r[k])}</span>`).join(' ');
+const rwSay=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_SAY[k][r[k]===1?0:1]}`).join(', ');
+/* pílulas de pedras, rações e ovos (Equipar e Pets): o topo só mostra energia, ouro e rubis */
+const resPills=m=>`<div class="resrow">${[['stone','Pedras'],['food','Rações'],['egg','Ovos']].map(([k,l])=>`<span class="k-pill" role="img" aria-label="${l}: ${fmtN(m[k]||0)}"><span aria-hidden="true">${ri(k)}${fmtN(m[k]||0)}</span></span>`).join('')}</div>`;
 const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));return [Math.floor(t/3600),Math.floor(t%3600/60),t%60].map(x=>String(x).padStart(2,'0')).join(':');};
-const GOAL_ICO={win:'⚔️',merge:'✨',energy:'⚡',daily:'📅',elite:'👑',forge:'🔨',buy:'🛒',journey:'🗺️',cal:'🎁',upgrade:'⬆️'};
-/* para onde o botão IR leva: Diário (Desafio e calendário), Equipar (melhorar); o resto se faz em Jogar */
+const GOAL_ICO={win:'⚔️',merge:'✨',energy:ri('energy'),daily:'📅',elite:'👑',forge:'🔨',buy:'🛒',journey:'🗺️',cal:ri('chest1'),upgrade:'⬆️'};
+/* para onde o botão IR leva: modo Diário (Desafio), calendário dos Prêmios, Equipar (melhorar); o resto se faz em Jogar */
 const GOAL_GO={daily:'daily',upgrade:'equip',cal:'cal'};
 const snapRes=m=>{const o={};for(const k of RES_ORDER)o[k]=m[k]||0;return o;};
 /* o que entrou de verdade (b = recursos antes); o que passou do limite vira aviso */
 function gainToast(m,b,r,pre){const AM=window.AlforjeMeta,got={},lost=[];
  for(const k of RES_ORDER)if(r[k]>0){got[k]=(m[k]||0)-b[k];if(got[k]<r[k])lost.push(`${RES_NAME[k]} no máximo (${k==='energy'?AM.ENERGY_CAP:fmtN(AM.CAP)})`);}
- toast((pre||'Ganhou ')+(rwTxt(got)||'nada')+(lost.length?' · '+lost.join(', '):''),true);}
-/* pontos vermelhos nas abas: Diário (bônus por pegar + baús prontos), Equipar (alguma melhoria possível) e Pets (ovo para chocar) */
+ toast((pre||'Ganhou ')+(rwSay(got)||'nada')+(lost.length?' · '+lost.join(', '):''),true);}
+/* pontos vermelhos nas abas: Prêmios (bônus por pegar + baús prontos), Equipar (alguma melhoria possível) e Pets (ovo para chocar) */
 function tabDot(){const m=META(),AM=window.AlforjeMeta,now=Date.now();
  const set=(k,n,txt,lbl)=>{const b=document.querySelector(`#mtabs [data-nav="${k}"]`);if(!b)return;const d=b.querySelector('.k-dot');
   if(!n){if(d)d.remove();b.removeAttribute('aria-label');return;}
   if(!d)b.insertAdjacentHTML('beforeend',`<span class="k-dot" aria-hidden="true">${txt}</span>`);else if(d.textContent!==txt)d.textContent=txt;
   b.setAttribute('aria-label',lbl);};
  const n=m?(AM.calToday(m,now).claimed?0:1)+AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0;
- set('diario',n,String(n),`Diário, ${n} para pegar`);
+ set('diario',n,String(n),`Prêmios, ${n} para pegar`);
  set('equip',m&&Object.keys(AM.GEAR).some(k=>canUp(m,k)),'!','Equipar, melhoria possível');
  set('pets',m&&m.egg>0&&(PETKEYS.some(k=>!m.pets[k])||m.food<AM.CAP),'!','Pets, ovo para chocar');}
-function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Diário','diario');return;}
+function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Prêmios','diario');return;}
  const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
  const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
-  return `<div class="dcell${got?' got':''}${cur?' now':''}${nxt?' nxt':''}${i===6?' d7':''}" role="img" aria-label="Dia ${i+1}: ${rwSay(r)}${got?', pego':cur?', hoje':nxt?', amanhã':''}"><span class="dn" aria-hidden="true">Dia ${i+1}</span><span class="di" aria-hidden="true">${ks.map(k=>RES_ICO[k]).join('')}</span><span class="dv" aria-hidden="true">${ks.map(k=>fmtN(r[k])).join(' · ')}</span></div>`;}).join('');
+  return `<div class="dcell${got?' got':''}${cur?' now':''}${nxt?' nxt':''}${i===6?' d7':''}" role="img" aria-label="Dia ${i+1}: ${rwSay(r)}${got?', pego':cur?', hoje':nxt?', amanhã':''}"><span class="dn" aria-hidden="true">Dia ${i+1}</span><span class="di" aria-hidden="true">${i===6?ri('chest3'):ks.map(k=>ri(k)).join('')}</span><span class="dv" aria-hidden="true">${i===6?rwTxt(r):ks.map(k=>fmtN(r[k])).join(' · ')}</span></div>`;}).join('');
  const goals=g.ids.map(id=>{const d=AM.GOALS[id],p=g.p[id]||0,done=g.done.includes(id);
   return `<div class="dgoal${done?' ok':''}"><span class="gi" aria-hidden="true">${GOAL_ICO[d.ev]||'⭐'}</span><div class="gt"><b>${d.t}</b><span>${done?'Feita':p+'/'+d.n}</span><div class="pb" aria-hidden="true"><i style="width:${Math.round(p/d.n*100)}%"></i></div></div>${done?`<span class="gok" role="img" aria-label="Feita">✔</span>`:`<button class="k-btn g sm gir" data-ir="${GOAL_GO[d.ev]||'play'}" aria-label="Ir: ${d.t}">IR</button>`}</div>`;}).join('');
- const chests=g.chests.map((ch,i)=>`<button class="dch${ch.ready?' ready':''}${ch.claimed?' got':''}" data-chest="${i}" ${ch.ready?'':'disabled'} aria-label="Baú de ${ch.at} pontos: ${rwSay(ch.reward)}${ch.claimed?', pego':ch.ready?', pronto, toque para pegar':', trancado'}"><span class="ci" aria-hidden="true">${ch.claimed?'✔':'🎁'}</span><b aria-hidden="true">${ch.at}</b><small aria-hidden="true">${rwTxt(ch.reward)}</small></button>`).join('');
+ const chests=g.chests.map((ch,i)=>`<button class="dch${ch.ready?' ready':''}${ch.claimed?' got':''}" data-chest="${i}" ${ch.ready?'':'disabled'} aria-label="Baú de ${ch.at} pontos: ${rwSay(ch.reward)}${ch.claimed?', pego':ch.ready?', pronto, toque para pegar':', trancado'}"><span class="ci" aria-hidden="true">${ri('chest'+Math.min(3,i+1))}${ch.claimed?'<i class="gotk">✔</i>':''}</span><b aria-hidden="true">${ch.at}</b><small aria-hidden="true">${rwTxt(ch.reward)}</small></button>`).join('');
  page(`<h2>Bônus diário</h2>
  <div class="k-card pc" id="dCal" data-day="${m.day}"><div class="dcal">${cells}</div>
   <button class="k-btn g" id="calGet" ${c.claimed?'disabled':''}>${c.claimed?'JÁ PEGOU HOJE':'PEGAR'}</button>
@@ -1161,7 +1175,7 @@ function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScree
 /* PEGAR e dobro: o dobro só paga depois da propaganda, dentro de claimCal(…,true) */
 function claimDaily(dbl){const AM=window.AlforjeMeta,m=META();if(!m)return;const b=snapRes(m),r=AM.claimCal(m,Date.now(),dbl);
  if(r){gev('cal');gainToast(m,b,r);}menuRefresh();}
-/* cliques das páginas Diário e Loja: PEGAR, dobro, baús, IR, compras e propaganda do ouro */
+/* cliques das páginas Prêmios e Loja: PEGAR, dobro, baús, IR, compras e propaganda do ouro */
 function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t.id,now=Date.now();
  if(id==='calGet')claimDaily(false);
  else if(id==='calDbl')watchAd('double',()=>claimDaily(true));
@@ -1172,16 +1186,16 @@ function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t
   else backTo();}
  else if(t.dataset.buy){const o=AM.SHOP[t.dataset.buy],b=snapRes(m);
   if(AM.buy(m,now,t.dataset.buy)){saveProf();gainToast(m,b,{[o.kind]:o.n},'Comprou ');}else toast('Não deu para comprar agora');menuRefresh();}
- else if(id==='adShop')watchAd('shop',ok=>{toast(ok?`+${ok} 💰 de ouro`:`Ouro no máximo (${fmtN(AM.CAP)})`);menuRefresh();});}
-const SHOP_UI={energy30:['⚡','+30 de energia'],stone3:['🪨','3 pedras'],food5:['🍖','5 rações'],egg:['🥚','1 ovo de companheiro']};
+ else if(id==='adShop')watchAd('shop',ok=>{toast(ok?`+${ok} de ouro`:`Ouro no máximo (${fmtN(AM.CAP)})`);menuRefresh();});}
+const SHOP_UI={energy30:['energy','+30 de energia'],stone3:['stone','3 pedras'],food5:['food','5 rações'],egg:['egg','1 ovo de companheiro']};
 function shopScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Loja','loja');return;}
  const cards=Object.keys(AM.SHOP).map(key=>{const o=AM.SHOP[key],u=SHOP_UI[key],n=o.limit?m.buys[key]||0:0,out=!!o.limit&&n>=o.limit,full=m[o.kind]>=(o.kind==='energy'?AM.ENERGY_CAP:AM.CAP),poor=m.ruby<o.ruby,cap=o.kind==='energy'?AM.ENERGY_CAP:AM.CAP,fits=(m[o.kind]||0)+o.n<=cap;
-  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):!fits?`Não cabe: ${o.kind==='energy'?'energia':'limite'} ${m[o.kind]||0}/${cap}`:poor?`Faltam ${o.ruby-m.ruby} 💎`:'';
-  return `<div class="k-card shopc"><span class="si" aria-hidden="true">${u[0]}</span><div class="st"><b>${u[1]}</b><small>${o.limit?`${n}/${o.limit} hoje · `:''}Você tem ${fmtN(m[o.kind])}${why?` · ${why}`:''}</small></div><button class="k-btn g" data-buy="${key}" ${why?'disabled':''} aria-label="Comprar ${u[1]} por ${o.ruby} rubis${why?'. '+why:''}">💎 ${o.ruby}</button></div>`;}).join('');
+  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):!fits?`Não cabe: ${o.kind==='energy'?'energia':'limite'} ${m[o.kind]||0}/${cap}`:poor?`Faltam ${o.ruby-m.ruby} rubis`:'';
+  return `<div class="k-card shopc"><span class="si" aria-hidden="true">${ri(u[0])}</span><div class="st"><b>${u[1]}</b><small>${o.limit?`${n}/${o.limit} hoje · `:''}Você tem ${fmtN(m[o.kind])}${why?` · ${why}`:''}</small></div><button class="k-btn g" data-buy="${key}" ${why?'disabled':''} aria-label="Comprar ${u[1]} por ${o.ruby} rubis${why?'. '+why:''}">${ri('ruby')}${o.ruby}</button></div>`;}).join('');
  const used=m.ad.shop>=AM.AD_LIMIT.shop,gfull=m.gold>=AM.CAP;
  page(`<h2>Loja</h2>
  <div class="shopl" id="shopL" data-day="${m.day}">${cards}</div>
- <button class="k-btn ad" id="adShop" ${used||gfull?'disabled':''}>${used?'Propaganda de hoje já vista':gfull?`Ouro no máximo (${fmtN(AM.CAP)})`:'▶ Propaganda: +50 💰 (1/dia)'}</button>
+ <button class="k-btn ad" id="adShop" ${used||gfull?'disabled':'aria-label="Propaganda: +50 de ouro, uma por dia"'}>${used?'Propaganda de hoje já vista':gfull?`Ouro no máximo (${fmtN(AM.CAP)})`:`▶ Propaganda: +50 ${ri('gold')} (1/dia)`}</button>
  <p class="muted small center">Rubis vêm do calendário, dos baús das metas e das conquistas.</p>${backBtn()}`,'loja');}
 /* ----- Acampamento (aba Jogar fora da jornada) ----- */
 function campHero(){const p=MENU.pick;return p&&CLASSES[p]&&classOpen(p)?p:CLASSKEYS.find(classOpen)||CLASSKEYS[0];}
@@ -1192,10 +1206,10 @@ function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSE
  <div class="chead">${L?`<span class="clv" role="img" aria-label="Nível ${L.lv}">${L.lv}</span>`:''}<div class="cname"><b>${C.name}</b>${L?`<span class="cxp" role="img" aria-label="${L.need?`XP ${L.into} de ${L.need}`:'Nível máximo'}"><i style="width:${L.need?Math.round(L.into/L.need*100):100}%"></i></span>`:''}</div></div>
  <div class="cstats"><span class="k-pill" role="img" aria-label="Melhor resultado: ${PROF.best}"><span aria-hidden="true">🏅 ${PROF.best}</span></span><span class="k-pill" role="img" aria-label="Lutas vencidas no total: ${PROF.totalWins}"><span aria-hidden="true">⚔️ ${fmtN(PROF.totalWins)}</span></span><span class="k-pill" role="img" aria-label="Selos: ${PROF.seals||0}"><span aria-hidden="true">🎖️ ${PROF.seals||0}</span></span></div>
  <div class="cstage"><div class="chero"><img src="a/h_${k}.webp" alt="${C.name}" style="${C.flip?'transform:scaleX(-1)':''}"></div>
-  <div class="cside"><button class="csb" id="cBonus" aria-label="Bônus diário${cal?' (pronto)':''}"><span aria-hidden="true">🎁</span><small>BÔNUS</small>${dot(cal?'!':'')}</button><button class="csb" id="cGoals" aria-label="Metas do dia${chests?` (${chests} baú pronto)`:''}"><span aria-hidden="true">📜</span><small>METAS</small>${dot(chests)}</button><button class="csb" id="boardBtn" aria-label="Placar"><span aria-hidden="true">🥇</span><small>PLACAR</small></button><button class="csb" id="cMore" aria-label="Mais"><span aria-hidden="true">☰</span><small>MAIS</small>${dot(missionsReady()?'!':'')}</button></div></div>
- ${e?`<div class="cen"><div class="l"><span>⚡ Energia <span data-en>${e.v}</span></span><span data-et>${e.t}</span></div><div class="cbar"><i data-eb style="width:${e.pct}%"></i></div></div>`:''}
- <button class="k-btn g cgo" id="campGo">JORNADA${m?`<small>⚡ ${AM.JOURNEY_COST}</small>`:''}</button>
- ${al?`<button class="k-btn ad cad" id="adEnergy" data-ad ${al.dis?'disabled':''}>${al.t}</button>`:''}</div>`,'jogar');}
+  <div class="cside"><button class="csb" id="cBonus" aria-label="Bônus diário${cal?' (pronto)':''}"><span aria-hidden="true">${ri('chest2')}</span><small>BÔNUS</small>${dot(cal?'!':'')}</button><button class="csb" id="cGoals" aria-label="Metas do dia${chests?` (${chests} baú pronto)`:''}"><span aria-hidden="true">📜</span><small>METAS</small>${dot(chests)}</button><button class="csb" id="boardBtn" aria-label="Placar"><span aria-hidden="true">🥇</span><small>PLACAR</small></button><button class="csb" id="cMore" aria-label="Mais"><span aria-hidden="true">☰</span><small>MAIS</small>${dot(missionsReady()?'!':'')}</button></div></div>
+ ${e?`<div class="cen"><div class="l"><span>${ri('energy')} Energia <span data-en>${e.v}</span></span><span data-et>${e.t}</span></div><div class="cbar"><i data-eb style="width:${e.pct}%"></i></div></div>`:''}
+ <button class="k-btn g cgo" id="campGo"${m?` aria-label="Jornada: custa ${AM.JOURNEY_COST} de energia"`:''}>JORNADA${m?`<small>${ri('energy')}${AM.JOURNEY_COST}</small>`:''}</button>
+ ${al?adBtn(al,' cad'):''}</div>`,'jogar');}
 /* redesenha a página do menu que está aberta (depois de uma propaganda, por exemplo) */
 function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else if($('#dCal'))dailyScreen();else if($('#shopL'))shopScreen();else if($('#eqG'))equipScreen();else if($('#petH'))petsScreen();else menuTop();}
 /* propaganda: janela de 3 s que não fecha antes; depois conta o uso do dia (adUse) e chama onDone(ok); ok = o que entrou (energia/ouro), false se recusou.
@@ -1230,7 +1244,7 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
   return `<div class="k-card hc${on?' sel':''}${open?'':' lock'}"><button class="hpick" data-cls="${k}" aria-pressed="${on}" ${M.mode==='daily'&&k!==dayCls?'disabled':''}><span class="por"><img src="a/h_${k}.webp" alt="" style="${c.flip?'transform:scaleX(-1)':''}">${st!=null&&st>=0?`<span class="sticker" title="Maior Ascensão vencida">A${st}</span>`:''}</span><b>${open?'':'🔒 '}${c.name}${open?'':' · bloqueado'}</b></button>
   ${open&&M.mode==='normal'?`<div class="ascrow"><button class="mini" data-ascm="${k}" ${asc<=0?'disabled':''} aria-label="Diminuir Ascensão">−</button><span>Ascensão <b>${asc}</b>/${am}</span><button class="mini" data-ascp="${k}" ${asc>=am?'disabled':''} aria-label="Aumentar Ascensão">+</button></div>`:''}
   ${open?`<div class="kitrow">${c.kits.map((kt,i)=>`<button class="mini${kit===i?' on':''}" data-kit="${k}:${i}" aria-pressed="${kit===i}" ${i===1&&!kit2?'disabled title="Libera ao alcançar a Ascensão 3"':''}>${i===1&&!kit2?'🔒 ':''}${kt.name}</button>`).join('')}</div>`:''}</div>`;}).join('');
- const C=CLASSES[sel],cost=META()?journeyCost(M.mode):-1,goLbl=cost>0?`COMEÇAR ⚡${cost}`:cost===0?'COMEÇAR · grátis':'COMEÇAR';
+ const C=CLASSES[sel],cost=META()?journeyCost(M.mode):-1,goLbl=cost>0?`COMEÇAR ${ri('energy')}${cost}`:cost===0?'COMEÇAR · grátis':'COMEÇAR';
  page(`<h2>ESCOLHA SEU HERÓI</h2>
  <details class="k-card fold"><summary>📜 Alforje</summary><p class="story">${STORY.open}</p></details>
  <div class="k-seg modes">${modes.map(([m,l])=>`<button class="${M.mode===m?'on':''}" data-mode="${m}" aria-pressed="${M.mode===m}">${l}</button>`).join('')}</div>
@@ -1239,16 +1253,19 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  <div class="k-card hdet"><b>${C.name}</b><span>${C.desc}</span>${!isOpen(sel)&&LOCKTXT[sel]?`<span class="lockt">🔒 ${LOCKTXT[sel]}</span>`:''}${SUBS[sel]?`<span class="subs">Subclasses: ${SUBS[sel].map(s=>s.name).join(' ou ')}</span>`:''}</div>
  ${M.mode==='normal'&&ascMax('warrior')+ascMax('rogue')+ascMax('pyro')+ascMax('paladin')>0?`<details class="k-card fold"><summary>O que cada Ascensão muda</summary>${ASCTXT}</details>`:''}
  <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
- <div class="gorow"><button class="k-btn v" id="back">Voltar</button><button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}>${goLbl}</button></div>`,'jogar');}
+ <div class="gorow"><button class="k-btn v" id="back">Voltar</button><button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}${cost>0?` aria-label="Começar: custa ${cost} de energia"`:''}>${goLbl}</button></div>`,'jogar');}
 const ASCTXT=`<p class="muted small">Cada nível deixa os inimigos mais fortes: +60% de vida e +6% de dano por nível até a Ascensão 5, +15% e +2% por nível depois. O reforço é menor nas primeiras paradas e menor ainda nas elites e no chefe. Além disso:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites das paradas 8 e 9 com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
 /* energia: a jornada custa ao ser criada (Normal, Desafios e Seed); Diário e Duelo são grátis */
 function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}
 /* sem energia para a jornada: quanto falta, propaganda (se sobrar no dia), Loja e Metas */
 function noEnergy(){const m=META(),AM=window.AlforjeMeta;if(!m){toast('Sem energia para começar a jornada');return;}
  const e=energyBits(m),need=Math.max(0,AM.JOURNEY_COST-m.energy),al=adLbl(m);
- overlay(`<h2>Sem energia</h2><p class="center">A jornada custa ⚡ ${AM.JOURNEY_COST}. Faltam <b data-need>⚡ ${need}</b>.</p><p class="center muted" id="noEn">Energia <span data-en>${e.v}</span> · <span data-et>${e.t}</span></p>
- ${al.dis?'':`<button class="k-btn ad" id="adEnergy" data-ad>${al.t}</button>`}
- <div class="two"><button class="k-btn o" id="neShop">🛒 Loja</button><button class="k-btn o" id="neGoals">📜 Metas</button></div><button class="k-btn v" id="closeOv">Fechar</button>`);}
+ overlay(`<h2>Sem energia</h2><p class="center">A jornada custa ${ri('energy')}${AM.JOURNEY_COST} de energia. Faltam <b>${ri('energy')}<span data-need>${need}</span></b>.</p><p class="center muted" id="noEn">Energia <span data-en>${e.v}</span> · <span data-et>${e.t}</span></p>
+ ${al.dis?'':adBtn(al)}
+ <div class="two"><button class="k-btn o" id="neShop">🛒 Loja</button><button class="k-btn o" id="neGoals">📜 Metas</button></div>
+ <p class="center muted small">Diário e Duelo não gastam energia.</p><button class="k-btn g" id="neDaily">Jogar o Diário · grátis</button><button class="k-btn v" id="closeOv">Fechar</button>`);}
+/* abandonar: nos modos que custam energia, avisa que ela não volta */
+function abandonCost(){const c=META()&&state?journeyCost(state.mode):0;return c>0?` Os ${c} de energia gastos não voltam.`:'';}
 function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  if(M.mode==='daily'){if(k!==dailyClass())return;}else if(!classOpen(k)&&!opts)return;
  if(M.mode==='duel'&&!parseCode(M.duel)){toast('Código inválido');return;}
@@ -1286,7 +1303,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
- <li><b>v8.2</b>: a estrada foi rebalanceada. Veneno e queimadura agora têm teto e a Tocha esquenta um pouco menos; o Anel do Veterano não empilha (vale o melhor); a Forja nunca rebaixa um item; a Salamandra esquenta o Martelo 1× por parada; a reserva extra da Tartaruga vale só naquela parada. A elite da parada 9 ficou mais justa (a Couraça Viva reflete 12%) e o Wyrm voltou a ser a luta mais dura; a Bênção de Prata chega depois da 6ª vitória. A Ascensão pesa desde a A1 e cada nível pede 2 vitórias. Paladino (64 de vida, Luz Sagrada +10) e Alquimista (76 de vida, Mistura 90%) ficaram mais firmes; a Combustão causa 16 + rodada e a Adaga custa 3. Bônus permanentes menores, valendo menos nas Ascensões altas (30% na A10), e melhorias mais caras no fim, sem perder nada do que você já tem. O Duelo não conta mais para desbloqueios e conquistas, e a meta de melhorar some quando não há o que melhorar.</li>
+ <li><b>v8.2</b>: a estrada foi rebalanceada. Veneno e queimadura agora têm teto e a Tocha esquenta um pouco menos; o Anel do Veterano não empilha (vale o melhor); a Forja nunca rebaixa um item; a Salamandra esquenta o Martelo 1× por parada; a reserva extra da Tartaruga vale só naquela parada. A elite da parada 9 ficou mais justa (a Couraça Viva reflete 12%) e o Wyrm voltou a ser a luta mais dura; a Bênção de Prata chega depois da 6ª vitória. A Ascensão pesa desde a A1 e cada nível pede 2 vitórias. Paladino (64 de vida, Luz Sagrada +10) e Alquimista (76 de vida, Mistura 90%) ficaram mais firmes; a Combustão causa 16 + rodada e a Adaga custa 3. Bônus permanentes menores, valendo menos nas Ascensões altas (30% na A10), e melhorias mais caras no fim, sem perder nada do que você já tem. O Duelo não conta mais para desbloqueios e conquistas, e a meta de melhorar some quando não há o que melhorar. Visual novo: ícones de energia, ouro, rubis, pedras, rações, ovos e baús, logo nova e um acampamento ao entardecer. A aba Diário da barra de baixo virou <b>Prêmios</b> (bônus diário e metas); “Diário” agora é só o desafio do dia. O tutorial ensina a fundir, comprar em cima de um igual avisa “Fundiu!”, “Não cabe aí” diz o motivo e abandonar avisa que a energia gasta não volta.</li>
  <li><b>v8.1</b>: correções. Recarregar no meio da luta agora mostra o resultado dela (a luta não volta para a loja); jornada ou perfil salvos com defeito não travam mais a abertura; compra arrastando ou por toque conta para a meta do dia; Desfazer não deixa mais missão, conquista ou Codex de uma fusão desfeita; mexer no relógio não reabre o bônus diário.</li>
  <li><b>v8</b>: a viagem ganhou fôlego. <b>Energia</b>: 30 no máximo, +1 a cada 8 minutos, e cada jornada custa 10 (Diário e Duelo são grátis; uma propaganda rende +10). <b>Bônus diário</b> de 7 dias, <b>metas do dia</b> com baús de prêmio, <b>Equipar</b>, <b>Pets</b> e <b>Loja</b> de rubis, e um <b>nível do herói</b> que cresce a cada vitória. Codex, Missões e Placar foram para o ☰ Mais.</li>
  <li><b>Depois da luta</b>: tabela por item (acionamentos, dano, críticos, escudo, cura e status), aba do inimigo e registro completo copiável.</li>
@@ -1367,14 +1384,19 @@ function endDrag(px,py){
  const t=target(px,py),di=dragInfo();
  if(t&&t.sell){sell(drag.id);return;}
  if(t&&t.ok){
-  if(drag.src==='shop'){const p=offerPrice(di.o);if(p>state.gold){toast('Ouro insuficiente');buzz(40);render();return;}snapshot();state.gold-=p;state.shop[drag.idx]=null;pq(['cx',di.key,'bought']);gq('buy');sfx('buy');
-   if(t.merge)mergeInto(t.merge);else state.items.push({id:state.nid++,key:di.key,tier:di.tier,where:t.where,x:t.cx,y:t.cy,w:di.w,h:di.h});sayMerchant();toastUndo(`Comprado: ${ITEMS[di.key].name}`);SNAP=t.merge?null:state.nid-1;}
+  if(drag.src==='shop'){const p=offerPrice(di.o);if(p>state.gold){toast('Ouro insuficiente');buzz(40);render();return;}snapshot();state.gold-=p;state.shop[drag.idx]=null;pq(['cx',di.key,'bought']);gq('buy');if(!t.merge)sfx('buy');
+   if(t.merge)mergeInto(t.merge);else state.items.push({id:state.nid++,key:di.key,tier:di.tier,where:t.where,x:t.cx,y:t.cy,w:di.w,h:di.h});sayMerchant();toastUndo(t.merge?fuseMsg(t.merge):`Comprado: ${ITEMS[di.key].name}`);SNAP=t.merge?null:state.nid-1;}
   else{const it=state.items.find(i=>i.id===drag.id);
    if(t.merge){snapshot();state.items=state.items.filter(i=>i!==it);mergeInto(t.merge);}
    else{Object.assign(it,{where:t.where,x:t.cx,y:t.cy,w:di.w,h:di.h});sfx('drop');SNAP=it.id;}}
   buzz(10);state.sel=null;save();}
- else if(t){toast('Não cabe aí');buzz(40);sfx('bad');shakeGrid(t.where);}
+ else if(t){toast(noFit(t.where,t.cx,t.cy,di.w,di.h,di.id));buzz(40);sfx('bad');shakeGrid(t.where);}
  render();}
+/* por que não coube: passa da borda (mochila/baú), não cabe nem girando, ou bate em outro item */
+function noFit(where,x,y,w,h,ex){const D=dims(where),out=where==='chest'?'fora do baú':'fora da mochila';
+ if(w>D.cols||h>D.rows)return h<=D.cols&&w<=D.rows?'Não cabe aí: gire o item (toque duplo)':'Não cabe aí: grande demais';
+ if(x<0||y<0||x+w>D.cols||y+h>D.rows)return 'Não cabe aí: '+out;
+ return 'Não cabe aí: espaço ocupado';}
 function cleanup(){if(ghost)ghost.remove();if(prev)prev.remove();if(tipEl)tipEl.remove();if(rotFab)rotFab.remove();ghost=prev=tipEl=rotFab=null;
  const z=$('#sellzone');z.hidden=true;z.classList.remove('hot');document.body.classList.remove('is-dragging','sell-hot');if(drag&&drag.el)drag.el.classList.remove('dragging');
  if(drag)clearTimeout(drag.lp);if(prevMode!==null){BASEMODE=prevMode;prevMode=null;}}
@@ -1387,9 +1409,9 @@ function tap(src,el){if(src==='shop'){const i=+el.dataset.idx;state.sel=state.se
 function gridTap(g,e){if(!OPT().tapMove||state.phase!=='shop'||!state.sel)return false;const where=g.id,c=csOf(where),r=g.getBoundingClientRect(),D=dims(where);
  const gx=Math.floor((e.clientX-r.left)/c),gy=Math.floor((e.clientY-r.top)/c);if(gx<0||gy<0||gx>=D.cols||gy>=D.rows)return false;
  if(state.sel.id!=null){const it=state.items.find(i=>i.id===state.sel.id);if(!it)return false;const x=Math.min(gx,D.cols-it.w),y=Math.min(gy,D.rows-it.h);
-  if(canPlace(where,x,y,it.w,it.h,it.id)){Object.assign(it,{where,x,y});sfx('click');buzz(10);state.sel=null;save();render();return true;}toast('Não cabe aí');return true;}
+  if(canPlace(where,x,y,it.w,it.h,it.id)){Object.assign(it,{where,x,y});sfx('click');buzz(10);state.sel=null;save();render();return true;}toast(noFit(where,x,y,it.w,it.h,it.id));return true;}
  if(state.sel.shop!=null){const o=state.shop[state.sel.shop];if(!o||o.pet)return false;const d=ITEMS[o.key],x=Math.min(gx,D.cols-d.w),y=Math.min(gy,D.rows-d.h),p=offerPrice(o);
-  if(p>state.gold){toast('Ouro insuficiente');return true;}if(!canPlace(where,x,y,d.w,d.h)){toast('Não cabe aí');return true;}
+  if(p>state.gold){toast('Ouro insuficiente');return true;}if(!canPlace(where,x,y,d.w,d.h)){toast(noFit(where,x,y,d.w,d.h));return true;}
   snapshot();state.gold-=p;state.shop[state.sel.shop]=null;pq(['cx',o.key,'bought']);gq('buy');state.items.push({id:state.nid++,key:o.key,tier:o.tier,where,x,y,w:d.w,h:d.h});sfx('buy');buzz(10);SNAP=state.nid-1;state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${ITEMS[o.key].name}`);return true;}
  return false;}
 
@@ -1470,7 +1492,7 @@ document.addEventListener('click',e=>{
  else if(id==='undoT'){$('#toast').hidden=true;undo();}
  else if(id==='missBtn'){closeDrawer();missionsScreen();}else if(t.dataset.skin){PROF.skin=t.dataset.skin;saveProf();applySkin();missionsScreen();}
  else if(id==='boardBtn'){retFrom();boardScreen();}else if(id==='backRet')goRet();
- else if(id==='ghostBtn')ghostPick();else if(id==='shareBtn')shareCard();else if(id==='coachOk'||id==='coachSkip')coachEnd();
+ else if(id==='ghostBtn')ghostPick();else if(id==='shareBtn')shareCard();else if(id==='coachOk')coachNext();else if(id==='coachSkip')coachEnd();
  else if(id==='optBtn')optionsScreen();else if(id==='helpBtn2'){closeDrawer();runMenu();}
  else if(t.dataset.cls){MENU.pick=t.dataset.cls;classScreen();}else if(id==='goBtn')pickClass(heroSel());
  else if(t.dataset.nav)navTab(t.dataset.nav);
@@ -1494,15 +1516,15 @@ document.addEventListener('click',e=>{
  else if(id==='closeOv'){closeOverlay();render();}
  else if(id==='back')backTo();else if(id==='backMore'){if(inRun())backTo();else moreScreen();}
  else if(id==='cMore')moreScreen();else if(id==='campGo')classScreen();else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
- else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='calGet'||id==='calDbl'||id==='adShop'||t.dataset.chest!=null||t.dataset.ir!=null||t.dataset.buy)metaAct(t);else if(id==='neGoals')dailyScreen('goals');
+ else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='calGet'||id==='calDbl'||id==='adShop'||t.dataset.chest!=null||t.dataset.ir!=null||t.dataset.buy)metaAct(t);else if(id==='neGoals')dailyScreen('goals');else if(id==='neDaily'){MENU.mode='daily';classScreen();}
  else if(t.dataset.slot){EQSEL=t.dataset.slot;equipScreen();}else if(id==='eqUp')eqUp();else if(id==='hatch'||t.dataset.feed||t.dataset.take)petAct2(t);
- else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} ⚡ (limite ${cap})`:'+10 ⚡ de energia');menuRefresh();});
+ else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} de energia (limite ${cap})`:'+10 de energia');menuRefresh();});
  else if(id==='helpBtn'){if(state.cls&&state.phase!=='class')runMenu();else campScreen();}
  else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste o item até a faixa da loja, que vira Vender durante o arrasto.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backMoreBtn()}`,'jogar');
  else if(id==='codexBtn')codexScreen();else if(id==='achBtn')achScreen();else if(id==='histBtn')histScreen();else if(id==='newsBtn'){retFrom();newsScreen();}
  else if(id==='newsOk'){PROF.ver=VER;saveProf();goRet();}
  else if(id==='askBtn'){PROF.noAsk=PROF.noAsk?0:1;saveProf();runMenu();}
- else if(id==='abandon')confirmBox('Abandonar esta jornada?','Ela não conta no histórico nem no progresso.','Abandonar',()=>{setState(fresh());save();campScreen();});});
+ else if(id==='abandon')confirmBox('Abandonar esta jornada?','Ela não conta no histórico nem no progresso.'+abandonCost(),'Abandonar',()=>{setState(fresh());save();campScreen();});});
 window.addEventListener('resize',()=>{if(!drag)render();});
 
 /* ================= BOOT ================= */
