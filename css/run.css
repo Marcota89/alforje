@@ -102,7 +102,6 @@ body[data-skin=noite],[data-sk=noite]{--bagbg1:#f1edff;--bagbg2:#c4b8f2;--bagedg
 #bag .teth line{stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 2px currentColor)}
 #bag .teth line.syn{stroke:#25a845;color:#25a845;stroke-dasharray:7 5;animation:dash .6s linear infinite}
 #bag .teth line.rcp{stroke:var(--orange);color:var(--orange);stroke-dasharray:7 5;animation:dash .6s linear infinite}
-#bag .teth line.flash{stroke:#fff;color:var(--t4);animation:fade .28s ease-out forwards}
 #bag .teth circle{fill:#fff;stroke-width:2}
 /* modo daltônico: marca de forma no canto do item (Comum nenhuma; Raro 1, Épico 2, Lendário 3 pontos) */
 body.cb :is(#bag,#chest,.ghost) .pips i{width:8px;height:8px;background:#fff;box-shadow:0 0 0 2px var(--ink-brown)}
@@ -172,7 +171,6 @@ body :is(#bag,#chest,.ghost) .face.t4::before{content:"";position:absolute;inset
 :is(#bag,#chest) .item.rcpready .face::after{content:"FORJA!";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-family:var(--f-title);font-weight:900;font-size:8px;letter-spacing:.05em;color:#2a1606;background:linear-gradient(#ffe08a,#d39a2e);padding:0 4px;border-radius:2px;box-shadow:0 1px 0 #000;z-index:4}
 :is(#bag,#chest) .item.dragging{opacity:.25}
 :is(#bag,#chest) .item.fire .face{animation:jump .22s ease-out}
-:is(#bag,#chest) .item.buff .face{animation:buff .25s steps(2)}
 :is(#bag,#chest) .item.merged .face{animation:merged .7s steps(4)}
 :is(#bag,#chest) .item.snap .face{animation:snapin .38s ease-out;box-shadow:0 0 0 2px var(--orange),0 0 14px rgba(240,138,28,.8)}
 #bag.shake,#chest.shake{animation:gshake .34s ease-out}
@@ -212,6 +210,8 @@ body.big #actions .abtn small{font-size:11px;letter-spacing:-.3px}
 #meter .mrow{display:grid;grid-template-columns:26px minmax(0,6.5em) 1fr auto;gap:6px;align-items:center;min-height:22px;padding:0 4px;margin:0 -4px;border-radius:8px;font:900 12px/1.1 'Nunito',system-ui,sans-serif;color:var(--ink-brown)}
 #meter .mrow.hit{background:rgba(255,208,74,.5)}
 #meter .mrow img{width:26px;height:22px;object-fit:contain;justify-self:center}
+#meter .mrow .ri{width:26px;height:22px;box-sizing:border-box;border-radius:6px;justify-self:center}
+#meter .mrow .ri img{width:18px;height:16px}
 #meter .mrow img.px{image-rendering:pixelated}
 #meter .mrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #meter .mbar{display:flex;height:10px;border-radius:6px;background:#f3e2c0;overflow:hidden}
@@ -276,7 +276,6 @@ body.is-dragging .bubble{display:none!important}
 @keyframes up{0%{transform:translate(-50%,0);opacity:1}100%{transform:translate(-50%,-42px);opacity:0}}
 @keyframes banner{0%{transform:translate(-50%,6px) scale(.6);opacity:0}20%{transform:translate(-50%,0) scale(1.15);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-14px);opacity:0}}
 @keyframes jump{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-6px) scale(1.08,.94);filter:brightness(1.6)}100%{transform:none;filter:none}}
-@keyframes buff{0%{filter:brightness(2) saturate(1.5)}100%{filter:none}}
 @keyframes merged{0%,50%{filter:brightness(2.4)}100%{filter:none}}
 @keyframes foil{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
 @keyframes twinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.4)}}
@@ -287,5 +286,5 @@ body.is-dragging .bubble{display:none!important}
 @keyframes snapin{0%{transform:scale(1.16)}55%{transform:scale(.96)}100%{transform:scale(1)}}
 @keyframes gshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
 @media (prefers-reduced-motion:reduce){
-  :is(#bag,#chest) .item:is(.fire,.merged,.syn,.rgl,.buff,.snap) .face,.foil,.twinkle,#bag .teth line,:is(#bag,#chest,.ghost) .face.t4::before,#bag.shake,#chest.shake{animation:none!important}
+  :is(#bag,#chest) .item:is(.fire,.merged,.syn,.rgl,.snap) .face,.foil,.twinkle,#bag .teth line,:is(#bag,#chest,.ghost) .face.t4::before,#bag.shake,#chest.shake{animation:none!important}
 }

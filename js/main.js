@@ -341,8 +341,10 @@ function hitRow(key){const until=performance.now()+300;HIT[key]=until;const el=d
 function meterHTML(b,limit,title){const now=performance.now(),rows=meterRows(b.stats).slice(0,limit);if(!rows.length)return `<h5><span>${title}</span><span>aguardando o primeiro golpe</span></h5>`;
  const mx=Math.max(...rows.map(s=>s.dmg+s.blk+s.heal));
  return `<h5><span>${title}</span><span>dano total ${Math.round(Object.values(b.stats).reduce((a,s)=>a+s.dmg,0))}</span></h5>`+rows.map(s=>{const u=iconURL(s.icon,s.tier);
-  return `<div class="mrow${HIT[s.k]>now?' hit':''}" data-key="${s.k}">${u?`<img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}>`:'<i></i>'}<span>${s.label}</span><div class="mbar"><i class="d" style="width:${s.dmg/mx*100}%"></i><i class="b" style="width:${s.blk/mx*100}%"></i><i class="h" style="width:${s.heal/mx*100}%"></i></div><b>${Math.round(s.dmg)}${s.blk?` <em>+${Math.round(s.blk)}</em>`:''}${s.heal?` <u>+${Math.round(s.heal)}</u>`:''}</b></div>`;}).join('');}
-function renderMeter(){const m=$('#meter');if(!B||state.phase!=='battle'){m.hidden=true;return;}m.hidden=false;m.innerHTML=meterHTML(B,Math.max(3,Math.min(6,Math.floor((($('#base').clientHeight||150)-48)/28))),'MEDIDOR AO VIVO');}
+  return `<div class="mrow${HIT[s.k]>now?' hit':''}" data-key="${s.k}">${u?(s.tier&&!String(s.icon).startsWith('pet:')?`<i class="ri t${s.tier}"><img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}></i>`:`<img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}>`):'<i></i>'}<span>${s.label}</span><div class="mbar"><i class="d" style="width:${s.dmg/mx*100}%"></i><i class="b" style="width:${s.blk/mx*100}%"></i><i class="h" style="width:${s.heal/mx*100}%"></i></div><b>${Math.round(s.dmg)}${s.blk?` <em>+${Math.round(s.blk)}</em>`:''}${s.heal?` <u>+${Math.round(s.heal)}</u>`:''}</b></div>`;}).join('');}
+function renderMeter(){const m=$('#meter');if(!B||state.phase!=='battle'){m.hidden=true;return;}m.hidden=false;m.innerHTML=meterHTML(B,12,'MEDIDOR AO VIVO');fitMeter(m);}
+/* só as linhas que cabem inteiras no cartão (também com texto grande); sempre ao menos uma */
+function fitMeter(m){const rows=m.querySelectorAll('.mrow');if(rows.length<2)return;const lim=m.getBoundingClientRect().bottom-(parseFloat(getComputedStyle(m).paddingBottom)||0)+.5;for(let i=rows.length-1;i>0&&rows[i].getBoundingClientRect().bottom>lim;i--)rows[i].remove();}
 /* INF-01: per-item table after the fight */
 function statTable(src,isPlayer){const rows=Object.values(src).filter(s=>s.dmg+s.blk+s.heal+s.act+s.burn+s.poison+s.frost>0).sort((x,y)=>(y.dmg+y.blk+y.heal)-(x.dmg+x.blk+x.heal));
  if(!rows.length)return '<p class="muted">Nada registrado.</p>';
@@ -901,7 +903,7 @@ async function shareCard(){toast('Montando a imagem…');const W=1080,H=1350,c=d
 /* A janela: o 1º <h2> vira a fita (.bad vermelha de derrota, .good verde de vitória, padrão para o resto). O foco vai para a janela e fica preso nela. */
 let overlayFrom=null;
 function overlayScroll(){const o=$('#overlay'),m=o.firstChild;if(m&&m.classList)m.classList.toggle('scrolls',o.scrollHeight>o.clientHeight+1);}/* só rola => botão final grudado com fundo */
-const overlayRO=new ResizeObserver(overlayScroll);
+const overlayRO=typeof ResizeObserver!=='undefined'?new ResizeObserver(overlayScroll):{observe(){},disconnect(){}};
 function overlay(html){const o=$('#overlay'),was=o.hidden;if(was)overlayFrom=document.activeElement;
  const m=/^\s*<h2(?: class="([^"]*)")?>/.exec(html);if(m)html=html.replace(m[0],`<h2 class="k-rib${m[1]?' '+m[1]:''}" id="dlgT">`);
  o.innerHTML=`<div class="modal k-win${was?' win-in':''}" role="dialog" aria-modal="true"${m?' aria-labelledby="dlgT"':''} tabindex="-1">${html}</div>`;o.hidden=false;$('#sheet').hidden=true;o.scrollTop=0;o.firstChild.focus({preventScroll:true});overlayScroll();overlayRO.disconnect();overlayRO.observe(o.firstChild);}
@@ -1005,7 +1007,7 @@ function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  sfx('merge');save();closeOverlay();showRun();render();if(!PROF.tut&&!opts)setTimeout(coachStart,350);}
 /* ----- tutorial (INF-05) ----- */
 const TUT=[['Toque, segure e arraste','Toque num item ou card para ver a ficha curta acima dele, com Comprar, Girar e Vender. Para mover, segure um instante (ou já arraste): o item fica acima do dedo para você ver onde ele cai. Só o que está na Mochila luta.'],
- ['Gire, funda e venda','Itens compridos giram: toque duas vezes no item ou use o botão ⟳ enquanto arrasta. Dois iguais da mesma raridade se fundem. Para vender, arraste até a placa que aparece no canto da arena. O Baú fica no botão da barra de baixo e aparece sozinho quando você arrasta um item da mochila.'],
+ ['Gire, funda e venda','Itens compridos giram: toque duas vezes no item ou use o botão ⟳ enquanto arrasta. Dois iguais da mesma raridade se fundem. Para vender, arraste o item até a faixa da loja, que vira Vender durante o arrasto. O Baú fica no botão da barra de baixo e aparece sozinho quando você arrasta um item da mochila.'],
  ['Sinergia é posição','Apoios ajudam as armas que tocam do jeito certo: linhas verdes mostram quem ajuda quem. Em “Mais” na ficha, “Por que sinergiza” explica cada ligação. Companheiros, falas do Mascate e opções ficam nas gavetas: o ícone dos companheiros no topo e o botão ⋯ na barra de baixo.']];
 function tutScreen(i){page(`<h2>${TUT[i][0]}</h2><p class="story">${TUT[i][1]}</p><div class="dots">${TUT.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div><div class="two"><button class="k-btn g" data-tut="${i+1}">${i<TUT.length-1?'Próximo':'Começar'}</button><button class="k-btn v" data-tut="99">Pular</button></div>`,'mais');}
 /* ----- Codex (PRO-02) ----- */
@@ -1227,7 +1229,7 @@ document.addEventListener('click',e=>{
  else if(id==='closeOv'){closeOverlay();render();}
  else if(id==='back')backTo();
  else if(id==='helpBtn'){if(state.cls&&state.phase!=='class')runMenu();else classScreen();}
- else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste até a placa que aparece no canto da arena.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backBtn()}`,'mais');
+ else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste o item até a faixa da loja, que vira Vender durante o arrasto.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backBtn()}`,'mais');
  else if(id==='codexBtn')codexScreen();else if(id==='achBtn')achScreen();else if(id==='histBtn')histScreen();else if(id==='newsBtn')newsScreen();
  else if(id==='newsOk'){PROF.ver=VER;saveProf();backTo();}
  else if(id==='askBtn'){PROF.noAsk=PROF.noAsk?0:1;saveProf();runMenu();}

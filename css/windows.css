@@ -117,16 +117,16 @@ img.sil{filter:brightness(0) drop-shadow(0 0 1px rgba(90,42,0,.6))!important;opa
 :is(#overlay .modal,#drawer,#sheet) table.st .sf{color:#1d7fa8;white-space:nowrap}
 :is(#overlay .modal,#drawer,#sheet) table.odds :is(td,th){text-align:center}
 /* ícone do item com a cor da raridade; no modo daltônico ganha o símbolo (● ◆ ▲ ★) */
-#overlay .modal .ri{position:relative;flex:none;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.7);border:2px solid var(--tier,rgba(90,42,0,.3))}
-#overlay .modal .ri.t1{--tier:var(--t1)}
-#overlay .modal .ri.t2{--tier:var(--t2)}
-#overlay .modal .ri.t3{--tier:var(--t3)}
-#overlay .modal .ri.t4{--tier:var(--t4)}
-body.cb #overlay .modal .ri::after{position:absolute;right:-5px;bottom:-5px;min-width:13px;height:13px;border-radius:7px;background:var(--pill-bg);font:900 10px/13px var(--f-body);text-align:center;color:var(--tier)}
-body.cb #overlay .modal .ri.t1::after{content:'●'}
-body.cb #overlay .modal .ri.t2::after{content:'◆'}
-body.cb #overlay .modal .ri.t3::after{content:'▲'}
-body.cb #overlay .modal .ri.t4::after{content:'★'}
+:is(#overlay .modal,#meter) .ri{position:relative;flex:none;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.7);border:2px solid var(--tier,rgba(90,42,0,.3))}
+:is(#overlay .modal,#meter) .ri.t1{--tier:var(--t1)}
+:is(#overlay .modal,#meter) .ri.t2{--tier:var(--t2)}
+:is(#overlay .modal,#meter) .ri.t3{--tier:var(--t3)}
+:is(#overlay .modal,#meter) .ri.t4{--tier:var(--t4)}
+body.cb :is(#overlay .modal,#meter) .ri::after{position:absolute;right:-5px;bottom:-5px;min-width:13px;height:13px;border-radius:7px;background:var(--pill-bg);font:900 10px/13px var(--f-body);text-align:center;color:var(--tier)}
+body.cb :is(#overlay .modal,#meter) .ri.t1::after{content:'●'}
+body.cb :is(#overlay .modal,#meter) .ri.t2::after{content:'◆'}
+body.cb :is(#overlay .modal,#meter) .ri.t3::after{content:'▲'}
+body.cb :is(#overlay .modal,#meter) .ri.t4::after{content:'★'}
 body.big #overlay .modal :is(.choice span:not(.shape),.fg span){font-size:16px}
 body.big #overlay .modal table.st{font-size:15px}
 
