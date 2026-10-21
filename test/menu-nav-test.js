@@ -73,7 +73,9 @@ window.menuSweep = async () => {
 };
 window.navMeta = async () => {
   const A = window.__alforje, R = {}, PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts';
-  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode };
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode,
+    profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: A.state ? JSON.parse(JSON.stringify(A.state)) : null, ready: A.CLOUD.ready };
+  A.CLOUD.ready = false; // o teste nunca empurra dados de teste para a nuvem (markDirty não agenda nada)
   try {
     // 1) perfil antigo (sem meta, 12 vitórias): migra com XP 120 e energia 30
     const old = JSON.parse(keep.prof); delete old.meta; old.totalWins = 12;
@@ -100,12 +102,23 @@ window.navMeta = async () => {
     A.state.phase = 'class'; A.PROF.meta.energy = 5; A.PROF.meta.eAt = Date.now(); const before = A.state;
     A.pickClass('warrior');
     R.noEnergy = A.state === before && A.state.phase === 'class' && A.PROF.meta.energy === 5;
+    // 7) Desfazer não rende meta: comprar e desfazer 8x deixa buy8 em 0; comprar e lutar conta
+    A.state.phase = 'class'; A.state.cls = null; A.PROF.meta.energy = 30; A.PROF.meta.goals = { ids: ['buy8', 'win5', 'merge3', 'forge1', 'daily1'], p: {}, done: [], pts: 0, chests: [false, false, false] };
+    A.pickClass('warrior'); A.state.gold = 999; let undone = 0;
+    for (let i = 0; i < 8; i++) { A.buy(0); if (A.state.undo) { document.querySelector('#undo').click(); undone++; } }
+    const p0 = A.PROF.meta.goals.p.buy8 || 0; A.buy(0); A.fight(true);
+    R.undoNoFarm = undone > 0 && p0 === 0 && A.PROF.meta.goals.p.buy8 === 1;
+    // 8) duelo com código inválido não começa
+    A.state.phase = 'class'; A.state.cls = null; A.MENU.mode = 'duel'; A.MENU.duel = 'xx'; A.pickClass('warrior');
+    R.duelInvalid = !A.state.cls;
   } finally {
+    A.CLOUD.ready = keep.ready; clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
+    A.PROF = keep.profObj; if (keep.stateObj) A.state = keep.stateObj;
     A.MENU.mode = keep.mode;
     if (keep.prof != null) localStorage.setItem(PK, keep.prof);
     if (keep.run != null) localStorage.setItem(RK, keep.run);
     if (keep.ts != null) localStorage.setItem(TK, keep.ts);
   }
-  R.pass = R.migrated && R.normal && R.daily && R.restored && R.adopted && R.noEnergy;
+  R.pass = R.migrated && R.normal && R.daily && R.restored && R.adopted && R.noEnergy && R.undoNoFarm && R.duelInvalid;
   return R;
 };
