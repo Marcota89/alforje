@@ -22,7 +22,7 @@ function BR(b){let t=(b.rng=(b.rng+0x6D2B79F5)>>>0);t=Math.imul(t^t>>>15,t|1);t^
 function fresh(){return {phase:'class',cls:null,kit:0,asc:0,mode:'normal',chal:null,seed:'',rng:1,round:1,wins:0,lives:LIVES,maxLives:LIVES,gold:10,rerollN:0,
  bag:{cols:5,rows:4,pockets:{}},bagLvl:0,items:[],pets:[null,null,null],shop:[],nid:1,sel:null,reward:null,queue:[],route:[],elites:{},lossStreak:0,winStreak:0,stopLosses:0,mood:'first',
  sub:null,bless:[],etiq:{},pendingEtiq:null,skipOffer:null,hammerUsed:false,freeHammer:false,extraLock:0,freeReroll:false,undo:null,noAsk:false,
- surv:false,survLives:0,survRoute:[],duel:null,event:null,maxHpMod:0,merges:0,intMax:0,stats:{forged:[],legend:0}};}
+ surv:false,survLives:0,survRoute:[],duel:null,event:null,maxHpMod:0,merges:0,intMax:0,stats:{forged:[],legend:0},perm:null};}
 const has=b=>state.bless.includes(b);
 const bagDims=()=>({cols:state.bag.cols,rows:state.bag.rows});
 const chestCols=()=>Math.max(5,state.bag.cols);
@@ -129,13 +129,13 @@ function foeStats(){const f=foeDef(),st=STOPS[f.stop],A=ARCH[f.arch],el=f.elite?
  return {def:f,hp:HP,block,reflect,atk,heal};}
 /* ================= FIGHTERS ================= */
 function withState(s,fn){const keep=state;state=s;try{return fn();}finally{state=keep;}}
-function makePlayer(){const C=CLASSES[state.cls]||CLASSES.warrior,A=affinity();let hp=C.hp+(state.maxHpMod||0),block=C.block||0,reflect=0,aegis=0,chill=0;
+function makePlayer(){const C=CLASSES[state.cls]||CLASSES.warrior,A=affinity();const PM=state.perm||null,dm=1+(PM&&PM.dmgPct||0),pcr=PM&&PM.crit||0;let hp=C.hp+(state.maxHpMod||0)+(PM&&PM.hp||0),block=C.block||0,reflect=0,aegis=0,chill=0;
  const weapons=[],heals=[],trig={start:[],shieldBreak:[],crit5:[],below50:[],souls:[]},initBlk=[];
  const links=supportLinks(),fw=fightingWeapons();
  const healMul=(state.cls==='paladin'?1.5:state.sub==='boticario'?1.4:1)*(A.lv.sagrado===2?1.5:A.lv.sagrado===1?1.25:1);
  for(const it of inWhere('bag')){const d=ITEMS[it.key],m=TM[it.tier-1],pk=pocketsOf(it),arm=d.type==='armor'&&pk.includes('acolch')?1.25:1;
   if(d.type==='weapon'&&fw.includes(it)){const s=weaponStats(it,links);const first=s.cd-(it.y===0?.2:0);
-   weapons.push({id:it.id,key:'i'+it.id,label:d.name,icon:it.key,tier:it.tier,dmg:s.dmg,cd:s.cd,t:Math.max(.2,first),crit:s.crit,burn:s.burn,poison:s.poison,frost:s.frost,purge:s.purge,life:s.life,pierce:s.pierce,stun:s.stun,echo:s.echo,fx:s.fx,first:true,supports:links.filter(L=>L.w.id===it.id).map(L=>L.s.id)});}
+   weapons.push({id:it.id,key:'i'+it.id,label:d.name,icon:it.key,tier:it.tier,dmg:Math.round(s.dmg*dm),cd:s.cd,t:Math.max(.2,first),crit:Math.min(.9,s.crit+pcr),burn:Math.round(s.burn*dm),poison:Math.round(s.poison*dm),frost:s.frost,purge:s.purge,life:s.life,pierce:s.pierce,stun:s.stun,echo:s.echo,fx:s.fx,first:true,supports:links.filter(L=>L.w.id===it.id).map(L=>L.s.id)});}
   if(d.block){const b=Math.round(d.block*m*arm);block+=b;initBlk.push(['i'+it.id,d.name,it.key,b,it.tier]);if(it.tier>=4)aegis+=Math.round(b/2);}
   if(d.hp)hp+=Math.round(d.hp*m*arm*(d.zone==='top'&&zoneOk(it)?1.5:1));
   if(d.type==='armor'&&it.tier>=3)hp+=15;
@@ -145,14 +145,15 @@ function makePlayer(){const C=CLASSES[state.cls]||CLASSES.warrior,A=affinity();l
   if(d.trig){const f=it.tier>=4?1.5:1,times=it.tier>=3?2:1;let amt=Math.round((d.burnStart||d.blockTrig||d.shot||d.healTrig||0)*m*f);
    if(d.trig==='souls'){amt=Math.min(30*it.tier,Math.round(d.soulBlk*(it.souls||0)*f));}
    trig[d.trig].push({id:it.id,key:'i'+it.id,label:d.name,icon:it.key,tier:it.tier,amt,times:d.trig==='souls'?1:times});}}
- state.pets.forEach((p,i)=>{if(!p||state.chal==='nopets')return;const P=PETS[p.key],m=TM[p.tier-1],k='p'+i,ic='pet:'+p.key;
-  if(P.dmg)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:Math.round(P.dmg*m),cd:P.cd,t:P.cd,crit:P.crit||0,burn:0,poison:0,frost:0,purge:0,life:0,fx:'peck',first:true,supports:[]});
-  if(P.burn)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:0,cd:P.cd,t:P.cd,crit:0,burn:Math.round(P.burn*m),poison:0,frost:0,life:0,fx:'fire',first:false,nodmg:1,supports:[]});
+ state.pets.forEach((p,i)=>{if(!p||state.chal==='nopets')return;const P=PETS[p.key],m=TM[p.tier-1]*(p.mul||1),k='p'+i,ic='pet:'+p.key;
+  if(P.dmg)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:Math.round(P.dmg*m*dm),cd:P.cd,t:P.cd,crit:Math.min(.9,(P.crit||0)+pcr),burn:0,poison:0,frost:0,purge:0,life:0,fx:'peck',first:true,supports:[]});
+  if(P.burn)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:0,cd:P.cd,t:P.cd,crit:0,burn:Math.round(P.burn*m*dm),poison:0,frost:0,life:0,fx:'fire',first:false,nodmg:1,supports:[]});
   if(P.frost)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:0,cd:P.cd,t:P.cd,crit:0,burn:0,poison:0,frost:Math.round(P.frost*m),life:0,fx:'ice',first:false,nodmg:1,supports:[]});
   if(P.block){const b=Math.round(P.block*m);block+=b;initBlk.push([k,P.name,ic,b]);heals.push({pet:i,key:k,label:P.name,icon:ic,amt:Math.round(P.tick*m),cd:P.cd,t:P.cd,shield:1});}
   if(P.heal)heals.push({pet:i,key:k,label:P.name,icon:ic,amt:Math.round(P.heal*m*healMul),cd:P.cd,t:P.cd});});
  if(A.lv.metal)block+=A.lv.metal===2?20:8;if(A.lv.sagrado===2)hp+=15;if(has('sangue'))hp+=15;if(has('pedra'))block+=12;
  if(state.sub==='guardiao'){block=Math.round(block*1.25);reflect+=2;}
+ if(PM){if(PM.block>0){block+=PM.block;initBlk.push(['perm','Armadura','perm',PM.block,1]);}if(dm!==1){reflect=Math.round(reflect*dm);for(const t of trig.start)t.amt=Math.round(t.amt*dm);for(const t of trig.crit5)t.amt=Math.round(t.amt*dm);}}
  const sub=state.sub;
  return {side:'p',name:C.name,hp,max:hp,block,reflect,chill,weapons,heals,trig,initBlk,aegis,burn:0,poison:0,frost:0,bt:1,pt:2,pti:2,ft:3,
   critMult:sub==='assassina'?3:C.critMult,mult:1,firstCrit:state.cls==='rogue',firstStrike:has('primeiro'),cls:state.cls,sub,fury:0,holy:sub==='cruzado'?6:8,crits:0,

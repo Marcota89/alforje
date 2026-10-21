@@ -43,6 +43,66 @@ function playDaily(dayIx) {
   return { s, entry: { v: 2, d: S.dayStr(dayIx), s: sc, cls: s.cls, w: s.wins, t: 1, pf: proof } };
 }
 
+// 0. "diário inalterado": golden recorded from the sim BEFORE permanent bonuses (state.perm / pet mul). Days 0..19, same upgrade policy as playDaily.
+const DAILY_GOLDEN = [
+  "1:W12.6,L18.5,L18.5,L18.5,L18.5,L18.5",
+  "6:W7.2,W6.3,W4.5,W3.6,W4.5,W3.6,L2.7,L2.7,L2.7,L2.7,L2.7",
+  "5:W6.6,W4.9,L4.7,W4.9,W4.9,W3.2,L3,L2.4,L3,L3",
+  "2:W26,W19,L6.7,L7.5,L6.7,L7,L10.1",
+  "2:W10,W11,L6.7,L6.7,L8.5,L8.5,L8.5",
+  "0:L14,L14,L14,L12.7,L14",
+  "5:W6.3,W6.3,L4.7,L4.7,L4.7,W4.5,W3.6,W3.6,L3.9,L3.1",
+  "5:W6.6,W4.9,W4.9,W3.2,W3.2,L3.8,L3.8,L3.8,L3.8,L3.8",
+  "5:W21.4,L12,L12,W14.2,W9.4,W7.5,W4.6,L4,L7.9,L7.3",
+  "5:W12,W8.8,W10,W5.8,W5.8,L6.7,L6.7,L6.7,L6.7,L6.7",
+  "1:L23.3,L23.3,W22.2,L18.7,L18.7,L18.7",
+  "2:W5.4,W7.2,L3.1,L3.1,L3.1,L3.1,L3.1",
+  "5:W6.6,W4.9,W4.9,W4.9,W3.2,L3.1,L3.1,L3.1,L3.1,L3.1",
+  "4:W26,W14.2,L13.9,W16.6,W7.5,L6,L8,L7.7,L6.5",
+  "2:W10,W8.8,L8.5,L8.5,L8.5,L8.5,L8.5",
+  "1:L23.3,L23.3,W20.6,L12.7,L12.7,L12.7",
+  "5:W8.1,W8.1,L4.8,L6,W4.5,W2.7,W2.7,L3.7,L3.7,L3.7",
+  "6:W6.6,W4.9,W4.9,W3.4,W4.9,L4,L3.7,L4,L3.7,W3.2,L4.1",
+  "2:W26,W14.2,L7,L9.4,L7.5,L10.1,L10.1",
+  "5:W10,W8.8,W6,W6.2,W6,L6.7,L6.7,L6.7,L6.7,L6.7"
+];
+{
+  let okAll = 0;
+  for (let d = 0; d < 20; d++) {
+    const s = startDaily(d), r = [];
+    while (true) {
+      const o = liveFight(s); r.push((o.res === 'win' ? 'W' : 'L') + o.t);
+      if (o.res === 'win') { s.wins++; s.stopLosses = 0; const it = s.items.find(i => i.tier < 4); if (it) it.tier++; } else { s.stopLosses++; s.lives--; }
+      s.round++; if (s.wins >= D.GOAL || s.lives <= 0) break;
+    }
+    const got = s.wins + ':' + r.join(',');
+    if (got === DAILY_GOLDEN[d]) okAll++; else console.log('  dia ' + d + ' esperado ' + DAILY_GOLDEN[d] + ' obtido ' + got);
+  }
+  check(okAll === 20, 'diario inalterado: dias 0..19 identicos ao golden (' + okAll + '/20)');
+}
+
+// 0b. permanent bonuses (state.perm) and pet multiplier (p.mul) read by makePlayer
+{
+  const mk = (perm, mul) => { const s = startDaily(3); s.perm = perm; if (mul != null) s.pets[0] = { key: 'raven', tier: 1, mul }; S.setState(s); return S.makePlayer(); };
+  const base = mk(undefined), nul = mk(null);
+  check(JSON.stringify(base) === JSON.stringify(nul), 'perm=null identico ao sem campo');
+  const P0 = { hp: 0, block: 0, dmgPct: 0, crit: 0 };
+  check(JSON.stringify(mk(P0)) === JSON.stringify(base), 'perm todo zero identico ao sem campo');
+  check(mk({ ...P0, hp: 30 }).hp === base.hp + 30 && mk({ ...P0, hp: 30 }).max === base.max + 30, 'perm.hp +30 na vida inicial');
+  const pb = mk({ ...P0, block: 9 });
+  check(pb.block === base.block + 9 && pb.initBlk.some(e => e[0] === 'perm' && e[3] === 9), 'perm.block +9 no escudo inicial, com entrada propria em initBlk');
+  const pd = mk({ ...P0, dmgPct: .5 });
+  check(base.weapons[0].dmg > 0 && pd.weapons[0].dmg === Math.round(base.weapons[0].dmg * 1.5), 'perm.dmgPct .5 -> dano da arma inicial x1,5 (' + base.weapons[0].dmg + ' -> ' + pd.weapons[0].dmg + ')');
+  const pc = mk({ ...P0, crit: .2 });
+  check(Math.abs(pc.weapons[0].crit - Math.min(.9, base.weapons[0].crit + .2)) < 1e-9, 'perm.crit .2 soma ao critico da arma');
+  check(mk({ ...P0, crit: .95 }).weapons.every(w => w.crit <= .9), 'critico respeita o teto de 0,9');
+  const pet0 = mk(null, 1), pet13 = mk(null, 1.3);
+  const pw = x => x.weapons.find(w => w.pet === 0 && w.dmg > 0);
+  check(pw(pet0) && pw(pet13).dmg === Math.round(pw(pet0).dmg * 1.3) && pw(pet13).dmg > pw(pet0).dmg, 'pet mul 1,3 -> dano do pet x1,3 (' + (pw(pet0) && pw(pet0).dmg) + ' -> ' + pw(pet13).dmg + ')');
+  const petPct = mk({ ...P0, dmgPct: .5 }, 1);
+  check(pw(petPct).dmg === Math.round(pw(pet0).dmg * 1.5), 'dmgPct tambem vale para o pet');
+}
+
 // 1. determinism
 const day = Math.floor(Date.now() / 864e5);
 const a = liveFight(startDaily(day)), b = liveFight(startDaily(day));
