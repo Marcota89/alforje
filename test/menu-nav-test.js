@@ -244,3 +244,100 @@ window.navMeta = async () => {
   R.pass = R.tsSame && R.migrated && R.normal && R.daily && R.restored && R.adopted && R.noEnergy && R.undoNoFarm && R.duelInvalid;
   return R;
 };
+//   await navDaily()  -> Diário e Loja (Tarefa 5): bônus do dia (+100), 2º clique desabilitado, dobro (+200), metas até 40 pontos e baú, virada do dia SEM recarregar
+//                        (Date.now deslocado só dentro do teste e devolvido no fim), compra de energia 2x (3ª desabilitada), compra não conta como meta 'buy',
+//                        propaganda do ouro e botões IR. Sem nuvem; devolve perfil, jornada e localStorage no fim.
+window.navDaily = async () => {
+  const A = window.__alforje, AM = window.AlforjeMeta, R = {}, q = s => document.querySelector(s), wait = ms => new Promise(r => setTimeout(r, ms));
+  const PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts';
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode,
+    profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: JSON.parse(JSON.stringify(A.state)), ready: A.CLOUD.ready };
+  const hadRun = !!(keep.stateObj.cls && keep.stateObj.phase !== 'class');
+  const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
+  const realNow = Date.now; let shift = 0; Date.now = () => realNow.call(Date) + shift; // só dentro deste teste
+  const aud = () => (window.alforjeAudit ? window.alforjeAudit() : null);
+  try {
+    if (hadRun) { A.state.phase = 'class'; A.state.cls = null; }
+    const m = A.META(); m.day = ''; A.META(); // dia novo: zera propagandas, compras e sorteia as metas
+    m.cal.last = ''; m.cal.idx = 0; m.gold = 0; m.ruby = 100; m.energy = 10; m.eAt = Date.now(); m.stone = 0; m.food = 0; m.egg = 0;
+    m.goals.ids = ['win5', 'merge3', 'buy8', 'daily1', 'upgrade1']; m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; m.goals.chests = [false, false, false];
+    // 1) aba Diário: calendário 4x2, hoje em verde, ponto vermelho na aba
+    q('[data-nav="diario"]').click();
+    R.page = !!q('#dCal') && q('#dCal').querySelectorAll('.dcell').length === 7 && !!q('#dCal .dcell.d7') && q('#dCal .dcell.now') === q('#dCal .dcell') && !!q('#dGoals');
+    R.dot1 = !!q('#mtabs [data-nav="diario"] .k-dot') && q('#mtabs [data-nav="diario"] .k-dot').textContent === '1';
+    const a1 = aud(); if (a1) R.audit1 = a1;
+    // 2) PEGAR: ouro +100; o 2º clique não faz nada (botão desabilitado)
+    q('#calGet').click();
+    R.claim = m.gold === 100 && q('#calGet').disabled && q('#calDbl').disabled && /100/.test(q('#toast').textContent) && m.cal.idx === 1;
+    q('#calGet').click(); R.noTwice = m.gold === 100;
+    R.dot0 = !q('#mtabs [data-nav="diario"] .k-dot');
+    R.calGoalSeen = true; // 'cal1' não está sorteado aqui: o evento 'cal' é tolerado sem meta
+    // 3) dobro em outro perfil (calendário zerado, mesmo dia): propaganda de 3 s e ouro +200
+    m.cal.last = ''; m.cal.idx = 0; m.gold = 0; m.ad.double = 0; A.dailyScreen();
+    q('#calDbl').click(); await wait(1200);
+    R.adOpen = !q('#overlay').hidden && !!q('#adCount') && m.gold === 0;
+    await wait(2400);
+    R.double = q('#overlay').hidden && m.gold === 200 && m.ad.double === 1 && q('#calGet').disabled && q('#calDbl').disabled;
+    // dobro já usado hoje: o botão fica desabilitado e o texto avisa; o PEGAR simples ainda funciona
+    m.cal.last = ''; m.cal.idx = 0; m.gold = 0; A.dailyScreen();
+    R.dblUsed = q('#calDbl').disabled && /já usado/.test(q('#calDbl').textContent) && !q('#calGet').disabled;
+    q('#calGet').click(); R.dblUsedGold = m.gold === 100;
+    // 4) metas até 40 pontos e baú (energia 95 + 10: sobra e avisa)
+    const done = id => { const d = AM.GOALS[id]; AM.goalEvent(m, Date.now(), d.ev, d.n); };
+    done('win5'); done('merge3'); m.energy = 95; m.gold = 0;
+    A.dailyScreen();
+    R.pts = m.goals.pts === 40 && q('[data-chest="0"]') && !q('[data-chest="0"]').disabled && q('[data-chest="1"]').disabled && q('[data-chest="2"]').disabled;
+    R.dot2 = q('#mtabs [data-nav="diario"] .k-dot') && q('#mtabs [data-nav="diario"] .k-dot').textContent === '1';
+    q('[data-chest="0"]').click();
+    R.chest = m.gold === 100 && m.energy === 99 && m.goals.chests[0] === true && q('[data-chest="0"]').disabled && /Energia no máximo \(99\)/.test(q('#toast').textContent);
+    R.dot3 = !q('#mtabs [data-nav="diario"] .k-dot');
+    const a2 = aud(); if (a2) R.audit2 = a2;
+    // 5) botões IR: Jogar, Diário (Desafio), Equipar, calendário
+    q('[data-ir="play"]') && (R.irPlayBtn = true);
+    const goals = () => [...document.querySelectorAll('#dGoals .dgoal')];
+    const irOf = t => goals().find(g => g.textContent.includes(t)).querySelector('[data-ir]');
+    R.irKinds = irOf('Desafio Diário').dataset.ir === 'daily' && irOf('Melhore').dataset.ir === 'equip' && irOf('Compre 8').dataset.ir === 'play';
+    irOf('Compre 8').click(); R.irPlay = !!q('#campGo') && q('#mtabs [data-nav="jogar"]').classList.contains('on');
+    A.dailyScreen(); irOf('Desafio Diário').click(); R.irDaily = !!q('#goBtn') && A.MENU.mode === 'daily';
+    A.dailyScreen(); irOf('Melhore').click(); R.irEquip = q('#mtabs [data-nav="equip"]').classList.contains('on');
+    A.dailyScreen('goals'); R.irGoalsScroll = !!q('#dGoals');
+    // 6) virada do dia sem recarregar: a página aberta se refaz sozinha, metas novas e bônus do Dia 2 por pegar
+    A.dailyScreen(); const day0 = q('#dCal').dataset.day; shift += 86400000; A.menuTick();
+    R.nextDay = q('#dCal') && q('#dCal').dataset.day !== day0 && q('#dCal').dataset.day === AM.dayKey(Date.now()) && m.day === q('#dCal').dataset.day;
+    R.nextCal = !q('#calGet').disabled && q('#dCal .dcell.now .dn').textContent === 'Dia 2' && m.goals.pts === 0 && !q('[data-chest="0"]').classList.contains('got') && !!q('#mtabs [data-nav="diario"] .k-dot');
+    // reabrir pela aba também mostra o dia novo
+    q('[data-nav="loja"]').click(); q('[data-nav="diario"]').click(); R.reopen = q('#dCal').dataset.day === AM.dayKey(Date.now()) && !q('#calGet').disabled;
+    // 7) Loja: energia 2x por 15 💎 (3ª desabilitada), não conta como meta 'buy'; ouro por propaganda 1/dia
+    m.goals.ids = ['buy8', 'win5', 'merge3', 'forge1', 'daily1']; m.goals.p = {}; m.energy = 20; m.ruby = 100; m.gold = 0;
+    q('[data-nav="loja"]').click();
+    R.shop = document.querySelectorAll('#shopL .shopc').length === 4 && /0\/2 hoje/.test(q('[data-buy="energy30"]').closest('.shopc').textContent);
+    const a3 = aud(); if (a3) R.audit3 = a3;
+    q('[data-buy="energy30"]').click(); R.buy1 = m.energy === 50 && m.ruby === 85 && /1\/2 hoje/.test(q('[data-buy="energy30"]').closest('.shopc').textContent) && /Comprou/.test(q('#toast').textContent);
+    q('[data-buy="energy30"]').click(); R.buy2 = m.energy === 80 && m.ruby === 70;
+    R.buy3 = q('[data-buy="energy30"]').disabled && /Esgotado/.test(q('[data-buy="energy30"]').closest('.shopc').textContent);
+    q('[data-buy="energy30"]').click(); R.buy3No = m.energy === 80 && m.ruby === 70;
+    q('[data-buy="stone3"]').click(); q('[data-buy="food5"]').click(); q('[data-buy="egg"]').click();
+    R.others = m.stone === 3 && m.food === 5 && m.egg === 1 && m.ruby === 70 - 10 - 10 - 30;
+    R.noBuyGoal = !m.goals.p.buy8;
+    m.ruby = 5; q('[data-nav="diario"]').click(); q('[data-nav="loja"]').click();
+    R.poor = [...document.querySelectorAll('[data-buy]')].every(b => b.disabled) && /Faltam/.test(q('#shopL').textContent);
+    m.ad.shop = 0; m.gold = 10; A.shopScreen(); q('#adShop').click(); await wait(3400);
+    R.adGold = m.gold === 60 && m.ad.shop === 1 && q('#adShop').disabled && /\+50/.test(q('#toast').textContent);
+    const a4 = aud(); if (a4) R.audit4 = a4;
+  } finally {
+    Date.now = realNow;
+    A.adStop(); A.closeOverlay(); clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
+    A.PROF = keep.profObj; A.state = keep.stateObj; A.MENU.mode = keep.mode;
+    [[PK, keep.prof], [RK, keep.run], [TK, keep.ts]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+    if (off0 == null) localStorage.removeItem(NAV_OFF);
+    A.CLOUD.ready = off0 == null ? keep.ready : false;
+    if (hadRun) { A.showRun(); A.render(); } else A.campScreen();
+  }
+  R.tsSame = localStorage.getItem(TK) === keep.ts; R.clockBack = Math.abs(Date.now() - realNow.call(Date)) < 50;
+  const audits = [R.audit1, R.audit2, R.audit3, R.audit4].filter(Boolean);
+  R.auditClean = audits.every(a => a.length === 0);
+  R.pass = R.tsSame && R.clockBack && R.auditClean && ['page', 'dot1', 'claim', 'noTwice', 'dot0', 'adOpen', 'double', 'dblUsed', 'dblUsedGold', 'pts', 'dot2', 'chest', 'dot3', 'irKinds', 'irPlay', 'irDaily', 'irEquip',
+    'nextDay', 'nextCal', 'reopen', 'shop', 'buy1', 'buy2', 'buy3', 'buy3No', 'others', 'noBuyGoal', 'poor', 'adGold'].every(k => R[k]);
+  return R;
+};

@@ -194,6 +194,50 @@
 #mpage .dots i.on{background:var(--orange)}
 #mpage .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
+/* ===== Diário (calendário de 7 dias + metas com trilha de baús) e Loja ===== */
+#mpage .dcal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#mpage .dcell{position:relative;min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:2px;padding:4px 2px;background:#fff;border:2px solid #f3c27a;border-radius:12px;overflow:hidden;text-align:center;font:900 11px/1.2 var(--f-body);color:var(--ink-brown)}
+#mpage .dcell .di{font-size:25px;line-height:1.1}
+#mpage .dcell .dv{font-size:12px}
+#mpage .dcell.got{opacity:.6}
+#mpage .dcell.got::after{content:"✔";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:32px;color:#1c8a3a;background:rgba(255,255,255,.4)}
+#mpage .dcell.now{border:3px solid #25a845;background:#ecffe4;box-shadow:0 0 0 3px #bdf5ad}
+#mpage .dcell.nxt{border:3px dashed #25a845}
+#mpage .dcell.d7{grid-column:span 2;background:linear-gradient(180deg,#fff2c0,#ffd36b);border-color:#f0a020}
+#mpage .dcell.d7 .di{font-size:28px}
+#mpage #dCal>.k-btn,#mpage .shopl+.k-btn{width:100%}
+#mpage .dh{text-align:center;font-size:19px}
+#mpage .dtrack{display:flex;align-items:center;gap:8px}
+#mpage .dpts{flex:none;min-width:30px;text-align:right;font:400 20px/1 var(--f-num);color:var(--ink-brown)}
+#mpage .dbar{position:relative;flex:1;min-width:0;height:14px;background:#f3e2c0;border:1px solid #d9b87a;border-radius:8px;overflow:hidden}
+#mpage .dbar i{display:block;height:100%;background:linear-gradient(90deg,#29c7ff,#2f7bff)}
+#mpage .dbar b{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink-brown);opacity:.45}
+#mpage .dchests{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#mpage .dch{display:grid;justify-items:center;align-content:center;gap:1px;min-height:68px;padding:4px 2px;margin:0;background:#fff;border:3px solid #f3c27a;border-radius:12px;color:var(--ink-brown);font:900 11px/1.15 var(--f-body);cursor:pointer;-webkit-tap-highlight-color:transparent}
+#mpage .dch .ci{font-size:23px;line-height:1.1}
+#mpage .dch b{font:400 16px/1 var(--f-num)}
+#mpage .dch small{font-size:11px}
+#mpage .dch:disabled{cursor:default;opacity:.65}
+#mpage .dch.got{opacity:.5}
+#mpage .dch.ready{opacity:1;border-color:#25a845;background:#ecffe4;box-shadow:0 0 0 3px #bdf5ad,0 3px 0 #157a2c}
+#mpage .dch.ready:active{transform:translateY(2px)}
+#mpage .dgoal{display:flex;align-items:center;gap:8px;min-height:54px;padding:6px 8px;background:#fff;border:2px solid #f3c27a;border-radius:12px}
+#mpage .dgoal .gi{flex:none;min-width:30px;text-align:center;font-size:21px}
+#mpage .dgoal .gt{flex:1;min-width:0;display:grid;gap:3px;font:900 13.5px/1.2 var(--f-body)}
+#mpage .dgoal .gt span{font-size:12px;color:var(--muted)}
+#mpage .dgoal .pb{height:7px;background:#f3e2c0;border-radius:5px;overflow:hidden}
+#mpage .dgoal .pb i{display:block;height:100%;background:linear-gradient(90deg,#ffcf4a,#f08a1c)}
+#mpage .dgoal .gir{flex:none;min-width:52px;min-height:44px;padding:0 12px;justify-self:auto}
+#mpage .dgoal .gok{flex:none;min-width:44px;text-align:center;font-size:24px;color:#1c8a3a}
+#mpage .dgoal.ok{background:#f1ede2}
+#mpage .shopl{display:grid;gap:8px}
+#mpage .shopc{display:flex;align-items:center;gap:10px;padding:10px}
+#mpage .shopc .si{flex:none;min-width:44px;text-align:center;font-size:30px}
+#mpage .shopc .st{flex:1;min-width:0;display:grid;gap:2px}
+#mpage .shopc .st b{font:400 18px/1.1 var(--f-title)}
+#mpage .shopc .st small{font:900 12.5px/1.25 var(--f-body);color:var(--muted)}
+#mpage .shopc .k-btn{flex:none;min-width:84px;min-height:48px;padding:0 10px;font-size:18px}
+
 /* texto grande */
 body.big #mpage :is(.muted,.howto,.hdet span,.achv,.hrow,.chal span,.story,.chk,.fld){font-size:16px}
 body.big #mpage .small{font-size:15px}
@@ -205,6 +249,10 @@ body.big #mtop .pv small{font-size:11px}
 body.big #mpage .cen .l,body.big #mpage .camp>.cad{font-size:14.5px}
 body.big #mpage .csb small{font-size:10.5px}
 body.big #mtabs .k-tab{font-size:12px}
+body.big #mpage .dcell{font-size:12.5px}
+body.big #mpage .dcell .dv,body.big #mpage .dch small{font-size:13px}
+body.big #mpage .dgoal .gt{font-size:15px}
+body.big #mpage .dgoal .gt span,body.big #mpage .shopc .st small{font-size:14px}
 
 @media (min-width:481px){#menu{box-shadow:0 0 40px rgba(0,0,0,.6)}}
 /* paisagem em tela baixa: o menu some atrás do "Gire o celular" */

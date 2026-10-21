@@ -985,6 +985,8 @@ function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}c
  document.querySelectorAll('[data-en]').forEach(x=>{if(x.textContent!==e.v)x.textContent=e.v;});document.querySelectorAll('[data-et]').forEach(x=>{if(x.textContent!==e.t)x.textContent=e.t;});
  document.querySelectorAll('[data-eb]').forEach(x=>x.style.width=e.pct+'%');
  const nd='⚡ '+Math.max(0,AM.JOURNEY_COST-m.energy);document.querySelectorAll('[data-need]').forEach(x=>{if(x.textContent!==nd)x.textContent=nd;});
+ const dd=document.querySelector('[data-day]');if(dd&&dd.dataset.day!==m.day){menuRefresh();return;}/* virou o dia UTC: bônus, metas e limites novos */
+ const de=hms(AM.goalsToday(m,Date.now()).endsIn);document.querySelectorAll('[data-dend]').forEach(x=>{if(x.textContent!==de)x.textContent=de;});tabDot();
  const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.textContent!==a.t)x.textContent=a.t;if(x.disabled!==a.dis)x.disabled=a.dis;});}
 function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElement,was=mn.hidden;
  const o=$('#overlay');if(!o.hidden){o.hidden=true;overlayFrom=null;}confirmFn=null;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();
@@ -994,7 +996,7 @@ function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElem
  const m=/^\s*<h2(?: class="([^"]*)")?>([^<]*)/.exec(html),prevT=pg.dataset.t,st=pg.scrollTop;
  if(m)html=html.replace(/^\s*<h2(?: class="([^"]*)")?>/,`<h2 class="k-rib${m[1]?' '+m[1]:''}" id="pgT">`);
  pg.innerHTML=html;pg.dataset.t=tab+'|'+(m?m[2]:'');pg.scrollTop=!was&&prevT===pg.dataset.t?st:0;
- menuTop();document.querySelectorAll('#mtabs [data-nav]').forEach(b=>{const on=b.dataset.nav===tab;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+ menuTop();tabDot();document.querySelectorAll('#mtabs [data-nav]').forEach(b=>{const on=b.dataset.nav===tab;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  mn.hidden=false;$('#app').hidden=true;if(!menuT)menuT=setInterval(menuTick,1000);
  let f=key&&pg.querySelector(key);if(f&&f.disabled)f=[...f.parentElement.querySelectorAll('button')].find(x=>x!==f&&!x.disabled);/* +/− no limite: o vizinho */
  if(f){f.focus({preventScroll:true});return;}
@@ -1012,8 +1014,68 @@ function moreScreen(){page(`<h2>Mais</h2><div class="morelist">
 function soonScreen(t,tab){page(`<h2>${t}</h2><div class="k-card pc"><p class="muted center">Em breve.</p></div>${backBtn()}`,tab);}
 function equipScreen(){soonScreen('Equipamento','equip');}
 function petsScreen(){soonScreen('Companheiros','pets');}
-function dailyScreen(){soonScreen('Diário','diario');}
-function shopScreen(){soonScreen('Loja','loja');}
+/* ----- Diário (bônus diário + metas do dia) e Loja de rubis ----- */
+const RES_ICO={gold:'💰',energy:'⚡',stone:'🪨',food:'🍖',ruby:'💎',egg:'🥚'},RES_NAME={gold:'Ouro',energy:'Energia',stone:'Pedras',food:'Rações',ruby:'Rubis',egg:'Ovos'},RES_ORDER=['gold','energy','stone','food','ruby','egg'];
+const rwTxt=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_ICO[k]}`).join(' ');
+const rwSay=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_NAME[k].toLowerCase()}`).join(', ');
+const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));return [Math.floor(t/3600),Math.floor(t%3600/60),t%60].map(x=>String(x).padStart(2,'0')).join(':');};
+const GOAL_ICO={win:'⚔️',merge:'✨',energy:'⚡',daily:'📅',elite:'👑',forge:'🔨',buy:'🛒',journey:'🗺️',cal:'🎁',upgrade:'⬆️'};
+/* para onde o botão IR leva: Diário (Desafio e calendário), Equipar (melhorar); o resto se faz em Jogar */
+const GOAL_GO={daily:'daily',upgrade:'equip',cal:'cal'};
+const snapRes=m=>{const o={};for(const k of RES_ORDER)o[k]=m[k]||0;return o;};
+/* o que entrou de verdade (b = recursos antes); o que passou do limite vira aviso */
+function gainToast(m,b,r,pre){const AM=window.AlforjeMeta,got={},lost=[];
+ for(const k of RES_ORDER)if(r[k]>0){got[k]=(m[k]||0)-b[k];if(got[k]<r[k])lost.push(`${RES_NAME[k]} no máximo (${k==='energy'?AM.ENERGY_CAP:fmtN(AM.CAP)})`);}
+ toast((pre||'Ganhou ')+(rwTxt(got)||'nada')+(lost.length?' · '+lost.join(', '):''),true);}
+/* ponto vermelho na aba Diário: bônus por pegar + baús prontos */
+function tabDot(){const b=document.querySelector('#mtabs [data-nav="diario"]');if(!b)return;const m=META(),AM=window.AlforjeMeta,now=Date.now();
+ const n=m?(AM.calToday(m,now).claimed?0:1)+AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0,d=b.querySelector('.k-dot');
+ if(!n){if(d)d.remove();b.removeAttribute('aria-label');return;}
+ if(!d)b.insertAdjacentHTML('beforeend',`<span class="k-dot" aria-hidden="true">${n}</span>`);else if(d.textContent!==String(n))d.textContent=n;
+ b.setAttribute('aria-label',`Diário, ${n} para pegar`);}
+function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Diário','diario');return;}
+ const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
+ const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
+  return `<div class="dcell${got?' got':''}${cur?' now':''}${nxt?' nxt':''}${i===6?' d7':''}" role="img" aria-label="Dia ${i+1}: ${rwSay(r)}${got?', pego':cur?', hoje':nxt?', amanhã':''}"><span class="dn" aria-hidden="true">Dia ${i+1}</span><span class="di" aria-hidden="true">${ks.map(k=>RES_ICO[k]).join('')}</span><span class="dv" aria-hidden="true">${ks.map(k=>fmtN(r[k])).join(' · ')}</span></div>`;}).join('');
+ const goals=g.ids.map(id=>{const d=AM.GOALS[id],p=g.p[id]||0,done=g.done.includes(id);
+  return `<div class="dgoal${done?' ok':''}"><span class="gi" aria-hidden="true">${GOAL_ICO[d.ev]||'⭐'}</span><div class="gt"><b>${d.t}</b><span>${done?'Feita':p+'/'+d.n}</span><div class="pb" aria-hidden="true"><i style="width:${Math.round(p/d.n*100)}%"></i></div></div>${done?`<span class="gok" role="img" aria-label="Feita">✔</span>`:`<button class="k-btn g sm gir" data-ir="${GOAL_GO[d.ev]||'play'}" aria-label="Ir: ${d.t}">IR</button>`}</div>`;}).join('');
+ const chests=g.chests.map((ch,i)=>`<button class="dch${ch.ready?' ready':''}${ch.claimed?' got':''}" data-chest="${i}" ${ch.ready?'':'disabled'} aria-label="Baú de ${ch.at} pontos: ${rwSay(ch.reward)}${ch.claimed?', pego':ch.ready?', pronto, toque para pegar':', trancado'}"><span class="ci" aria-hidden="true">${ch.claimed?'✔':'🎁'}</span><b aria-hidden="true">${ch.at}</b><small aria-hidden="true">${rwTxt(ch.reward)}</small></button>`).join('');
+ page(`<h2>Bônus diário</h2>
+ <div class="k-card pc" id="dCal" data-day="${m.day}"><div class="dcal">${cells}</div>
+  <button class="k-btn g" id="calGet" ${c.claimed?'disabled':''}>${c.claimed?'JÁ PEGOU HOJE':'PEGAR'}</button>
+  <button class="k-btn ad" id="calDbl" ${c.claimed||dblUsed?'disabled':''}>${dblUsed&&!c.claimed?'Dobro de hoje já usado':'▶ Assistir e pegar em dobro'}</button>
+  <p class="muted small center">${c.claimed?`Volte amanhã: Dia ${c.idx+1}. `:''}Perder um dia não zera a sequência.</p></div>
+ <div class="k-card pc" id="dGoals"><h4 class="dh">Metas do dia</h4>
+  <div class="dtrack" role="img" aria-label="${g.pts} de 100 pontos"><span class="dpts" aria-hidden="true">${g.pts}</span><div class="dbar" aria-hidden="true"><i style="width:${Math.min(100,g.pts)}%"></i><b style="left:40%"></b><b style="left:70%"></b></div></div>
+  <div class="dchests">${chests}</div>${goals}
+  <p class="muted small center">Cada meta vale 20 pontos · renova em <span data-dend>${hms(g.endsIn)}</span></p></div>
+ ${backBtn()}`,'diario');
+ const pg=$('#mpage');if(part==='goals'){const e=$('#dGoals');if(e)pg.scrollTop=e.getBoundingClientRect().top-pg.getBoundingClientRect().top+pg.scrollTop-6;}else if(part==='cal')pg.scrollTop=0;}
+/* PEGAR e dobro: o dobro só paga depois da propaganda, dentro de claimCal(…,true) */
+function claimDaily(dbl){const AM=window.AlforjeMeta,m=META();if(!m)return;const b=snapRes(m),r=AM.claimCal(m,Date.now(),dbl);
+ if(r){gev('cal');saveProf();gainToast(m,b,r);}menuRefresh();}
+/* cliques das páginas Diário e Loja: PEGAR, dobro, baús, IR, compras e propaganda do ouro */
+function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t.id,now=Date.now();
+ if(id==='calGet')claimDaily(false);
+ else if(id==='calDbl')watchAd('double',()=>claimDaily(true));
+ else if(t.dataset.chest!=null){const b=snapRes(m),r=AM.claimChest(m,now,+t.dataset.chest);if(r){saveProf();gainToast(m,b,r,'Baú: ');}menuRefresh();}
+ else if(t.dataset.ir!=null){const w=t.dataset.ir;
+  if(w==='cal')dailyScreen('cal');else if(w==='equip')equipScreen();
+  else if(w==='daily'){if(inRun()){toast('Termine ou abandone a jornada atual para fazer o Desafio');return;}MENU.mode='daily';classScreen();}
+  else backTo();}
+ else if(t.dataset.buy){const o=AM.SHOP[t.dataset.buy],b=snapRes(m);
+  if(AM.buy(m,now,t.dataset.buy)){saveProf();gainToast(m,b,{[o.kind]:o.n},'Comprou ');}else toast('Não deu para comprar agora');menuRefresh();}
+ else if(id==='adShop')watchAd('shop',ok=>{toast(ok?`+${ok} 💰 de ouro`:`Ouro no máximo (${fmtN(AM.CAP)})`);menuRefresh();});}
+const SHOP_UI={energy30:['⚡','+30 de energia'],stone3:['🪨','3 pedras'],food5:['🍖','5 rações'],egg:['🥚','1 ovo de companheiro']};
+function shopScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Loja','loja');return;}
+ const cards=Object.keys(AM.SHOP).map(key=>{const o=AM.SHOP[key],u=SHOP_UI[key],n=o.limit?m.buys[key]||0:0,out=!!o.limit&&n>=o.limit,full=m[o.kind]>=(o.kind==='energy'?AM.ENERGY_CAP:AM.CAP),poor=m.ruby<o.ruby;
+  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):poor?`Faltam ${o.ruby-m.ruby} 💎`:'';
+  return `<div class="k-card shopc"><span class="si" aria-hidden="true">${u[0]}</span><div class="st"><b>${u[1]}</b><small>${o.limit?`${n}/${o.limit} hoje · `:''}Você tem ${fmtN(m[o.kind])}${why?` · ${why}`:''}</small></div><button class="k-btn g" data-buy="${key}" ${why?'disabled':''} aria-label="Comprar ${u[1]} por ${o.ruby} rubis${why?'. '+why:''}">💎 ${o.ruby}</button></div>`;}).join('');
+ const used=m.ad.shop>=AM.AD_LIMIT.shop,gfull=m.gold>=AM.CAP;
+ page(`<h2>Loja</h2>
+ <div class="shopl" id="shopL" data-day="${m.day}">${cards}</div>
+ <button class="k-btn ad" id="adShop" ${used||gfull?'disabled':''}>${used?'Propaganda de hoje já vista':gfull?`Ouro no máximo (${fmtN(AM.CAP)})`:'▶ Propaganda: +50 💰 (1/dia)'}</button>
+ <p class="muted small center">Rubis vêm do calendário, dos baús das metas e das conquistas.</p>${backBtn()}`,'loja');}
 /* ----- Acampamento (aba Jogar fora da jornada) ----- */
 function campHero(){const p=MENU.pick;return p&&CLASSES[p]&&classOpen(p)?p:CLASSKEYS.find(classOpen)||CLASSKEYS[0];}
 function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSES[k],now=Date.now();
@@ -1028,7 +1090,7 @@ function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSE
  <button class="k-btn g cgo" id="campGo">JORNADA${m?`<small>⚡ ${AM.JOURNEY_COST}</small>`:''}</button>
  ${al?`<button class="k-btn ad cad" id="adEnergy" data-ad ${al.dis?'disabled':''}>${al.t}</button>`:''}</div>`,'jogar');}
 /* redesenha a página do menu que está aberta (depois de uma propaganda, por exemplo) */
-function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else menuTop();}
+function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else if($('#dCal'))dailyScreen();else if($('#shopL'))shopScreen();else menuTop();}
 /* propaganda: janela de 3 s que não fecha antes; depois conta o uso do dia (adUse) e chama onDone(ok); ok = o que entrou (energia/ouro), false se recusou.
    'double' não gasta aqui: claimCal(m,now,true) gasta o contador do dobro dentro dele. */
 let adT=0;
@@ -1322,7 +1384,7 @@ document.addEventListener('click',e=>{
  else if(id==='closeOv'){closeOverlay();render();}
  else if(id==='back')backTo();else if(id==='backMore'){if(inRun())backTo();else moreScreen();}
  else if(id==='cMore')moreScreen();else if(id==='campGo')classScreen();else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
- else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='neGoals')dailyScreen('goals');
+ else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='calGet'||id==='calDbl'||id==='adShop'||t.dataset.chest!=null||t.dataset.ir!=null||t.dataset.buy)metaAct(t);else if(id==='neGoals')dailyScreen('goals');
  else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} ⚡ (limite ${cap})`:'+10 ⚡ de energia');menuRefresh();});
  else if(id==='helpBtn'){if(state.cls&&state.phase!=='class')runMenu();else campScreen();}
  else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste o item até a faixa da loja, que vira Vender durante o arrasto.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backMoreBtn()}`,'jogar');
