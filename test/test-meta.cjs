@@ -169,5 +169,60 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   check(M.achRuby(m, ['a', 'b']) === 0 && m.ruby === 5, 'achRuby: só uma vez');
 }
 
-console.log(fails ? `\n${fails} FALHA(S)` : '\ntudo ok');
+// rodada de correção 1
+{
+  // meta antiga/parcial
+  const old = { totalWins: 3, ach: { a: 1 }, meta: { energy: 12, gold: 5 } };
+  const m = M.ensureMeta(old, T0);
+  check(m.gear.weapon === 1 && m.gear.bag === 1 && eq(m.pets, {}) && m.cal.idx === 0 && m.ad.energy === 0 && m.buys.energy30 === 0 && m.goals.ids.length === 5 && m.achBase.includes('a') && eq(m.achPaid, {}), 'backfill: meta parcial recebe todos os campos');
+  check(m.energy === 12 && m.gold === 5 && m.ruby === 0 && m.xp === 30, 'backfill: mantém o que existe e zera/deriva o que falta');
+  check(M.adUse(m, T0, 'energy') && M.buy(m, T0, 'egg') === false && M.claimCal(m, T0, true) && M.goalEvent(m, T0, 'win', 1) !== undefined && M.achRuby(m, ['z']) === 5, 'backfill: funções seguintes não quebram');
+  const p2 = { totalWins: 0, meta: { v: 1, energy: 30, eAt: T0, xp: 0, gold: 0, ruby: 0, stone: 0, food: 0, egg: 0, gear: { weapon: 1, armor: 1, ring: 1, bag: 1 }, pets: {}, petOn: null, cal: { last: '', idx: 0 }, day: '2026-10-21' } };
+  const m2 = M.ensureMeta(p2, T0);
+  check(m2.day === '2026-10-21' && m2.ad && m2.buys && m2.goals && m2.goals.ids.length === 5 && M.adUse(m2, T0, 'energy'), 'backfill: meta de hoje sem ad/buys/goals');
+
+  // o dia só avança
+  const b = mk(); b.ruby = 99; b.energy = 0;
+  M.claimCal(b, T0, false); M.adUse(b, T0, 'shop'); M.buy(b, T0, 'energy30'); M.buy(b, T0, 'energy30');
+  M.goalEvent(b, T0, M.GOALS[b.goals.ids[0]].ev, 99);
+  const gSnap = JSON.stringify(b.goals), back = T0 - 2 * DAY;
+  check(M.calToday(b, back).claimed && M.claimCal(b, back, false) === null, 'relógio para trás: calendário continua pego');
+  check(M.adUse(b, back, 'shop') === false && M.buy(b, back, 'energy30') === false, 'relógio para trás: contadores de propaganda e loja não zeram');
+  check(JSON.stringify(b.goals) === gSnap && M.goalsToday(b, back).pts === b.goals.pts && b.day === '2026-10-21', 'relógio para trás: metas não são sorteadas de novo');
+  check(M.ensureMeta({ meta: b }, back) === b && b.day === '2026-10-21', 'relógio para trás: ensureMeta não rola o dia');
+
+  // dobro dentro de claimCal
+  const d = mk();
+  check(M.claimCal(d, T0, true).gold === 200 && d.ad.double === 1, 'dobro: paga 200 e gasta o contador');
+  const e = mk(); M.adUse(e, T0, 'double');
+  check(M.claimCal(e, T0, true).gold === 100 && e.gold === 100, 'dobro já usado hoje: paga o simples');
+  const f = mk(); M.claimCal(f, T0, false);
+  check(M.claimCal(f, T0, true) === null && f.ad.double === 0, 'dobro: já pego hoje não gasta o contador');
+
+  // rollover pelas funções de evento
+  const g = mk(); g.goals.pts = 100; g.goals.done = ['x'];
+  check(M.claimChest(g, T0 + DAY, 0) === null && g.goals.pts === 0, 'virada: claimChest rola o dia e não paga o baú velho');
+  const h = mk(); h.goals.p = { zzz: 1 };
+  M.goalEvent(h, T0 + DAY, 'win', 1); check(h.day === '2026-10-22' && h.goals.p.zzz === undefined, 'virada: goalEvent rola o dia');
+  const k = mk(); M.claimCal(k, T0, false); M.adUse(k, T0, 'double');
+  check(M.claimCal(k, T0 + DAY, true).energy === 20 && k.ad.double === 1, 'virada: claimCal no dia novo (dobro volta a valer)');
+
+  // baús 1 e 2, calendário dias 2 a 6
+  const c = mk(); c.goals.pts = 100;
+  const r1 = M.claimChest(c, T0, 1), r2 = M.claimChest(c, T0, 2);
+  check(eq(r1, { stone: 2, food: 3 }) && c.stone === 2 && c.food === 3, 'baú 1: 2 pedras + 3 rações');
+  check(eq(r2, { ruby: 15, energy: 10 }) && c.ruby === 15, 'baú 2: 15 rubis + 10 energia');
+  const w = mk(), exp = [{ gold: 100 }, { energy: 10 }, { stone: 3 }, { food: 5 }, { ruby: 20 }, { egg: 1 }];
+  check(exp.every((x, i) => eq(M.claimCal(w, T0 + i * DAY, false), x)), 'calendário: dias 1 a 6 conforme a tabela');
+  check(w.gold === 100 && w.stone === 3 && w.food === 5 && w.ruby === 20 && w.egg === 1, 'calendário: recursos creditados');
+
+  // achRuby e hatch no limite
+  const a = mk(); a.ruby = 99998;
+  check(M.achRuby(a, ['n']) === 1 && a.ruby === 99999, 'achRuby devolve só o que entrou');
+  const hh = mk(); hh.egg = 1; hh.food = 99999; for (const kk of D.PETKEYS) hh.pets[kk] = 1;
+  check(M.hatch(hh, () => 0) === null && hh.egg === 1, 'hatch com rações no limite: não consome o ovo');
+  check(M.dayKey(NaN) === new Date().toISOString().slice(0, 10), 'dayKey não finito vira hoje');
+}
+
+console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');
 process.exit(fails ? 1 : 0);

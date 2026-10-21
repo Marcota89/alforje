@@ -20,19 +20,45 @@ const PETKEYS=(window.AlforjeData&&window.AlforjeData.PETKEYS)||[];
 
 function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return (h^h>>>16)>>>0;}
 function mulberry(a){return function(){a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
-const dayKey=now=>new Date(now).toISOString().slice(0,10);
+/* now não finito (NaN/undefined) vira Date.now() */
+const dayKey=now=>new Date(Number.isFinite(now)?now:Date.now()).toISOString().slice(0,10);
 const endsIn=now=>DAY_MS-((now%DAY_MS)+DAY_MS)%DAY_MS;
 /* sorteio determinístico: depende só da data */
 function drawGoals(dk){const r=mulberry(hashStr('metas|'+dk)||1),a=GOALKEYS.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,GOAL_COUNT);}
 function newGoals(dk){return {ids:drawGoals(dk),p:{},done:[],pts:0,chests:CHESTS.map(()=>false)};}
 
 /* ===== criação, migração e virada do dia ===== */
+const isObj=o=>o&&typeof o==='object'&&!Array.isArray(o);
+const isNum=n=>typeof n==='number'&&Number.isFinite(n);
+/* o dia da meta só avança (comparação de strings ISO): relógio para trás não reabre nada */
+function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&isObj(g.p)&&Array.isArray(g.done)&&isNum(g.pts)&&Array.isArray(g.chests)&&g.chests.length===CHESTS.length;}
 function rollDay(m,now){const dk=dayKey(now);
- if(m.day===dk)return m;
- m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.goals=newGoals(dk);return m;}
+ if(typeof m.day!=='string'||dk>m.day){m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.goals=newGoals(m.day);return m;}
+ if(!goalsOk(m.goals))m.goals=newGoals(m.day);
+ return m;}
+/* preenche com o padrão o que faltar numa meta antiga ou parcial */
+function backfill(m,prof,now){
+ const n0=(k,d)=>{if(!isNum(m[k])||m[k]<0)m[k]=d;};
+ n0('energy',ENERGY_MAX);n0('eAt',isNum(now)?now:Date.now());n0('xp',10*(prof.totalWins||0));
+ for(const k of ['gold','ruby','stone','food','egg'])n0(k,0);
+ if(!isObj(m.gear))m.gear={};
+ for(const k in GEAR)if(!isNum(m.gear[k])||m.gear[k]<1)m.gear[k]=1;
+ if(!isObj(m.pets))m.pets={};
+ if(typeof m.petOn!=='string'||!m.pets[m.petOn])m.petOn=null;
+ if(!isObj(m.cal))m.cal={};
+ if(typeof m.cal.last!=='string')m.cal.last='';
+ if(!isNum(m.cal.idx)||m.cal.idx<0)m.cal.idx=0;
+ if(typeof m.day!=='string')m.day='';
+ if(!isObj(m.ad))m.ad={};
+ for(const k in AD_LIMIT)if(!isNum(m.ad[k]))m.ad[k]=0;
+ if(!isObj(m.buys))m.buys={};
+ if(!isNum(m.buys.energy30))m.buys.energy30=0;
+ if(!Array.isArray(m.achBase))m.achBase=Object.keys(prof.ach||{});
+ if(!isObj(m.achPaid))m.achPaid={};
+ if(!m.v)m.v=1;}
 function ensureMeta(prof,now){
- if(!prof.meta){prof.meta={v:1,energy:ENERGY_MAX,eAt:now,xp:10*(prof.totalWins||0),gold:0,ruby:0,stone:0,food:0,egg:0,
-  gear:{weapon:1,armor:1,ring:1,bag:1},pets:{},petOn:null,cal:{last:'',idx:0},day:'',ad:{energy:0,double:0,shop:0},buys:{energy30:0},goals:null,achBase:Object.keys(prof.ach||{}),achPaid:{}};}
+ if(!prof.meta)prof.meta={v:1,day:''};
+ backfill(prof.meta,prof,now);
  return rollDay(prof.meta,now);}
 
 /* ===== energia ===== */
@@ -55,9 +81,10 @@ function applyReward(m,r){const added={},lost={};
 const scale=(r,f)=>{const o={};for(const k in r)o[k]=r[k]*f;return o;};
 
 /* ===== calendário ===== */
-function calToday(m,now){rollDay(m,now);const idx=m.cal.idx%CAL.length;return {idx,reward:CAL[idx],claimed:m.cal.last===dayKey(now)};}
+function calToday(m,now){rollDay(m,now);const idx=m.cal.idx%CAL.length;return {idx,reward:CAL[idx],claimed:m.cal.last>=dayKey(now)};}
+/* double: gasta o contador do dobro aqui dentro; se já usado, paga o bônus simples */
 function claimCal(m,now,double){const c=calToday(m,now);if(c.claimed)return null;
- const r=double?scale(c.reward,2):Object.assign({},c.reward);applyReward(m,r);
+ const r=double&&adUse(m,now,'double')?scale(c.reward,2):Object.assign({},c.reward);applyReward(m,r);
  m.cal.last=dayKey(now);m.cal.idx=(c.idx+1)%CAL.length;return r;}
 
 /* ===== metas do dia ===== */
@@ -88,9 +115,10 @@ function upgradeGear(m,slot){if(!GEAR[slot])return false;const L=m.gear[slot];if
 const feedCost=L=>L+1;
 function feedPet(m,key){const L=m.pets[key];if(!L||L>=PET_MAX)return false;const c=feedCost(L);if(m.food<c)return false;m.food-=c;m.pets[key]=L+1;return true;}
 /* gasta 1 ovo (sem ovo: null); choca um companheiro que falta, ou 10 rações se já tiver todos */
-function hatch(m,rnd){if(m.egg<1)return null;m.egg--;
+function hatch(m,rnd){if(m.egg<1)return null;
  const miss=PETKEYS.filter(k=>!m.pets[k]);
- if(!miss.length){addRes(m,'food',HATCH_FOOD);return 'food';}
+ if(!miss.length){if(m.food>=CAP)return null;m.egg--;addRes(m,'food',HATCH_FOOD);return 'food';}
+ m.egg--;
  const k=miss[Math.min(miss.length-1,Math.floor(rnd()*miss.length))];m.pets[k]=1;return k;}
 function setPetOn(m,key){m.petOn=key&&m.pets[key]?key:null;}
 
@@ -111,7 +139,7 @@ function buy(m,now,offer){rollDay(m,now);const o=SHOP[offer];if(!o||m.ruby<o.rub
  m.ruby-=o.ruby;addRes(m,o.kind,o.n);if(o.limit)m.buys[offer]=(m.buys[offer]||0)+1;return true;}
 function achRuby(m,achKeys){let n=0;
  for(const k of achKeys)if(!m.achBase.includes(k)&&!m.achPaid[k]){m.achPaid[k]=1;n++;}
- if(n)addRes(m,'ruby',n*ACH_RUBY);return n*ACH_RUBY;}
+ return n?addRes(m,'ruby',n*ACH_RUBY):0;}
 
 window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
