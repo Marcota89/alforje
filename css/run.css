@@ -101,7 +101,8 @@ body.cb :is(#bag,#chest,.ghost) .pips i{width:8px;height:8px;background:#fff;box
 body.cb :is(#bag,#chest,.ghost) .pips i:first-child{display:none}
 
 /* carga e afinidades em pílulas */
-#aff{min-height:24px;max-width:100%;display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;justify-content:center;align-items:center;background:none;border:0;padding:0 4px;cursor:pointer;font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff}
+/* o botão tem 40px de alto (alvo de toque) mas só 24px de layout: sobe 16px sob a base da mochila (#bag fica por cima, z-index 1) e as pílulas ficam coladas embaixo */
+#aff{position:relative;flex:none;min-width:44px;height:40px;margin-top:-16px;max-width:100%;display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;justify-content:center;align-items:flex-end;background:none;border:0;padding:0 4px 2px;cursor:pointer;font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff}
 #aff .load,#aff .aftag,#aff .pkdot{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;border:2px solid var(--pill-edge);background:var(--pill-bg);font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff;white-space:nowrap}
 #aff .aftag{border-color:var(--c)}
 #aff .aftag.on{background:var(--c);color:var(--ink-brown)}
@@ -175,3 +176,53 @@ body.big #chestHead{font-size:12.5px}
 body.big #chestHead b{font-size:13.5px}
 body.big #sellzone b{font-size:17px}
 body.big #sellzone span{font-size:14px}
+
+/* ===== barra de ações (loja e luta) ===== */
+#actions{height:60px;box-sizing:content-box;padding:0 8px env(safe-area-inset-bottom,0px);display:flex;align-items:center;gap:6px;background:none}
+body.lefty #actions{flex-direction:row-reverse}
+#actions .k-btn{font-family:'Lilita One',system-ui,sans-serif}
+#actions .abtn{position:relative;flex:1 1 0;min-width:40px;max-width:66px;height:52px;min-height:0;display:grid;place-items:center;align-content:center;gap:3px;padding:0;font:400 19px/1 'Lilita One',system-ui,sans-serif}
+#actions .abtn small{font:900 10.5px/1 'Nunito',system-ui,sans-serif;letter-spacing:-.1px;white-space:nowrap}
+#actions #undo small{font-size:9.5px;letter-spacing:-.3px}
+#actions .fightbtn{flex:1.7 1 0;min-width:0;height:52px;padding:0 2px;font-size:22px;letter-spacing:.03em}
+#actions .k-btn.on{background:linear-gradient(180deg,#ffd04a,#f08a1c);box-shadow:0 4px 0 var(--orange-d);color:var(--ink-brown);text-shadow:none}
+#actions .abtn.ping{box-shadow:0 4px 0 #2c1a66,0 0 12px 3px rgba(255,211,77,.85)}
+#actions .k-dot{top:-8px;right:2px;pointer-events:none}
+#actions .k-dot.n{background:var(--pill-bg);border-color:var(--pill-edge)}
+#actions[data-mode=battle] .spd{flex:1 1 0;max-width:none;height:46px;padding:0;font-size:19px}
+#actions[data-mode=battle] .fightbtn{flex:2 1 0;height:46px;font-size:17px;text-transform:uppercase}
+body.big #actions .abtn small{font-size:11px;letter-spacing:-.3px}
+#actions .k-btn:focus-visible{outline:3px solid var(--pill-edge);outline-offset:2px}
+
+/* ===== luta: sem mochila, arena grande, medidor na faixa de baixo ===== */
+#app.in-battle #bagzone{display:none}
+#app.in-battle #base{height:auto;flex:1 1 0;min-height:150px;justify-content:flex-start;padding:0 8px 4px}
+#meter[hidden]{display:none}
+#meter{flex:1 1 auto;min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:5px;padding:8px 10px;overflow:hidden}
+#meter h5{margin:0;display:flex;justify-content:space-between;gap:8px;font:400 12px/1.1 'Lilita One',system-ui,sans-serif;letter-spacing:.05em;color:var(--ink-brown)}
+#meter h5 span:last-child{font:900 11px/1.1 'Nunito',system-ui,sans-serif;letter-spacing:0;color:var(--orange-d)}
+#meter .mrow{display:grid;grid-template-columns:26px minmax(0,6.5em) 1fr auto;gap:6px;align-items:center;min-height:22px;padding:0 4px;margin:0 -4px;border-radius:8px;font:900 12px/1.1 'Nunito',system-ui,sans-serif;color:var(--ink-brown)}
+#meter .mrow.hit{background:rgba(255,208,74,.5)}
+#meter .mrow img{width:26px;height:22px;object-fit:contain;justify-self:center}
+#meter .mrow img.px{image-rendering:pixelated}
+#meter .mrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter .mbar{display:flex;height:10px;border-radius:6px;background:#f3e2c0;overflow:hidden}
+#meter .mbar i{display:block;height:100%;background:none}
+#meter .mbar .d{background:linear-gradient(90deg,#ffcf4a,#f08a1c)}
+#meter .mbar .b{background:#2f9bff}
+#meter .mbar .h{background:#35cf68}
+#meter .mrow b{font:900 12px/1.1 'Nunito',system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+#meter .mrow b em{font-style:normal;color:#1f6fd0}
+#meter .mrow b u{text-decoration:none;color:#1a8a3a}
+body.big #meter .mrow,body.big #meter .mrow b,body.big #meter h5{font-size:14px}
+
+/* números de dano: grandes, com contorno (crítico dourado, cura verde, escudo azul) */
+#floats{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#floats .float{position:absolute;font:400 22px/1 'Lilita One',system-ui,sans-serif;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:0 2px 0 #000;transform:translateX(-50%);animation:up .9s ease-out forwards;white-space:nowrap}
+#floats .float.crit{font-size:30px;color:#ffd34d}
+#floats .float.burn{color:#ff9a3a}
+#floats .float.psn{color:#a6e84a}
+#floats .float.heal{color:#8ff09a}
+#floats .float.blk{color:#8cc8ff}
+#floats .float.banner{font-size:24px;color:#ffd34d;animation:banner 1.2s ease-out forwards}
+@media (prefers-reduced-motion:reduce){#floats .float,#floats .float.banner{animation:fade .9s linear forwards}#meter .mrow.hit{background:none}}

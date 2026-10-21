@@ -284,7 +284,9 @@ function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/1
   if(cs>=44||ui<=.9)break;ui-=.05;}
  cs=Math.max(40,cs);CS=cs;CARD=card;
  CCS=Math.max(36,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24-76)/chestCols())));
- const bagH=rows*cs+8;arenaH=Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
+ const bagH=rows*cs+8,battle=!!state&&state.phase==='battle',meterMin=150;app.classList.toggle('in-battle',battle);
+ /* luta: sem mochila nem faixa da loja; a arena ocupa o espaço e o medidor fica na faixa de baixo */
+ arenaH=battle?Math.max(arenaMin,Math.min(Math.round(W*.56),H-top-vs-intent-meterMin-act-gaps)):Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
  const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');
  app.classList.toggle('roomy',arenaH>=170);$('#shop').classList.toggle('scroll',!!scroll);
  sizeCanvas();placeSellZone();}
@@ -329,12 +331,15 @@ function updateHud(){const b=B;
 function statusText(){if(!B)return '';const f=F=>{const a=[];if(F.block>0)a.push(`escudo ${F.block}`);if(F.burn>0)a.push(`queimadura ${F.burn}/s`);if(F.poison>0)a.push(`veneno ${F.poison} a cada ${F.pti||2}s`);if(F.frost>0)a.push(`Gelo ${F.frost} (−${Math.round(100-100/(1+.02*F.frost))}% velocidade)`);if(F.purged>0)a.push('purgado');if(F.mult>1)a.push('fúria');return a.join(' · ')||'nenhum efeito';};
  return `${B.p.name}: ${f(B.p)}  |  ${B.e.name}: ${f(B.e)}`;}
 function iconURL(icon,tier){if(!icon)return null;if(icon.startsWith('pet:'))return 'a/p_'+icon.slice(4)+'.webp';if(ITEMS[icon])return artURL(icon,tier);if(SPR[icon])return spr(icon);return null;}
-function meterRows(src){return Object.values(src).filter(s=>s.dmg+s.blk+s.heal>0).sort((x,y)=>(y.dmg+y.blk+y.heal)-(x.dmg+x.blk+x.heal));}
-function meterHTML(b,limit,title){const rows=meterRows(b.stats).slice(0,limit);if(!rows.length)return `<h5><span>${title}</span><span>aguardando o primeiro golpe</span></h5>`;
+function meterRows(src){return Object.entries(src).filter(([,s])=>s.dmg+s.blk+s.heal>0).map(([k,s])=>({k,...s})).sort((x,y)=>(y.dmg+y.blk+y.heal)-(x.dmg+x.blk+x.heal));}
+/* realce de 300 ms na linha do medidor quando o item (i12) ou companheiro (p0) ataca; guardado porque o medidor é redesenhado a cada 250 ms */
+const HIT={};
+function hitRow(key){const until=performance.now()+300;HIT[key]=until;const el=document.querySelector(`#meter .mrow[data-key="${key}"]`);if(el){el.classList.add('hit');setTimeout(()=>{if(HIT[key]<=performance.now())el.classList.remove('hit');},310);}}
+function meterHTML(b,limit,title){const now=performance.now(),rows=meterRows(b.stats).slice(0,limit);if(!rows.length)return `<h5><span>${title}</span><span>aguardando o primeiro golpe</span></h5>`;
  const mx=Math.max(...rows.map(s=>s.dmg+s.blk+s.heal));
  return `<h5><span>${title}</span><span>dano total ${Math.round(Object.values(b.stats).reduce((a,s)=>a+s.dmg,0))}</span></h5>`+rows.map(s=>{const u=iconURL(s.icon,s.tier);
-  return `<div class="mrow">${u?`<img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}>`:'<i></i>'}<span>${s.label}</span><div class="mbar"><i class="d" style="width:${s.dmg/mx*100}%"></i><i class="b" style="width:${s.blk/mx*100}%"></i><i class="h" style="width:${s.heal/mx*100}%"></i></div><b>${Math.round(s.dmg)}${s.blk?` <em>+${Math.round(s.blk)}</em>`:''}${s.heal?` <u>+${Math.round(s.heal)}</u>`:''}</b></div>`;}).join('');}
-function renderMeter(){const m=$('#meter');if(!B||state.phase!=='battle'){m.hidden=true;return;}m.hidden=false;m.innerHTML=meterHTML(B,3,'MEDIDOR AO VIVO');}
+  return `<div class="mrow${HIT[s.k]>now?' hit':''}" data-key="${s.k}">${u?`<img src="${u}" alt=""${SPR[s.icon]?' class="px"':''}>`:'<i></i>'}<span>${s.label}</span><div class="mbar"><i class="d" style="width:${s.dmg/mx*100}%"></i><i class="b" style="width:${s.blk/mx*100}%"></i><i class="h" style="width:${s.heal/mx*100}%"></i></div><b>${Math.round(s.dmg)}${s.blk?` <em>+${Math.round(s.blk)}</em>`:''}${s.heal?` <u>+${Math.round(s.heal)}</u>`:''}</b></div>`;}).join('');}
+function renderMeter(){const m=$('#meter');if(!B||state.phase!=='battle'){m.hidden=true;return;}m.hidden=false;m.innerHTML=meterHTML(B,Math.max(3,Math.min(6,Math.floor((($('#base').clientHeight||150)-48)/28))),'MEDIDOR AO VIVO');}
 /* INF-01: per-item table after the fight */
 function statTable(src,isPlayer){const rows=Object.values(src).filter(s=>s.dmg+s.blk+s.heal+s.act+s.burn+s.poison+s.frost>0).sort((x,y)=>(y.dmg+y.blk+y.heal)-(x.dmg+x.blk+x.heal));
  if(!rows.length)return '<p class="muted">Nada registrado.</p>';
@@ -352,7 +357,7 @@ function beam(fromId,toId){if(beamBusy>5)return;const svg=document.querySelector
  svg.appendChild(l);beamBusy++;setTimeout(()=>{l.remove();beamBusy--;},280);}
 function flushEvents(){let snd=0;
  for(const e of B.ev){
-  if(e.k==='atk'){spawnAtk(e);if(e.id!=null){pulseItem(e.id,'fire');if(e.sup)for(const s of e.sup){pulseItem(s,'buff');beam(s,e.id);}}
+  if(e.k==='atk'){spawnAtk(e);if(e.s==='p'){const hk=e.id!=null?'i'+e.id:e.pet!=null?'p'+e.pet:null;if(hk)hitRow(hk);}
    if(e.pet!=null&&e.s==='p'){const sl=document.querySelector(`.slot[data-pet="${e.pet}"]`);if(sl){sl.classList.remove('fire');void sl.offsetWidth;sl.classList.add('fire');}}
    if(e.s==='p'&&e.pet==null&&state.cls==='alchemist')setPose(e.fx==='fire'?'boom':'attack',.4);
    if(e.s==='p'&&e.pet==null&&e.crit){if(state.cls==='rogue')setPose('special',.45);else if(state.cls==='paladin')setPose('charge',.45);}
@@ -422,14 +427,14 @@ function renderShop(){const sh=$('#shop'),base=$('#base');
   <span class="box">${s.locked?`<img class="lock" src="${spr('lockic')}" alt="reservado">`:''}${s.sale?'<span class="sale">PROMO</span>':''}<img class="art ${tint}" src="${src}" alt="" draggable="false">${s.pet?'':tagDots(s.key)}${shopHint(s)}</span><span class="price k-pill${s.sale?' off':''}"><img src="${spr('coin')}" alt="">${p}</span></button>`;}).join('');
  const nc=inWhere('chest').length;$('#chestHead').innerHTML=`<b>Baú</b> ${nc}/${chestCols()*CHEST_ROWS} · guardados não lutam · solte aqui para guardar`;
  const a=$('#actions');a.dataset.mode=battle?'battle':'shop';
- if(battle){a.innerHTML=`${[1,2,4].map(s=>`<button class="abtn${speed===s?' on':''}" data-speed="${s}" aria-label="Velocidade ${s}×">${s}×</button>`).join('')}<button class="btn primary fightbtn" id="skip">Pular ▶▶</button>`;return;}
+ if(battle){a.innerHTML=`${[1,2,4].map(s=>`<button class="spd k-btn v${speed===s?' on':''}" data-speed="${s}" aria-label="Velocidade ${s}×">${s}×</button>`).join('')}<button class="fightbtn k-btn o" id="skip">Pular ▶▶</button>`;return;}
  const lvl=state.bagLvl,cost=BAGCOST[lvl],rc=rerollCost(),canX=canExpand();
- a.innerHTML=`<button class="abtn" id="reroll" ${state.gold<rc?'disabled':''} aria-label="Trocar itens por ${rc} de ouro">↻<small>Trocar</small><i class="cost">${rc}</i></button>
- <button class="abtn" id="expand" ${!canX||state.gold<cost?'disabled':''} aria-label="${canX?'Ampliar a mochila por '+cost:'Mochila máxima'}">⊞<small>${canX?'Ampliar':'Máx.'}</small>${canX?`<i class="cost">${cost}</i>`:''}</button>
- <button class="abtn" id="undo" ${state.undo?'':'disabled'} aria-label="Desfazer">↶<small>Desfazer</small></button>
- <button class="abtn${chest?' on':''}" id="chestBtn" aria-label="Baú, ${nc} itens">${chest?'▾':'▴'}<small>Baú</small>${nc?`<i class="cost n">${nc}</i>`:''}</button>
- <button class="abtn${state.skipOffer?' ping':''}" id="moreBtn" aria-label="Mais opções">⋯<small>Mais</small></button>
- <button class="btn primary fightbtn" id="fight">LUTAR!</button>`;}
+ a.innerHTML=`<button class="abtn k-btn v" id="reroll" ${state.gold<rc?'disabled':''} aria-label="Trocar itens por ${rc} de ouro">↻<small>Trocar</small><i class="k-dot">${rc}</i></button>
+ <button class="abtn k-btn v" id="expand" ${!canX||state.gold<cost?'disabled':''} aria-label="${canX?'Ampliar a mochila por '+cost:'Mochila máxima'}">⊞<small>${canX?'Ampliar':'Máx.'}</small>${canX?`<i class="k-dot">${cost}</i>`:''}</button>
+ <button class="abtn k-btn v" id="undo" ${state.undo?'':'disabled'} aria-label="Desfazer">↶<small>Desfazer</small></button>
+ <button class="abtn k-btn v${chest?' on':''}" id="chestBtn" aria-label="Baú, ${nc} itens">${chest?'▾':'▴'}<small>Baú</small>${nc?`<i class="k-dot n">${nc}</i>`:''}</button>
+ <button class="abtn k-btn v${state.skipOffer?' ping':''}" id="moreBtn" aria-label="Mais opções">⋯<small>Mais</small></button>
+ <button class="fightbtn k-btn r" id="fight">LUTAR!</button>`;}
 function render(){if(state.phase!=='battle'&&BASEMODE==='battle')BASEMODE='shop';fit();stats();renderPets();renderGrids();renderShop();if(state.phase==='battle')hudBattle();else hudShop();sizeCanvas();renderPop();renderSheet();renderDrawer();if(SNAP!=null){flashItem(SNAP);SNAP=null;}if(COACH.step>=0)coachTick();}
 /* ================= INFO SHEET ================= */
 function recipeLines(key){return RECIPES.filter(r=>r[0]===key||r[1]===key||r[2]===key||r[3]===key).map(r=>r[2]===key?`Forjado de ${ITEMS[r[0]].name} + ${ITEMS[r[1]].name}${r[3]?` (com ${ITEMS[r[3]].name} encostado)`:''}`
