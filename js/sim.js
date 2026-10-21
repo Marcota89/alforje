@@ -153,9 +153,9 @@ function makePlayer(){const C=CLASSES[state.cls]||CLASSES.warrior,A=affinity();c
   if(P.heal)heals.push({pet:i,key:k,label:P.name,icon:ic,amt:Math.round(P.heal*m*healMul),cd:P.cd,t:P.cd});});
  if(A.lv.metal)block+=A.lv.metal===2?20:8;if(A.lv.sagrado===2)hp+=15;if(has('sangue'))hp+=15;if(has('pedra'))block+=12;
  if(state.sub==='guardiao'){block=Math.round(block*1.25);reflect+=2;}
- if(PM){if(PM.block>0){block+=PM.block;initBlk.push(['perm','Armadura','perm',PM.block,1]);}if(dm!==1){reflect=Math.round(reflect*dm);for(const t of trig.start)t.amt=Math.round(t.amt*dm);for(const t of trig.crit5)t.amt=Math.round(t.amt*dm);}}
+ if(PM){if(PM.block>0){block+=PM.block;initBlk.push(['perm','Armadura','shield',PM.block,1]);}if(dm!==1){reflect=Math.round(reflect*dm);for(const t of trig.start)t.amt=Math.round(t.amt*dm);for(const t of trig.crit5)t.amt=Math.round(t.amt*dm);}}
  const sub=state.sub;
- return {side:'p',name:C.name,hp,max:hp,block,reflect,chill,weapons,heals,trig,initBlk,aegis,burn:0,poison:0,frost:0,bt:1,pt:2,pti:2,ft:3,
+ return {side:'p',pdm:dm,name:C.name,hp,max:hp,block,reflect,chill,weapons,heals,trig,initBlk,aegis,burn:0,poison:0,frost:0,bt:1,pt:2,pti:2,ft:3,
   critMult:sub==='assassina'?3:C.critMult,mult:1,firstCrit:state.cls==='rogue',firstStrike:has('primeiro'),cls:state.cls,sub,fury:0,holy:sub==='cruzado'?6:8,crits:0,
   hadBlock:block>0,broke:false,low:false,started:false,mods:[],
   startFrost:A.lv.gelo===2?5:0,poisonTick:A.lv.veneno===2?1.2:A.lv.veneno===1?1.6:2,burnDecay:A.lv.fogo===2?2:1,aff:A};}
@@ -219,7 +219,7 @@ function step(b,dt){const P=b.p,E=b.e;b.t+=dt;
   for(const h of A.heals){h.t-=dt;if(h.t>0)continue;h.t+=h.cd;rec(b,a,h.key||'regen',h.label,h.icon,'act',1,h.tier);
    if(h.shield){A.block+=h.amt;rec(b,a,h.key,h.label,h.icon,'blk',h.amt,h.tier);b.ev.push({k:'num',s:a,c:'blk',v:'+'+h.amt+' escudo'});}
    else{let amt=h.amt;if(A.mods.includes('regen2')&&A.hp<A.max/2)amt*=2;if(A.purged>0)amt=Math.round(amt/2);const g=Math.min(amt,A.max-A.hp);A.hp+=g;rec(b,a,h.key||'regen',h.label,h.icon,'heal',g,h.tier);if(g>0){b.ev.push({k:'num',s:a,c:'heal',v:'+'+g});lg(b,`${a==='p'?'':'⟵ '}${h.label}: cura ${g}`);}
-    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.6)));hurt(b,D,n,false);if(dm){D.burn+=2;}else D.poison+=1;stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
+    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.6)*(A.pdm||1)));hurt(b,D,n,false);if(dm){D.burn+=2;}else D.poison+=1;stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
    b.ev.push({k:'fire',id:h.id,pet:h.pet,s:a});}
   A.bt-=dt;if(A.bt<=0){A.bt+=1;if(A.burn>0){const n=A.mods.includes('escamas')?Math.ceil(A.burn/2):A.burn;hurt(b,A,n,false);rec(b,d,'burn','Queimadura','flame','dmg',n);b.ev.push({k:'num',s:a,c:'burn',v:'-'+n});lg(b,`Queimadura em ${A.name}: ${n}`);
     if(!A.noDecay){A.bd=(A.bd||0)+1;if(A.bd>=(A.bdi||1)){A.bd=0;A.burn-=1;}}}}
@@ -234,7 +234,7 @@ function step(b,dt){const P=b.p,E=b.e;b.t+=dt;
   fireTrig(b,P.trig.below50,t=>{const g=Math.min(t.amt,P.max-P.hp);P.hp+=g;stat(b,t.key,t.label,t.icon,'heal',g,t.tier);b.ev.push({k:'banner',s:'p',v:'Fênix +'+g});b.ev.push({k:'holy',s:'p'});lg(b,'Fênix: cura '+g);});}
  if(P.fury>0){P.fury-=dt;if(P.fury<=0)P.mult=1;}
  const cth=P.sub==='cinzeiro'?7:10;
- if(P.cls==='pyro'&&E.burn>=cth){const n=Math.round((24+state.round)*(P.sub==='cinzeiro'?1.5:1));E.hp-=n;b.combust++;stat(b,'skill','Combustão','flame','dmg',n);stat(b,'skill','Combustão','flame','act',1);E.burn=Math.floor(E.burn/2);b.ev.push({k:'banner',s:'e',v:'COMBUSTÃO! -'+n});b.ev.push({k:'boom',s:'e'});lg(b,'Combustão: '+n);}
+ if(P.cls==='pyro'&&E.burn>=cth){const n=Math.round((24+state.round)*(P.sub==='cinzeiro'?1.5:1)*(P.pdm||1));E.hp-=n;b.combust++;stat(b,'skill','Combustão','flame','dmg',n);stat(b,'skill','Combustão','flame','act',1);E.burn=Math.floor(E.burn/2);b.ev.push({k:'banner',s:'e',v:'COMBUSTÃO! -'+n});b.ev.push({k:'boom',s:'e'});lg(b,'Combustão: '+n);}
  if(P.cls==='paladin'){P.holy-=dt;if(P.holy<=0){const cr=P.sub==='cruzado';P.holy+=cr?6:8;const amt=cr?7:5;const g=Math.min(amt,P.max-P.hp);P.hp+=g;P.block+=amt;stat(b,'skill','Luz Sagrada','shield','heal',g);stat(b,'skill','Luz Sagrada','shield','blk',amt);stat(b,'skill','Luz Sagrada','shield','act',1);b.ev.push({k:'banner',s:'p',v:'LUZ SAGRADA'});b.ev.push({k:'holy',s:'p'});lg(b,`Luz Sagrada: +${g} vida, +${amt} escudo`);}}
  if(b.t>b.ft){if(b.ft===b.ft0){b.ev.push({k:'banner',s:'p',v:'FADIGA'});lg(b,'Fadiga começou: dano crescente nos dois lados');}b.ft+=1;b.fat+=1;hurt(b,P,b.fat,false);hurt(b,E,b.fat,false);}
  if(E.hp<=0){b.done='win';lg(b,`${E.name} caiu.`);}else if(P.hp<=0){b.done='lose';lg(b,`${P.name} caiu.`);}}

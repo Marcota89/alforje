@@ -90,7 +90,7 @@ const DAILY_GOLDEN = [
   check(JSON.stringify(mk(P0)) === JSON.stringify(base), 'perm todo zero identico ao sem campo');
   check(mk({ ...P0, hp: 30 }).hp === base.hp + 30 && mk({ ...P0, hp: 30 }).max === base.max + 30, 'perm.hp +30 na vida inicial');
   const pb = mk({ ...P0, block: 9 });
-  check(pb.block === base.block + 9 && pb.initBlk.some(e => e[0] === 'perm' && e[3] === 9), 'perm.block +9 no escudo inicial, com entrada propria em initBlk');
+  check(pb.block === base.block + 9 && pb.initBlk.some(e => e[0] === 'perm' && e[3] === 9 && e[2] === 'shield'), 'perm.block +9 no escudo inicial, com entrada propria em initBlk');
   const pd = mk({ ...P0, dmgPct: .5 });
   check(base.weapons[0].dmg > 0 && pd.weapons[0].dmg === Math.round(base.weapons[0].dmg * 1.5), 'perm.dmgPct .5 -> dano da arma inicial x1,5 (' + base.weapons[0].dmg + ' -> ' + pd.weapons[0].dmg + ')');
   const pc = mk({ ...P0, crit: .2 });
@@ -99,6 +99,12 @@ const DAILY_GOLDEN = [
   const pet0 = mk(null, 1), pet13 = mk(null, 1.3);
   const pw = x => x.weapons.find(w => w.pet === 0 && w.dmg > 0);
   check(pw(pet0) && pw(pet13).dmg === Math.round(pw(pet0).dmg * 1.3) && pw(pet13).dmg > pw(pet0).dmg, 'pet mul 1,3 -> dano do pet x1,3 (' + (pw(pet0) && pw(pet0).dmg) + ' -> ' + pw(pet13).dmg + ')');
+  // class skills (Combustao / Mistura Volatil) scale with dmgPct; perm null unchanged
+  const skillDmg = (cls, perm) => { const s = S.setState(S.fresh()); s.cls = cls; s.perm = perm; s.sub = cls === 'alchemist' ? 'demolidor' : null; s.seed = 'sk'; s.rng = 7; const C = D.CLASSES[cls]; s.bag = { cols: C.bag[0], rows: C.bag[1], pockets: {} };
+    for (const [key, x, y] of C.kits[0].items) { const d = D.ITEMS[key]; s.items.push({ id: s.nid++, key, tier: 1, x, y, w: d.w, h: d.h, where: 'bag' }); }
+    s.route = D.STOPS.map(() => 0); S.rollElites(); S.setState(s); const b = S.newBattle(); let g = 0; while (!b.done && g++ < 20000) S.step(b, .05); return b.stats.skill ? b.stats.skill.dmg / b.stats.skill.act : 0; };
+  for (const c of ['pyro', 'alchemist']) { const k0 = skillDmg(c, null), k1 = skillDmg(c, { ...P0, dmgPct: .5 }); check(k0 > 0 && k1 > k0, c + ': dano medio por uso de habilidade cresce com dmgPct .5 (' + k0 + ' -> ' + k1 + ')'); check(skillDmg(c, null) === k0, c + ': perm null estavel'); }
+  check(S.setState(Object.assign(S.fresh(), { cls: 'pyro' })) && S.makePlayer().pdm === 1, 'pdm = 1 sem perm');
   const petPct = mk({ ...P0, dmgPct: .5 }, 1);
   check(pw(petPct).dmg === Math.round(pw(pet0).dmg * 1.5), 'dmgPct tambem vale para o pet');
 }
