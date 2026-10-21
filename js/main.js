@@ -783,16 +783,18 @@ if(PORTRAIT_ONLY.addEventListener)PORTRAIT_ONLY.addEventListener('change',applyA
 /* ----- progresso na nuvem: conta de convidado no servidor (js/cloud.js) ----- */
 var CLOUD={ready:false,uid:null,busy:false,dirty:false,timer:0};
 const API=window.AlforjeCloud||null;
-function markDirty(){try{localStorage.setItem('alforje-ts',String(Date.now()));}catch(e){}if(!CLOUD.ready)return;CLOUD.dirty=true;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudPush,4000);}
+/* só para testes no navegador: localStorage 'alforje-test-offline'='1' desliga a nuvem (nem entra, nem lê, nem grava; alforje-ts fica parado) */
+function testOffline(){try{return localStorage.getItem('alforje-test-offline')==='1';}catch(e){return false;}}
+function markDirty(){if(testOffline()){CLOUD.ready=false;return;}try{localStorage.setItem('alforje-ts',String(Date.now()));}catch(e){}if(!CLOUD.ready)return;CLOUD.dirty=true;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudPush,4000);}
 function cloudFlush(){if(CLOUD.ready&&CLOUD.dirty){clearTimeout(CLOUD.timer);cloudPush();}}
 function runJSON(){try{return state&&state.phase!=='battle'?JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})):(localStorage.getItem(RUNKEY)||'');}catch(e){return '';}}
-async function cloudPush(){if(!CLOUD.ready||CLOUD.busy||!CLOUD.dirty)return;CLOUD.busy=true;CLOUD.dirty=false;
+async function cloudPush(){if(testOffline()){CLOUD.ready=false;return;}if(!CLOUD.ready||CLOUD.busy||!CLOUD.dirty)return;CLOUD.busy=true;CLOUD.dirty=false;
  try{let lt=0;try{lt=+localStorage.getItem('alforje-ts')||Date.now();}catch(e){lt=Date.now();}
   await API.pushSave({t:lt,v:VER,prof:JSON.stringify(PROF),run:runJSON()});}
  catch(e){CLOUD.dirty=true;}
  CLOUD.busy=false;if(CLOUD.dirty&&CLOUD.ready)CLOUD.timer=setTimeout(cloudPush,6000);}
-async function cloudInit(){try{if(!API)return;const uid=await API.init();if(!uid)return;CLOUD.uid=uid;
- const d=await API.loadSave();CLOUD.ready=true;
+async function cloudInit(){try{if(!API||testOffline())return;const uid=await API.init();if(!uid)return;CLOUD.uid=uid;
+ const d=await API.loadSave();if(testOffline())return;CLOUD.ready=true;
  let lt=0;try{lt=+localStorage.getItem('alforje-ts')||0;}catch(e){}
  const ct=d?(+d.t||0):0;
  if(d&&d.prof&&ct>lt+2000)cloudAdopt(d);else if(lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
@@ -815,7 +817,7 @@ async function boardPost(sc){if(!CLOUD.ready||!sc||state.mode!=='daily')return;
  if(!verifyDaily(entry,dayIxOf(d)).ok)return;/* partida sem prova completa (por exemplo, começada antes desta versão): não vai ao placar */
  try{const r=await API.submit('daily',{entry});
   if(r&&r.ok&&!r.kept)toast('🏆 Marca registrada no placar de hoje',1);else if(r&&!r.ok)toast('O placar recusou esta marca: '+r.why,1);}catch(e){}}
-async function boardScreen(){page(`<h2>Placar de hoje</h2><div class="k-card pc"><p class="muted center small">${todayStr()} (UTC) · mesma seed e mesma classe para todos · cada marca é conferida no servidor</p><div id="boardList" class="board"><p class="muted center">Carregando…</p></div><div id="nameBox" class="namebox"></div></div>${backMoreBtn()}`,'jogar');
+async function boardScreen(){page(`<h2>Placar de hoje</h2><div class="k-card pc"><p class="muted center small">${todayStr()} (UTC) · mesma seed e mesma classe para todos · cada marca é conferida no servidor</p><div id="boardList" class="board"><p class="muted center">Carregando…</p></div><div id="nameBox" class="namebox"></div></div><button class="k-btn v" id="backRet">Voltar</button>`,'jogar');
  const el=()=>$('#boardList');
  if(!CLOUD.ready){el().innerHTML=`<p class="muted center">${OFFLINE_MSG} Seu melhor de hoje: <b>${PROF.daily[todayStr()]||0}</b>.</p>`;return;}
  nameEditor();
@@ -951,6 +953,10 @@ const backBtn=()=>`<button class="k-btn v" id="back">Voltar</button>`;
 /* páginas que moram em ☰ Mais: Voltar leva de volta a Mais (ou à jornada, se ela estiver em andamento) */
 const backMoreBtn=()=>`<button class="k-btn v" id="backMore">Voltar</button>`;
 const inRun=()=>!!(state&&state.cls&&state.phase!=='class');
+/* Placar e Novidades voltam para onde foram abertos: escolha de herói, Acampamento ou Mais (na jornada, para a jornada) */
+let RET=null;
+function retFrom(){RET=$('#menu').hidden?null:$('#goBtn')?'hero':$('#campGo')?'camp':'more';}
+function goRet(){if(inRun())backTo();else if(RET==='hero')classScreen();else if(RET==='more')moreScreen();else campScreen();}
 /* Voltar e a aba Jogar: fora da jornada, o Acampamento; dentro dela, de volta à jornada */
 function backTo(){if(!inRun())campScreen();else{closeOverlay();resumeView();}}
 function runMenu(){overlay(`<h2>Menu</h2><div class="menu-grid">
@@ -967,13 +973,19 @@ function energyBits(m){const AM=window.AlforjeMeta,now=Date.now(),ms=AM.nextEner
 /* pílulas de cima: energia, ouro permanente e rubis; o "+" de cada uma abre a Loja */
 function menuTop(){const m=META();
  if(!m){const p=(i,l,v)=>`<span class="k-pill" role="img" title="${l}" aria-label="${l}: ${v}"><span aria-hidden="true">${i} ${v}</span></span>`;$('#mtop').innerHTML=p('🏆','Melhor resultado',PROF.best)+p('⚔️','Lutas vencidas no total',PROF.totalWins)+p('🎖️','Selos',PROF.seals||0);return;}
- const e=energyBits(m),p=(id,c,l,v,inner)=>`<button class="mpill${c}" id="${id}" data-shop aria-label="${l}: ${v}. Abrir a loja"><span class="k-pill"><span class="pv" aria-hidden="true">${inner}</span><span class="plus" aria-hidden="true">+</span></span></button>`;
+ const e=energyBits(m),p=(id,c,l,v,inner)=>`<button class="mpill${c}" id="${id}" data-shop aria-label="${l}: ${v}${id==='pEn'?`, ${e.t}`:''}. Abrir a loja"><span class="k-pill"><span class="pv" aria-hidden="true">${inner}</span><span class="plus" aria-hidden="true">+</span></span></button>`;
  $('#mtop').innerHTML=p('pEn',' en','Energia',e.v,`<b>⚡ <span data-en>${e.v}</span></b><small data-et>${e.t}</small>`)+p('pGold','','Ouro',fmtN(m.gold),`<b>💰 ${fmtN(m.gold)}</b>`)+p('pRuby','','Rubis',fmtN(m.ruby),`<b>💎 ${fmtN(m.ruby)}</b>`);}
 /* "+1 em m:ss" a cada segundo, só enquanto o menu está na tela */
 let menuT=0;
-function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}const m=META();if(!m)return;const e=energyBits(m);
+/* texto e estado do botão de propaganda de energia (vira o dia UTC: o contador zera sozinho) */
+function adLbl(m){const AM=window.AlforjeMeta,ad=m.ad.energy,mx=AM.AD_LIMIT.energy;
+ return m.energy>=AM.ENERGY_CAP?{t:`Energia no máximo (${AM.ENERGY_CAP})`,dis:true}:{t:`▶ Assistir: +10 ⚡ · ${ad}/${mx} hoje`,dis:ad>=mx};}
+function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}const m=META();if(!m)return;const e=energyBits(m),AM=window.AlforjeMeta;
+ const b=$('#pEn'),pv=$('#pEn [data-en]');if(b&&pv&&pv.textContent!==e.v)b.setAttribute('aria-label',`Energia: ${e.v}, ${e.t}. Abrir a loja`);
  document.querySelectorAll('[data-en]').forEach(x=>{if(x.textContent!==e.v)x.textContent=e.v;});document.querySelectorAll('[data-et]').forEach(x=>{if(x.textContent!==e.t)x.textContent=e.t;});
- document.querySelectorAll('[data-eb]').forEach(x=>x.style.width=e.pct+'%');const b=$('#pEn');if(b)b.setAttribute('aria-label',`Energia: ${e.v}. Abrir a loja`);}
+ document.querySelectorAll('[data-eb]').forEach(x=>x.style.width=e.pct+'%');
+ const nd='⚡ '+Math.max(0,AM.JOURNEY_COST-m.energy);document.querySelectorAll('[data-need]').forEach(x=>{if(x.textContent!==nd)x.textContent=nd;});
+ const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.textContent!==a.t)x.textContent=a.t;if(x.disabled!==a.dis)x.disabled=a.dis;});}
 function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElement,was=mn.hidden;
  const o=$('#overlay');if(!o.hidden){o.hidden=true;overlayFrom=null;}confirmFn=null;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();
  if(state){state.sel=null;state.selMore=false;}['#pop','#sheet','#coach','#mline'].forEach(s=>{const e=$(s);if(e)e.hidden=true;});
@@ -993,7 +1005,7 @@ function showRun(){const mn=$('#menu'),a=document.activeElement;mn.hidden=true;c
  if(!a||a===document.body||!a.isConnected||mn.contains(a)){const h=$('#helpBtn');if(h)h.focus({preventScroll:true});}}
 function navTab(k){if(k==='equip')equipScreen();else if(k==='pets')petsScreen();else if(k==='diario')dailyScreen();else if(k==='loja')shopScreen();else backTo();}
 function moreScreen(){page(`<h2>Mais</h2><div class="morelist">
- <button class="k-btn v" id="codexBtn">📖 Codex</button><button class="k-btn v" id="missBtn">📜 Missões semanais${missionsReady()?'<span class="k-dot" aria-hidden="true">!</span>':''}</button><button class="k-btn v" id="boardBtn">🥇 Placar</button>
+ <button class="k-btn v" id="codexBtn">📖 Codex</button><button class="k-btn v" id="missBtn"${missionsReady()?' aria-label="Missões semanais (visual novo liberado)"':''}>📜 Missões semanais${missionsReady()?'<span class="k-dot" aria-hidden="true">!</span>':''}</button><button class="k-btn v" id="boardBtn">🥇 Placar</button>
  <button class="k-btn v" id="achBtn">🏆 Conquistas ${Object.keys(PROF.ach).length}/${ACH.length}</button><button class="k-btn v" id="histBtn">🕘 Histórico</button><button class="k-btn v" id="howBtn">❓ Como jogar</button>
  <button class="k-btn v" id="newsBtn">✨ Novidades</button><button class="k-btn v" id="optBtn">⚙️ Opções</button></div>${backBtn()}`,'jogar');}
 /* páginas das abas Equipar, Pets, Diário e Loja: as Tarefas 5 e 6 trocam estes "Em breve" */
@@ -1006,7 +1018,7 @@ function shopScreen(){soonScreen('Loja','loja');}
 function campHero(){const p=MENU.pick;return p&&CLASSES[p]&&classOpen(p)?p:CLASSKEYS.find(classOpen)||CLASSKEYS[0];}
 function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSES[k],now=Date.now();
  const L=m?AM.levelOf(m.xp):null,e=m?energyBits(m):null,cal=m&&!AM.calToday(m,now).claimed,chests=m?AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0;
- const dot=x=>x?`<span class="k-dot" aria-hidden="true">${x}</span>`:'',ad=m?m.ad.energy:0,adMax=m?AM.AD_LIMIT.energy:0;
+ const dot=x=>x?`<span class="k-dot" aria-hidden="true">${x}</span>`:'',al=m?adLbl(m):null;
  page(`<div class="camp">
  <div class="chead">${L?`<span class="clv" role="img" aria-label="Nível ${L.lv}">${L.lv}</span>`:''}<div class="cname"><b>${C.name}</b>${L?`<span class="cxp" role="img" aria-label="${L.need?`XP ${L.into} de ${L.need}`:'Nível máximo'}"><i style="width:${L.need?Math.round(L.into/L.need*100):100}%"></i></span>`:''}</div></div>
  <div class="cstats"><span class="k-pill" role="img" aria-label="Melhor resultado: ${PROF.best}"><span aria-hidden="true">🏅 ${PROF.best}</span></span><span class="k-pill" role="img" aria-label="Lutas vencidas no total: ${PROF.totalWins}"><span aria-hidden="true">⚔️ ${fmtN(PROF.totalWins)}</span></span><span class="k-pill" role="img" aria-label="Selos: ${PROF.seals||0}"><span aria-hidden="true">🎖️ ${PROF.seals||0}</span></span></div>
@@ -1014,14 +1026,16 @@ function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSE
   <div class="cside"><button class="csb" id="cBonus" aria-label="Bônus diário${cal?' (pronto)':''}"><span aria-hidden="true">🎁</span><small>BÔNUS</small>${dot(cal?'!':'')}</button><button class="csb" id="cGoals" aria-label="Metas do dia${chests?` (${chests} baú pronto)`:''}"><span aria-hidden="true">📜</span><small>METAS</small>${dot(chests)}</button><button class="csb" id="boardBtn" aria-label="Placar"><span aria-hidden="true">🥇</span><small>PLACAR</small></button><button class="csb" id="cMore" aria-label="Mais"><span aria-hidden="true">☰</span><small>MAIS</small>${dot(missionsReady()?'!':'')}</button></div></div>
  ${e?`<div class="cen"><div class="l"><span>⚡ Energia <span data-en>${e.v}</span></span><span data-et>${e.t}</span></div><div class="cbar"><i data-eb style="width:${e.pct}%"></i></div></div>`:''}
  <button class="k-btn g cgo" id="campGo">JORNADA${m?`<small>⚡ ${AM.JOURNEY_COST}</small>`:''}</button>
- ${m?`<button class="k-btn ad cad" id="adEnergy" ${ad>=adMax?'disabled':''}>▶ Assistir: +10 ⚡ · ${ad}/${adMax} hoje</button>`:''}</div>`,'jogar');}
+ ${al?`<button class="k-btn ad cad" id="adEnergy" data-ad ${al.dis?'disabled':''}>${al.t}</button>`:''}</div>`,'jogar');}
 /* redesenha a página do menu que está aberta (depois de uma propaganda, por exemplo) */
 function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else menuTop();}
-/* propaganda: janela de 3 s que não fecha antes; depois conta o uso do dia (adUse) e chama onDone(ok).
+/* propaganda: janela de 3 s que não fecha antes; depois conta o uso do dia (adUse) e chama onDone(ok); ok = o que entrou (energia/ouro), false se recusou.
    'double' não gasta aqui: claimCal(m,now,true) gasta o contador do dobro dentro dele. */
 let adT=0;
+function adStop(){clearInterval(adT);adT=0;}
 function watchAd(kind,onDone){const m=META(),AM=window.AlforjeMeta;if(!m)return;
  if(kind in AM.AD_LIMIT&&m.ad[kind]>=AM.AD_LIMIT[kind]){toast('Sem mais propagandas hoje');return;}
+ if(kind==='energy'&&m.energy>=AM.ENERGY_CAP){toast(`Energia no máximo (${AM.ENERGY_CAP})`);return;}
  let n=3;clearInterval(adT);
  overlay(`<h2>Propaganda (em breve)</h2><p class="center">Aqui vai passar uma propaganda curta. Por enquanto, é só esperar.</p><p class="adc center" id="adCount" role="timer" aria-live="polite">${n}</p>`);
  adT=setInterval(()=>{n--;const c=$('#adCount');if(!c||$('#overlay').hidden){clearInterval(adT);return;}/* a janela foi trocada: nada é pago */
@@ -1062,9 +1076,9 @@ const ASCTXT=`<ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de 
 function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}
 /* sem energia para a jornada: quanto falta, propaganda (se sobrar no dia), Loja e Metas */
 function noEnergy(){const m=META(),AM=window.AlforjeMeta;if(!m){toast('Sem energia para começar a jornada');return;}
- const e=energyBits(m),need=Math.max(0,AM.JOURNEY_COST-m.energy),ad=m.ad.energy,adMax=AM.AD_LIMIT.energy;
- overlay(`<h2>Sem energia</h2><p class="center">A jornada custa ⚡ ${AM.JOURNEY_COST}. Faltam <b>⚡ ${need}</b>.</p><p class="center muted" id="noEn">Energia <span data-en>${e.v}</span> · <span data-et>${e.t}</span></p>
- ${ad<adMax?`<button class="k-btn ad" id="adEnergy">▶ Assistir: +10 ⚡ · ${ad}/${adMax} hoje</button>`:''}
+ const e=energyBits(m),need=Math.max(0,AM.JOURNEY_COST-m.energy),al=adLbl(m);
+ overlay(`<h2>Sem energia</h2><p class="center">A jornada custa ⚡ ${AM.JOURNEY_COST}. Faltam <b data-need>⚡ ${need}</b>.</p><p class="center muted" id="noEn">Energia <span data-en>${e.v}</span> · <span data-et>${e.t}</span></p>
+ ${al.dis?'':`<button class="k-btn ad" id="adEnergy" data-ad>${al.t}</button>`}
  <div class="two"><button class="k-btn o" id="neShop">🛒 Loja</button><button class="k-btn o" id="neGoals">📜 Metas</button></div><button class="k-btn v" id="closeOv">Fechar</button>`);}
 function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  if(M.mode==='daily'){if(k!==dailyClass())return;}else if(!classOpen(k)&&!opts)return;
@@ -1283,7 +1297,7 @@ document.addEventListener('click',e=>{
  else if(id==='oddsBtn')overlay(`<h2>Chances da loja</h2>${oddsTable()}${backBtn()}`);
  else if(id==='undoT'){$('#toast').hidden=true;undo();}
  else if(id==='missBtn'){closeDrawer();missionsScreen();}else if(t.dataset.skin){PROF.skin=t.dataset.skin;saveProf();applySkin();missionsScreen();}
- else if(id==='boardBtn')boardScreen();
+ else if(id==='boardBtn'){retFrom();boardScreen();}else if(id==='backRet')goRet();
  else if(id==='ghostBtn')ghostPick();else if(id==='shareBtn')shareCard();else if(id==='coachOk'||id==='coachSkip')coachEnd();
  else if(id==='optBtn')optionsScreen();else if(id==='helpBtn2'){closeDrawer();runMenu();}
  else if(t.dataset.cls){MENU.pick=t.dataset.cls;classScreen();}else if(id==='goBtn')pickClass(heroSel());
@@ -1309,11 +1323,11 @@ document.addEventListener('click',e=>{
  else if(id==='back')backTo();else if(id==='backMore'){if(inRun())backTo();else moreScreen();}
  else if(id==='cMore')moreScreen();else if(id==='campGo')classScreen();else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
  else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='neGoals')dailyScreen('goals');
- else if(id==='adEnergy')watchAd('energy',ok=>{if(ok)toast('+10 ⚡ de energia');menuRefresh();});
+ else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} ⚡ (limite ${cap})`:'+10 ⚡ de energia');menuRefresh();});
  else if(id==='helpBtn'){if(state.cls&&state.phase!=='class')runMenu();else campScreen();}
  else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste o item até a faixa da loja, que vira Vender durante o arrasto.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backMoreBtn()}`,'jogar');
- else if(id==='codexBtn')codexScreen();else if(id==='achBtn')achScreen();else if(id==='histBtn')histScreen();else if(id==='newsBtn')newsScreen();
- else if(id==='newsOk'){PROF.ver=VER;saveProf();backTo();}
+ else if(id==='codexBtn')codexScreen();else if(id==='achBtn')achScreen();else if(id==='histBtn')histScreen();else if(id==='newsBtn'){retFrom();newsScreen();}
+ else if(id==='newsOk'){PROF.ver=VER;saveProf();goRet();}
  else if(id==='askBtn'){PROF.noAsk=PROF.noAsk?0:1;saveProf();runMenu();}
  else if(id==='abandon')confirmBox('Abandonar esta jornada?','Ela não conta no histórico nem no progresso.','Abandonar',()=>{setState(fresh());save();campScreen();});});
 window.addEventListener('resize',()=>{if(!drag)render();});
@@ -1322,7 +1336,7 @@ window.addEventListener('resize',()=>{if(!drag)render();});
 ['h_warrior','h_rogue','h_pyro','h_paladin','p_raven','p_salamander','p_turtle','p_pixie','p_owl'].forEach(img);
 STOPS.forEach(s=>s.v.forEach(v=>img('e_'+v.art)));for(const c in POSE)for(const p in POSE[c])if(p!=='_'&&p!=='s')img('hp_'+c+'_'+p);Object.values(BGS).forEach(b=>img(b.full||b.strip));
 window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set state(s){setState(s);},get PROF(){return PROF;},set PROF(p){PROF=p;},MENU,page,showRun,cloudAdopt,classScreen,buy,fight,skip,finish,render,newBattle,step,makePlayer,makeFoe,readyRecipes,forge,addItem,addPet,rollShop,
- expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,equipScreen,petsScreen,dailyScreen,shopScreen,
+ expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,adStop,closeOverlay,menuTick,menuTicking:()=>!!menuT,equipScreen,petsScreen,dailyScreen,shopScreen,
  get B(){return B;},set B(b){B=b;}};
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
 function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);setState((data&&data.state)||load()||fresh());
@@ -1330,7 +1344,7 @@ function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);setState((d
  const h=location.hash.match(/seed=([^&]+)/);if(h){MENU.mode='seed';MENU.seed=decodeURIComponent(h[1]);}
  if(state.phase==='battle'||state.phase==='result')state.phase='shop';
  achRetro();
- if(state.phase==='class'||!state.cls){if(state.phase!=='class')setState(fresh());campScreen();if(PROF.ver!==VER&&(PROF.totalWins||PROF.history.length||localStorage.getItem('alforje-run4')))newsScreen();else if(PROF.ver!==VER){PROF.ver=VER;saveProf();}}
+ if(state.phase==='class'||!state.cls){if(state.phase!=='class')setState(fresh());campScreen();RET='camp';if(PROF.ver!==VER&&(PROF.totalWins||PROF.history.length||localStorage.getItem('alforje-run4')))newsScreen();else if(PROF.ver!==VER){PROF.ver=VER;saveProf();}}
  else resumeView();
  cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);hideSplash();}
 try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({state:Object.assign({},state,{phase:state.phase==='battle'?'shop':state.phase})}));}catch(e){}

@@ -132,8 +132,10 @@ function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:
  return {gold,stone,xp:10*wins};}
 
 /* ===== propaganda, loja, conquistas ===== */
+/* devolve false se recusou; senão o que entrou (energia/ouro) ou true (dobro). No limite (99 de energia, 99999 de ouro) recusa sem gastar a vez. */
 function adUse(m,now,kind){rollDay(m,now);if(!(kind in AD_LIMIT)||m.ad[kind]>=AD_LIMIT[kind])return false;
- m.ad[kind]++;if(kind==='energy')addRes(m,'energy',AD_ENERGY);else if(kind==='shop')addRes(m,'gold',AD_GOLD);return true;}
+ if(kind==='energy'&&m.energy>=ENERGY_CAP||kind==='shop'&&m.gold>=CAP)return false;
+ m.ad[kind]++;if(kind==='energy')return addRes(m,'energy',AD_ENERGY);if(kind==='shop')return addRes(m,'gold',AD_GOLD);return true;}
 function buy(m,now,offer){rollDay(m,now);const o=SHOP[offer];if(!o||m.ruby<o.ruby)return false;
  if(o.limit&&(m.buys[offer]||0)>=o.limit)return false;
  m.ruby-=o.ruby;addRes(m,o.kind,o.n);if(o.limit)m.buys[offer]=(m.buys[offer]||0)+1;return true;}

@@ -149,9 +149,15 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   const m = mk(); m.energy = 0;
   check(M.adUse(m, T0, 'energy') && M.adUse(m, T0, 'energy') && M.adUse(m, T0, 'energy') && m.energy === 30, 'propaganda de energia 3x (+10)');
   check(M.adUse(m, T0, 'energy') === false, 'propaganda de energia: 4ª falha');
-  check(M.adUse(m, T0 + DAY, 'energy') === true, 'propaganda de energia: volta no dia seguinte');
+  check(M.adUse(m, T0 + DAY, 'energy') === 10, 'propaganda de energia: volta no dia seguinte');
   check(M.adUse(m, T0, 'shop') && m.gold === 50 && M.adUse(m, T0, 'shop') === false, 'propaganda da loja: 50 ouro 1x');
   check(M.adUse(m, T0, 'double') && M.adUse(m, T0, 'double') === false, 'propaganda do dobro 1x');
+  const cap = mk(); cap.energy = 95;
+  check(M.adUse(cap, T0, 'energy') === 4 && cap.energy === 99 && cap.ad.energy === 1, 'propaganda de energia perto de 99: devolve só o que entrou (4)');
+  check(M.adUse(cap, T0, 'energy') === false && cap.energy === 99 && cap.ad.energy === 1, 'propaganda de energia com 99: recusa sem gastar a vez');
+  const cg = mk(); cg.gold = 99999;
+  check(M.adUse(cg, T0, 'shop') === false && cg.ad.shop === 0, 'propaganda da loja com ouro no limite: recusa sem gastar a vez');
+  const c10 = mk(); check(M.adUse(c10, T0, 'energy') === 10, 'propaganda de energia normal devolve 10');
   const b = mk(); b.ruby = 100; b.energy = 0;
   check(M.buy(b, T0, 'energy30') && M.buy(b, T0, 'energy30') && b.energy === 60 && b.ruby === 70, 'loja: energia 2x');
   check(M.buy(b, T0, 'energy30') === false && M.buy(b, T0 + DAY, 'energy30'), 'loja: energia limitada a 2 por dia');
