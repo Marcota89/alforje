@@ -236,7 +236,7 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
 }
 // decisão 9: teto de ouro apertado — uma jornada honesta passa, mochila 1,5× acima do teto não
 {
-  check(S.goldCap(1) === 50 && S.goldCap(2) === 128 && S.goldCap(10) === 400 && S.goldCap(14) === 536, `v1.2 goldCap: 50 na 1ª rodada, depois 60+34·r (r2 ${S.goldCap(2)}, r10 ${S.goldCap(10)}, r14 ${S.goldCap(14)}; antes 213/939/1243)`);
+  check(S.goldCap(1) === 50 && S.goldCap(2) === 128 && S.goldCap(10) === 400 && S.goldCap(14) === 568, `v1.2 goldCap: 50 na 1ª rodada, depois 60+34·r até a 10ª e +42 por rodada na Sobrevivência (r2 ${S.goldCap(2)}, r10 ${S.goldCap(10)}, r14 ${S.goldCap(14)}; antes 213/939/1243)`);
   check(S.keyCost('infernal', 4) === Math.min(5 * 8 + 2, 5 + 2 * 8) && S.keyCost('infernal', 1) === 7 && S.keyCost('sword', 3) === 12, `v1.2 item forjado conta pelo custo dos ingredientes (Cajado Infernal Lendário = ${S.keyCost('infernal', 4)}, não 80)`);
   let mono = true; for (let r = 2; r <= S.MAXFIGHTS + 1; r++) if (S.goldCap(r) < S.goldCap(r - 1)) mono = false;
   check(mono, 'v1.2 goldCap só cresce com a rodada');

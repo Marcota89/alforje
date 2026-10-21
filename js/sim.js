@@ -290,7 +290,7 @@ const keyCost=(key,tier)=>{const d=ITEMS[key];if(!d.recipe)return itemCost(d.pri
    41, 87, 138, 175, 208, 230, 273, 302, 331, 360 e 364 nas rodadas 1 a 11. 60 + 34·r fica acima de tudo isso (8 a 12% de folga
    sobre a sortuda), para nunca recusar quem joga honesto; na 1ª rodada (só o kit e 10 de ouro) o teto é 50, para o kit inteiro
    Lendário continuar recusado. Itens forjados contam pelo custo dos ingredientes (keyCost). Não prova cada compra. */
-function goldCap(r){return r<=1?50:60+34*r;}
+function goldCap(r){return r<=1?50:r<=10?60+34*r:400+42*(r-10);}
 function buildPlausible(k){const bad=m=>({ok:false,why:m});
  if(!k||!Array.isArray(k.i)||!Array.isArray(k.b))return bad('formato');
  const C=CLASSES[k.c];if(!C)return bad('classe');

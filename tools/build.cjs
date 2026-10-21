@@ -4,8 +4,13 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const head = fs.readFileSync(path.join(__dirname, 'head.html'), 'utf8')
-  .split('\n').filter(l => !l.includes('claude:viewport-fit-sides')).join('\n');
+const lines = fs.readFileSync(path.join(__dirname, 'head.html'), 'utf8')
+  .split('\n').filter(l => !l.includes('claude:viewport-fit-sides'));
+// as linhas iniciais <title>/<meta>/<link> vão para o <head> (ícones e manifesto só valem lá); o resto é o corpo
+let n = 0;
+while (n < lines.length && /^\s*(<(title|meta|link)\b|$)/.test(lines[n])) n++;
+const headTags = lines.slice(0, n).filter(l => l.trim() && !/name="viewport"/.test(l)).join('');
+const head = lines.slice(n).join('\n');
 
 // mesmo reset que a página tinha quando era publicada no claude.ai (o layout conta com ele)
 const reset = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
@@ -21,7 +26,7 @@ const scripts = ['js/config.js', SUPABASE_JS, 'js/data.js', 'js/sim.js', 'js/met
   .map(src => `<script src="${src}" charset="utf-8"></script>`).join('\n');
 
 const html = `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>${reset}</style>${links}</head><body>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">${headTags}<style>${reset}</style>${links}</head><body>
 ${head}
 ${scripts}
 </body></html>
