@@ -92,6 +92,7 @@
 #mpage .hdet b{font:400 17px/1.15 var(--f-title);color:var(--orange-d);letter-spacing:.02em}
 #mpage .hdet span{font-size:14px;line-height:1.4}
 #mpage .hdet .subs{color:#7a35d6;font-weight:800}
+#mpage .hdet .lockt{color:var(--red);font-weight:900}
 #mpage .foot{padding:0 4px;color:var(--ink-brown);text-shadow:0 1px 0 rgba(255,255,255,.5)}
 
 /* ===== Codex ===== */

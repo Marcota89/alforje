@@ -616,7 +616,7 @@ function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier
  if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');}
  if(done.length){achRetro();}return done;}
 let lastFight=null;
-function finish(){if(state.phase!=='battle')return;BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
+function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
  sfx(win?'win':'lose');let forged=[];
  lastFight={stats:B.stats,es:B.es,log:B.log.slice(),blocked:B.blocked,t:B.t,foe:f.name,win};
  if(state.pfPending){state.proof=(state.proof||[]).concat([{k:state.pfPending,res:win?'win':'lose'}]).slice(-MAXFIGHTS);state.pfPending=null;}
@@ -650,8 +650,8 @@ function resultTables(){const L=lastFight;if(!L)return '';
  <div class="k-card rp" data-p="p">${statTable(L.stats,true)}<p class="muted small">Dano que o seu escudo segurou: <b>${Math.round(L.blocked)}</b>.</p></div>
  <div class="k-card rp" data-p="e" hidden>${statTable(L.es,false)}</div>
  <div class="k-card rp" data-p="log" hidden><pre class="log">${L.log.join('\n').replace(/</g,'&lt;')}</pre><button class="k-btn v sm" id="copyLog">Copiar registro</button></div>`;}
-function nextQueue(){const q=state.queue.shift();state.cur=q||null;save();if(!q){closeOverlay();render();return;}showCur();}
-function showCur(){const q=state.cur;
+function nextQueue(){runFront();const q=state.queue.shift();state.cur=q||null;save();if(!q){closeOverlay();render();return;}showCur();}
+function showCur(){runFront();const q=state.cur;
  if(q==='bless')blessScreen();else if(q==='sub')subScreen();else if(q==='event')eventScreen();else if(q==='expandfree')expandScreen(true);else nextQueue();}
 function blessScreen(){if(!state.reward){const silver=state.wins===9;const pool=Object.keys(BLESS).filter(k=>BLESS[k].t===(silver?'p':'b')&&!state.bless.includes(k)&&(!BLESS[k].ok||BLESS[k].ok(state)));state.reward=rshuffle(pool).slice(0,3);save();}
  overlay(`<h2>Bênção ${state.wins===9?'de Prata':'de Bronze'}</h2><p class="muted center">O figurão caiu. Escolha uma Bênção para o resto da jornada.</p><div class="rewards">
@@ -683,7 +683,7 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  <button class="k-btn o" id="shareBtn">📷 Compartilhar imagem do resultado</button>
  <div class="two"><button class="k-btn v" id="copyBuild">Copiar código da build</button>${canSurv?'<button class="k-btn ad" id="goSurv">Continuar: Sobrevivência</button>':''}</div>
  <button class="k-btn g" id="again">Voltar ao início</button>`);}
-function startSurvival(){state.surv=true;state.survLives=3;state.survRoute=[0,1,2,3].map(()=>({s:5+Math.floor(R()*4),v:Math.floor(R()*3)}));
+function startSurvival(){runFront();state.surv=true;state.survLives=3;state.survRoute=[0,1,2,3].map(()=>({s:5+Math.floor(R()*4),v:Math.floor(R()*3)}));
  state.phase='shop';state.round++;state.gold+=income()+interest();state.rerollN=0;state.hammerUsed=false;state.queue=[];state.skipOffer=null;rollShop();save();closeOverlay();toast('Sobrevivência: 3 vidas até a parada 14',1);render();}
 function score(){const won=state.wins>=GOAL;return Math.round((state.wins*100+(won?250:0)+(state.surv?(state.wins-GOAL)*150:0)+(state.surv?state.survLives:state.lives)*25)*(1+.05*state.asc));}
 
@@ -928,7 +928,7 @@ function oddsTable(){const rows=[];for(let s=1;s<=10;s++){const o=odds(s);rows.p
  <p class="muted small"><b>Loja neutra:</b> nenhuma classe muda as ofertas; o que aparece é sorte, do mesmo jeito para todos. 10% das ofertas vêm em promoção (preço = valor de venda). Trocar custa 1, 1, 2, 2 e depois 3 por parada. Você pode reservar até ${state&&state.cls?lockLimit():2} itens. ${state&&state.asc>=8?'Ascensão 8: Lendários só a partir da parada 9.':''}</p>`;}
 const backBtn=()=>`<button class="k-btn v" id="back">Voltar</button>`;
 /* Voltar e a aba Jogar: fora da jornada, a escolha de herói; dentro dela, de volta à jornada */
-function backTo(){if(!state.cls||state.phase==='class')classScreen();else{closeOverlay();if(state.phase==='end')resumeView();else{showRun();render();}}}
+function backTo(){if(!state.cls||state.phase==='class')classScreen();else{closeOverlay();resumeView();}}
 function runMenu(){overlay(`<h2>Menu</h2><div class="menu-grid">
  <button class="k-btn v" id="howBtn">Como jogar</button><button class="k-btn v" id="recipesBtn">Receitas</button><button class="k-btn v" id="oddsBtn">Chances da loja</button>
  <button class="k-btn v" id="codexBtn">Codex</button><button class="k-btn v" id="achBtn">Conquistas</button><button class="k-btn v" id="copyBuild">Copiar build</button>
@@ -948,8 +948,11 @@ function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElem
  menuTop();document.querySelectorAll('#mtabs [data-nav]').forEach(b=>{const on=b.dataset.nav===tab;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('#missDot').hidden=!missionsReady();
  mn.hidden=false;$('#app').hidden=true;
- const f=key&&pg.querySelector(key);if(f&&!f.disabled){f.focus({preventScroll:true});return;}
+ let f=key&&pg.querySelector(key);if(f&&f.disabled)f=[...f.parentElement.querySelectorAll('button')].find(x=>x!==f&&!x.disabled);/* +/− no limite: o vizinho */
+ if(f){f.focus({preventScroll:true});return;}
  const b=document.activeElement;if(!b||b===document.body||!mn.contains(b))pg.focus({preventScroll:true});}
+/* janelas e passos da jornada sempre sobre a jornada: se uma luta acabou com uma página do menu aberta, volta para #app */
+function runFront(){if(state&&state.cls&&state.phase!=='class'&&!$('#menu').hidden)showRun();}
 function showRun(){const mn=$('#menu'),a=document.activeElement;mn.hidden=true;$('#app').hidden=false;$('#mpage').innerHTML='';$('#mpage').dataset.t='';
  if(!a||a===document.body||!a.isConnected||mn.contains(a)){const h=$('#helpBtn');if(h)h.focus({preventScroll:true});}}
 function navTab(k){if(k==='codex')codexScreen();else if(k==='missoes')missionsScreen();else if(k==='placar')boardScreen();else if(k==='mais')moreScreen();else backTo();}
@@ -959,6 +962,7 @@ function moreScreen(){page(`<h2>Mais</h2><div class="morelist">
 let MENU={mode:'normal',asc:{},kit:{},chal:null,seed:'',duel:''};
 function chalUnlocked(i){return i<2+(PROF.journeys||0);}
 /* herói marcado no menu: no Diário é sempre a classe do dia; senão o último tocado (ou o primeiro liberado) */
+const LOCKTXT={paladin:'Paladino: 5 vitórias numa jornada ou 10 no total.',alchemist:'Alquimista: complete uma jornada ou some 20 vitórias.'};
 function heroSel(){const M=MENU;if(M.mode==='daily')return dailyClass();if(M.pick&&CLASSES[M.pick])return M.pick;return CLASSKEYS.find(classOpen)||CLASSKEYS[0];}
 function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}render();const M=MENU,dayCls=dailyClass(),sel=heroSel();
  const modes=[['normal','Jornada'],['daily','Diário'],['challenge','Desafios'],['seed','Seed'],['duel','Duelo']];
@@ -980,9 +984,9 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  <div class="k-seg modes">${modes.map(([m,l])=>`<button class="${M.mode===m?'on':''}" data-mode="${m}" aria-pressed="${M.mode===m}">${l}</button>`).join('')}</div>
  <div class="k-card minfo">${info}</div>
  <div class="heroes">${cards}</div>
- <div class="k-card hdet"><b>${C.name}</b><span>${C.desc}</span>${SUBS[sel]?`<span class="subs">Subclasses: ${SUBS[sel].map(s=>s.name).join(' ou ')}</span>`:''}</div>
+ <div class="k-card hdet"><b>${C.name}</b><span>${C.desc}</span>${!isOpen(sel)&&LOCKTXT[sel]?`<span class="lockt">🔒 ${LOCKTXT[sel]}</span>`:''}${SUBS[sel]?`<span class="subs">Subclasses: ${SUBS[sel].map(s=>s.name).join(' ou ')}</span>`:''}</div>
  ${M.mode==='normal'&&ascMax('warrior')+ascMax('rogue')+ascMax('pyro')+ascMax('paladin')>0?`<details class="k-card fold"><summary>O que cada Ascensão muda</summary>${ASCTXT}</details>`:''}
- <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' Paladino: 5 vitórias numa jornada ou 10 no total.'}${alchOpen()?'':' Alquimista: complete uma jornada ou some 20 vitórias.'}</p>
+ <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
  <button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}>COMEÇAR</button>`,'jogar');}
 const ASCTXT=`<ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Vencer a Ascensão N libera N+1 só para aquela classe.</p>`;
 function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
