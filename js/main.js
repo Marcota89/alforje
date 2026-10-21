@@ -283,7 +283,7 @@ function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/1
   cs=Math.min(Math.round(64*ui),Math.floor((W-24)/cols),Math.floor(availBag/rows));
   if(cs>=44||ui<=.9)break;ui-=.05;}
  cs=Math.max(40,cs);CS=cs;CARD=card;
- CCS=Math.max(40,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24)/chestCols())));
+ CCS=Math.max(40,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24-64)/chestCols())));
  const bagH=rows*cs+8;arenaH=Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
  const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');
  app.classList.toggle('roomy',arenaH>=170);$('#shop').classList.toggle('scroll',!!scroll);
@@ -419,7 +419,7 @@ function renderShop(){const sh=$('#shop'),base=$('#base');
   const name=s.pet?PETS[s.key].name:ITEMS[s.key].name;
   const src=s.pet?'a/p_'+s.key+'.webp':artURL(s.key,s.tier),tint=s.pet?'':(ITEMS[s.key].tint||'');
   return `<button class="card t${s.tier}${s.pet?' pet':''}${p>state.gold?' poor':''}${sel?' sel':''}" data-drag="1" data-src="shop" data-idx="${i}" aria-label="${name} ${TIERS[s.tier-1]}, ${p} de ouro${s.sale?', em promoção':''}">
-  <span class="box">${s.locked?`<img class="lock" src="${spr('lockic')}" alt="reservado">`:''}${s.sale?'<span class="sale">PROMO</span>':''}<img class="art ${tint}" src="${src}" alt="" draggable="false">${s.pet?'':tagDots(s.key)}${shopHint(s)}</span><span class="price${s.sale?' off':''}"><img src="${spr('coin')}" alt="">${p}</span></button>`;}).join('');
+  <span class="box">${s.locked?`<img class="lock" src="${spr('lockic')}" alt="reservado">`:''}${s.sale?'<span class="sale">PROMO</span>':''}<img class="art ${tint}" src="${src}" alt="" draggable="false">${s.pet?'':tagDots(s.key)}${shopHint(s)}</span><span class="price k-pill${s.sale?' off':''}"><img src="${spr('coin')}" alt="">${p}</span></button>`;}).join('');
  const nc=inWhere('chest').length;$('#chestHead').innerHTML=`<b>Baú</b> ${nc}/${chestCols()*CHEST_ROWS} · guardados não lutam · solte aqui para guardar`;
  const a=$('#actions');a.dataset.mode=battle?'battle':'shop';
  if(battle){a.innerHTML=`${[1,2,4].map(s=>`<button class="abtn${speed===s?' on':''}" data-speed="${s}" aria-label="Velocidade ${s}×">${s}×</button>`).join('')}<button class="btn primary fightbtn" id="skip">Pular ▶▶</button>`;return;}
@@ -542,8 +542,8 @@ function renderDrawer(){const d=$('#drawer');if(!DRAWER||!state.cls||state.phase
   <button class="btn" id="missBtn">Missões${missionsReady()?' ●':''}</button><button class="btn" id="optBtn">Opções</button><button class="btn" id="helpBtn2">Menu</button>`;}
 function openDrawer(p){DRAWER=DRAWER===p?null:p;state.sel=null;state.selMore=false;renderPop();renderSheet();renderDrawer();}
 function closeDrawer(){if(!DRAWER)return;DRAWER=null;renderDrawer();}
-function placeSellZone(){const z=$('#sellzone'),a=$('#arena');if(!z||!a)return;const r=a.getBoundingClientRect(),lefty=OPT().left;
- z.style.top=(r.top+8)+'px';if(lefty){z.style.left='';z.style.right=(innerWidth-r.right+8)+'px';}else{z.style.right='';z.style.left=(r.left+8)+'px';}}
+function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;const r=b.getBoundingClientRect();
+ z.style.left=r.left+'px';z.style.top=r.top+'px';z.style.width=r.width+'px';z.style.height=r.height+'px';z.style.right='';}
 
 /* ================= ACTIONS ================= */
 let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
@@ -1010,8 +1010,8 @@ function dragRotate(){if(!drag||!drag.started)return;const di=dragInfo();if(di.w
 function inRect(el,px,py,pad){if(!el||el.hidden)return false;const r=el.getBoundingClientRect();pad=pad||0;return px>=r.left-pad&&px<r.right+pad&&py>=r.top-pad&&py<r.bottom+pad;}
 function target(px,py){const di=dragInfo();
   const ax=px-drag.gdx,ay=py-drag.gdy;
- if(drag.src==='own'&&(inRect($('#sellzone'),px,py,6)||inRect($('#sellzone'),ax+di.w*CS/2,ay+di.h*CS/2,6)))return {sell:true};
- for(const where of ['bag','chest']){if(where==='chest'&&BASEMODE!=='chest')continue;const g=$('#'+where),r=g.getBoundingClientRect(),c=csOf(where);
+ const sellHit=drag.src==='own'&&(inRect($('#sellzone'),px,py,6)||inRect($('#sellzone'),ax+di.w*CS/2,ay+di.h*CS/2,6));
+ for(const where of sellHit&&BASEMODE==='chest'?['chest','sell','bag']:sellHit?['sell','bag','chest']:['bag','chest']){if(where==='sell')return {sell:true};if(where==='chest'&&BASEMODE!=='chest')continue;const g=$('#'+where),r=g.getBoundingClientRect(),c=csOf(where);
   const cxp=ax+di.w*c/2,cyp=ay+di.h*c/2;
   if(cxp>=r.left-c*.3&&cxp<r.right+c*.3&&cyp>=r.top-c*.3&&cyp<r.bottom+c*.3){const D=dims(where);
    const cx=Math.max(0,Math.min(D.cols-di.w,Math.round((ax-r.left)/c))),cy=Math.max(0,Math.min(D.rows-di.h,Math.round((ay-r.top)/c)));

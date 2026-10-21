@@ -54,3 +54,104 @@ body.big .topbar .k-pill{font-size:12.5px}
 body.big .foeinfo.intent{font-size:14px}
 
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+/* ===== mochila, baú, loja e venda (Tarefa 4) ===== */
+/* peles da mochila: fundo do cartão, borda, casas (6 combinações claras) */
+:root,[data-sk=couro]{--bagbg1:var(--cream-1);--bagbg2:var(--cream-2);--bagedge:var(--orange);--bagsh:var(--orange-d);--cellbg:#f6e2b8;--celledge:#e2b26a}
+body[data-skin=carvalho],[data-sk=carvalho]{--bagbg1:#f6e0b8;--bagbg2:#e3b97c;--bagedge:#a8682a;--bagsh:#6e4318;--cellbg:#edc98f;--celledge:#b8803c}
+body[data-skin=geada],[data-sk=geada]{--bagbg1:#f4fcff;--bagbg2:#c9e8f8;--bagedge:#4a90b8;--bagsh:#2c5f80;--cellbg:#e8f5fd;--celledge:#8fc2dd}
+body[data-skin=brasa],[data-sk=brasa]{--bagbg1:#fff1e6;--bagbg2:#ffc9a8;--bagedge:#d4541f;--bagsh:#8a2a0c;--cellbg:#ffe3d1;--celledge:#ee9468}
+body[data-skin=ouro],[data-sk=ouro]{--bagbg1:#fffbe0;--bagbg2:#ffe27a;--bagedge:#d9a21c;--bagsh:#8f6408;--cellbg:#fff5c6;--celledge:#e6bd45}
+body[data-skin=noite],[data-sk=noite]{--bagbg1:#f1edff;--bagbg2:#c4b8f2;--bagedge:#6a55c0;--bagsh:#3b2a82;--cellbg:#e6e0fb;--celledge:#9b8ce0}
+
+/* cartão da mochila (e do baú) */
+#bagzone,#chestwrap{background:linear-gradient(180deg,var(--bagbg1),var(--bagbg2));border-color:var(--bagedge);box-shadow:0 4px 0 var(--bagsh)}
+#bagzone{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin:0 8px;padding:0 1px}
+#bag,#chest{position:relative;flex:none;margin:0 auto;width:calc(var(--cols)*var(--cs));height:calc(var(--rows)*var(--cs));z-index:1;touch-action:none}
+#chest{--cs:var(--ccs,44px)}
+:is(#bag,#chest) .cell{position:absolute;width:calc(var(--cs) - 4px);height:calc(var(--cs) - 4px);margin:2px;left:calc(var(--x)*var(--cs));top:calc(var(--y)*var(--cs));background:var(--cellbg);border:2px solid var(--celledge);border-radius:8px;pointer-events:none}
+:is(#bag,#chest) .cell.pk{background:color-mix(in srgb,var(--pk) 32%,var(--cellbg));border-color:var(--pk);box-shadow:inset 0 0 0 1px rgba(90,42,0,.3)}
+#bag .cell.top{box-shadow:inset 0 3px 0 #e8a63c}
+#bag .cell.bottom{box-shadow:inset 0 -3px 0 #8cc063}
+#bag .cell.top.pk,#bag .cell.bottom.pk{box-shadow:inset 0 0 0 1px rgba(90,42,0,.3)}
+
+/* itens: borda na cor da raridade */
+:is(#bag,#chest) .item{position:absolute;left:calc(var(--x)*var(--cs));top:calc(var(--y)*var(--cs));width:calc(var(--w)*var(--cs));height:calc(var(--h)*var(--cs));padding:2px;touch-action:none;cursor:grab;z-index:2}
+:is(#bag,#chest,.ghost) .face{width:100%;height:100%;display:grid;place-items:center;position:relative;border-radius:9px;border:3px solid var(--t1);background:rgba(255,255,255,.88);box-sizing:border-box}
+:is(#bag,#chest,.ghost) .face>*{grid-area:1/1}
+:is(#bag,#chest,.ghost) .face.t2{border-color:var(--t2)}
+:is(#bag,#chest,.ghost) .face.t3{border-color:var(--t3)}
+:is(#bag,#chest,.ghost) .face.t4{border-color:var(--t4);box-shadow:0 0 8px rgba(255,176,32,.7)}
+:is(#bag,#chest) .item.sel .face{outline:3px solid var(--orange);outline-offset:1px}
+:is(#bag,#chest) .item.syn .face{box-shadow:0 0 0 2px #25a845,0 0 12px rgba(37,168,69,.85);animation:glow .7s steps(2) infinite}
+:is(#bag,#chest) .item.rgl .face{box-shadow:0 0 0 3px var(--orange),0 0 14px rgba(240,138,28,.9);animation:glow .5s steps(2) infinite}
+:is(#bag,#chest,.ghost) .pips{position:absolute;left:5px;top:5px;display:flex;gap:2px;z-index:3}
+:is(#bag,#chest,.ghost) .pips i{width:6px;height:6px;border-radius:50%;background:var(--tier);box-shadow:0 0 0 1.5px var(--ink-brown)}
+:is(#bag,#chest) .awk{position:absolute;right:4px;top:1px;font-size:11px;color:var(--orange-d);text-shadow:0 0 2px #fff;z-index:3}
+:is(#bag,#chest) .cdr{position:absolute;inset:0;pointer-events:none;border-radius:6px;background:conic-gradient(rgba(240,138,28,.32) calc(var(--cdp,0)*1turn),transparent 0);z-index:1}
+:is(#bag,#chest) .zoneoff{border-radius:6px}
+#bag .teth{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7;overflow:visible}
+#bag .teth line{stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 2px currentColor)}
+#bag .teth line.syn{stroke:#25a845;color:#25a845;stroke-dasharray:7 5;animation:dash .6s linear infinite}
+#bag .teth line.rcp{stroke:var(--orange);color:var(--orange);stroke-dasharray:7 5;animation:dash .6s linear infinite}
+#bag .teth line.flash{stroke:#fff;color:var(--t4);animation:fade .28s ease-out forwards}
+#bag .teth circle{fill:#fff;stroke-width:2}
+/* modo daltônico: marca de forma no canto do item (Comum nenhuma; Raro 1, Épico 2, Lendário 3 pontos) */
+body.cb :is(#bag,#chest,.ghost) .pips i{width:8px;height:8px;background:#fff;box-shadow:0 0 0 2px var(--ink-brown)}
+body.cb :is(#bag,#chest,.ghost) .pips i:first-child{display:none}
+
+/* carga e afinidades em pílulas */
+#aff{min-height:24px;max-width:100%;display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;justify-content:center;align-items:center;background:none;border:0;padding:0 4px;cursor:pointer;font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff}
+#aff .load,#aff .aftag,#aff .pkdot{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;border:2px solid var(--pill-edge);background:var(--pill-bg);font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff;white-space:nowrap}
+#aff .aftag{border-color:var(--c)}
+#aff .aftag.on{background:var(--c);color:var(--ink-brown)}
+#aff .load.over{color:#ff9a8a}
+body.big #aff .load,body.big #aff .aftag,body.big #aff .pkdot{font-size:12.5px}
+
+/* loja: ofertas em caixas brancas com borda de raridade */
+#base{position:relative;height:var(--baseh,116px);display:flex;flex-direction:column;padding:0 8px;background:none;border:0;box-shadow:none}
+#base[data-mode=shop],#base[data-mode=chest]{justify-content:center}
+#shop{display:grid;grid-template-columns:repeat(var(--n,5),var(--card,64px));justify-content:center;gap:6px;width:100%}
+#shop.scroll{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:var(--card);justify-content:start;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding-bottom:2px;scrollbar-width:none}
+#shop .card{position:relative;display:grid;justify-items:center;gap:3px;width:var(--card,64px);min-width:0;padding:0;background:none;border:0;cursor:grab;touch-action:none;font-family:'Nunito',system-ui,sans-serif}
+#shop.scroll .card{scroll-snap-align:start;touch-action:pan-x}
+#shop .card.sold{visibility:hidden}
+#shop .card.dragging{opacity:.35}
+#shop .card .box{position:relative;display:grid;place-items:center;width:var(--card,64px);height:var(--card,64px);box-sizing:border-box;overflow:visible;background:#fff;border:3px solid var(--t1);border-radius:11px;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+#shop .card.t2 .box{border-color:var(--t2)}
+#shop .card.t3 .box{border-color:var(--t3)}
+#shop .card.t4 .box{border-color:var(--t4);box-shadow:0 3px 0 rgba(0,0,0,.2),0 0 10px rgba(255,176,32,.7)}
+#shop .card.pet .box{border-style:dashed}
+#shop .card.sel .box{outline:3px solid var(--pill-edge);outline-offset:2px}
+#shop .card .box img.art{position:absolute;inset:10%;width:80%;height:80%;max-width:none;max-height:none;object-fit:contain;pointer-events:none;filter:drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
+#shop .card .box img.art.bowtint{filter:sepia(.9) saturate(1.8) hue-rotate(-12deg) brightness(.9) drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
+#shop .card .box img.lock{position:absolute;right:2px;top:2px;width:15px;height:auto;padding:2px;box-sizing:content-box;background:var(--pill-bg);border-radius:50%;image-rendering:pixelated;z-index:3}
+#shop .card .sale{position:absolute;left:-4px;top:-5px;z-index:4;padding:0 5px;border-radius:8px;border:1.5px solid #fff;background:linear-gradient(180deg,#ff6a4a,#d8282f);color:#fff;font:400 9px/13px 'Lilita One',system-ui,sans-serif;letter-spacing:.03em}
+#shop .card .tdots{right:5px;bottom:5px}
+#shop .card .hint{position:absolute;left:3px;bottom:2px;z-index:3;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:900;color:var(--ink-brown);box-shadow:0 0 0 1px var(--ink-brown)}
+#shop .card .hint.up{background:linear-gradient(#bff5c4,#5cc06a)}
+#shop .card .hint.rc{background:linear-gradient(#ffe08a,#d39a2e)}
+#shop .card .price{height:22px;padding:0 8px;gap:3px;font:900 13px/1 'Nunito',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+#shop .card .price img{height:12px;width:auto;image-rendering:pixelated}
+#shop .card.poor .price{color:#ff7f6e}
+#shop .card .price.off{color:#8ff09a}
+body.cb #shop .card .price::before{font-size:12px;margin-right:1px}
+body.cb #shop .card.t1 .price::before{content:'●';color:var(--t1)}
+body.cb #shop .card.t2 .price::before{content:'◆';color:#7cc4ff}
+body.cb #shop .card.t3 .price::before{content:'▲';color:#d29bff}
+body.cb #shop .card.t4 .price::before{content:'★';color:#ffd76a}
+
+/* baú: mesmo cartão da mochila */
+#chestwrap{display:grid;grid-template-columns:max-content;gap:3px;justify-items:center;align-self:center;max-width:100%;padding:1px 5px 2px;border:3px solid var(--bagedge);border-radius:16px}
+#chestHead{width:0;min-width:100%;font:900 11px/14px 'Nunito',system-ui,sans-serif;color:var(--ink-brown);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chestHead b{font:400 12px/14px 'Lilita One',system-ui,sans-serif;color:var(--orange-d)}
+body.is-dragging #chestwrap{position:relative;z-index:56;align-self:flex-end}
+body.lefty.is-dragging #chestwrap{align-self:flex-start}
+
+/* venda: a faixa da loja vira "Vender" durante o arrasto (posição em placeSellZone) */
+#sellzone{position:fixed;z-index:55;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:0 8px;background:linear-gradient(180deg,#ff6a4a,#d8282f);border:3px dashed #fff;border-radius:15px;box-shadow:0 4px 0 #8a1020;color:#fff;pointer-events:none}
+body.lefty #sellzone{align-items:flex-end}
+#sellzone b{font:400 16px/1 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;text-shadow:0 2px 0 #8a1020}
+#sellzone span{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:11px;font:900 13px/1 'Nunito',system-ui,sans-serif;color:#fff}
+#sellzone span img{height:12px;width:auto;image-rendering:pixelated}
+#sellzone.hot{border-style:solid;filter:brightness(1.15);box-shadow:0 0 0 4px var(--pill-edge),0 4px 0 #8a1020}
