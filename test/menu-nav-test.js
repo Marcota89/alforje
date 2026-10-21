@@ -6,6 +6,7 @@
 //                        cloudAdopt() com jornada ativa volta para #app. Devolve {..., pass:true}.
 //   await navC()      -> luta começada, ☰ -> Codex (página do menu) durante a luta; a luta termina: resultado sobre #app, e depois de
 //                        "Ir ao mercador" (e das escolhas que vierem) continua só #app. Precisa de uma jornada na loja (rode navA() antes).
+//   await navMeta()   -> energia e progressão na jornada: migração do perfil antigo, cobrança de 10, perm, Diário grátis, restauração sem perm, adoção pela nuvem, sem energia.
 //   await menuSweep() -> passa por todas as abas, modos e páginas do menu rodando alforjeAudit() (precisa de test/ui-audit.js).
 //                        Usa a escolha de herói (estado novo) e no fim devolve a jornada que estava em andamento (não roda durante uma luta).
 window.navVis = s => { const e = document.querySelector(s); return !!e && !e.hidden && getComputedStyle(e).display !== 'none'; };
@@ -69,4 +70,42 @@ window.menuSweep = async () => {
   out.jogarOn = q('#mtabs [data-nav="jogar"]').classList.contains('on');
   if (snap) { A.state = JSON.parse(snap); A.showRun(); A.render(); out.restored = navVis('#app') && !navVis('#menu'); }
   return out;
+};
+window.navMeta = async () => {
+  const A = window.__alforje, R = {}, PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts';
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode };
+  try {
+    // 1) perfil antigo (sem meta, 12 vitórias): migra com XP 120 e energia 30
+    const old = JSON.parse(keep.prof); delete old.meta; old.totalWins = 12;
+    localStorage.setItem(PK, JSON.stringify(old)); A.loadProf();
+    R.migrated = !!A.PROF.meta && A.PROF.meta.xp === 120 && A.PROF.meta.energy === 30;
+    // 2) jornada normal: cobra 10 e guarda os bônus
+    A.state.phase = 'class'; A.pickClass('warrior');
+    R.normal = A.PROF.meta.energy === 20 && !!A.state.perm && A.state.mode === 'normal';
+    // 3) Diário: grátis e sem bônus (a classe do dia é uma das quatro)
+    A.state.phase = 'class'; A.MENU.mode = 'daily';
+    A.state.cls = null;
+    for (const k of window.AlforjeData.CLASSKEYS) { A.pickClass(k); if (A.state.cls) break; }
+    R.daily = A.state.mode === 'daily' && A.PROF.meta.energy === 20 && A.state.perm == null;
+    // 4) jornada salva sem perm: restaurar não cobra e continua sem bônus
+    A.MENU.mode = 'normal'; A.state.phase = 'class'; A.pickClass('warrior');
+    const s = JSON.parse(JSON.stringify(A.state)); delete s.perm; const e0 = A.PROF.meta.energy;
+    A.cloudAdopt({ t: Date.now() + 1e4, prof: JSON.stringify(A.PROF), run: JSON.stringify(s) });
+    R.restored = A.PROF.meta.energy === e0 && A.state.perm === undefined && A.state.cls === 'warrior';
+    // 5) nuvem com perfil sem meta: migra ao adotar
+    const cp = JSON.parse(JSON.stringify(A.PROF)); delete cp.meta; cp.totalWins = 7;
+    A.cloudAdopt({ t: Date.now() + 2e4, prof: JSON.stringify(cp), run: JSON.stringify(s) });
+    R.adopted = !!A.PROF.meta && A.PROF.meta.xp === 70 && A.PROF.meta.energy === 30;
+    // 6) sem energia: não cria a jornada
+    A.state.phase = 'class'; A.PROF.meta.energy = 5; A.PROF.meta.eAt = Date.now(); const before = A.state;
+    A.pickClass('warrior');
+    R.noEnergy = A.state === before && A.state.phase === 'class' && A.PROF.meta.energy === 5;
+  } finally {
+    A.MENU.mode = keep.mode;
+    if (keep.prof != null) localStorage.setItem(PK, keep.prof);
+    if (keep.run != null) localStorage.setItem(RK, keep.run);
+    if (keep.ts != null) localStorage.setItem(TK, keep.ts);
+  }
+  R.pass = R.migrated && R.normal && R.daily && R.restored && R.adopted && R.noEnergy;
+  return R;
 };

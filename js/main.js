@@ -44,14 +44,20 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 
 
 /* ================= PROFILE (codex, ascension, history, achievements) ================= */
-const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='7.0';
+const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.0';
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
+/* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
+function META(){return window.AlforjeMeta.ensureMeta(PROF,Date.now());}
 function loadProf(){try{const p=JSON.parse(localStorage.getItem(PROFKEY));if(p&&p.codex)PROF=Object.assign(freshProf(),p);}catch(e){}
- try{const old=+localStorage.getItem('alforje-best')||0;if(old>PROF.best)PROF.best=old;}catch(e){}}
+ try{const old=+localStorage.getItem('alforje-best')||0;if(old>PROF.best)PROF.best=old;}catch(e){}
+ /* não usa saveProf aqui: markDirty ainda não enxerga CLOUD nesta altura do arquivo */
+ META();try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}}
 function saveProf(){try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
 loadProf();
 const counts=()=>state&&state.mode!=='seed';
+/* evento das metas do dia (a meta soma sozinha; quem chama decide se vale) */
+function gev(ev,n){try{window.AlforjeMeta.goalEvent(META(),Date.now(),ev,n);saveProf();}catch(e){}}
 function cx(key){return PROF.codex.items[key]||(PROF.codex.items[key]={seen:0,bought:0,merged:0,forged:0,wins:0});}
 function codexSee(key){if(!counts()||!ITEMS[key])return;cx(key).seen++;}
 function codexAdd(key,f,n){if(!counts()||!ITEMS[key])return;cx(key)[f]+=n||1;}
@@ -555,7 +561,7 @@ function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;co
 let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
 function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,sel:null}));}
 function undo(){if(!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
-function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;codexAdd(target.key,'merged');mission('merge');
+function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;codexAdd(target.key,'merged');mission('merge');if(counts())gev('merge');
  if(target.tier===4){state.mood='legend';ach('legend');mission('legend');}toast(`Fundido! ${ITEMS[target.key].name} agora é ${TIERS[target.tier-1]}${target.tier===3?' e despertou':''}`);}
 const canMerge=()=>state.chal!=='nofuse';
 function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4&&it.where==='bag')||state.items.find(it=>it.key===key&&it.tier===tier&&it.tier<4));
@@ -565,7 +571,7 @@ function addPet(key,tier){const twin=state.pets.find(p=>p&&p.key===key&&p.tier==
  const i=state.pets.indexOf(null);if(i<0)return false;state.pets[i]={key,tier,ch:PET_CHARGES};return true;}
 function buy(i){const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
  snapshot();const ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
- state.gold-=p;state.shop[i]=null;if(!o.pet)codexAdd(o.key,'bought');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
+ state.gold-=p;state.shop[i]=null;if(!o.pet)codexAdd(o.key,'bought');if(counts())gev('buy');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
 function sell(id,ok){const it=state.items.find(i=>i.id===id);if(!it)return;
  if(it.tier>=3&&!ok){confirmBox(`Vender ${ITEMS[it.key].name} ${TIERS[it.tier-1]}?`,`Itens Épicos e Lendários não voltam. Você recebe ${sellPrice(it.key,it.tier)} de ouro.`,'Vender',()=>sell(id,true));return;}
  snapshot();const v=sellPrice(it.key,it.tier);state.gold+=v;state.items=state.items.filter(i=>i!==it);sfx('coin');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Vendido por ${v} de ouro`);}
@@ -615,14 +621,14 @@ let finishing=false;
 function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='lose';B.ev.length=0;}
 setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;setTimeout(()=>{finishing=false;finish();},700);}},100);
 function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier=r.tier;a.key=r.res;state.items=state.items.filter(i=>i!==r.b);done.push(`${ITEMS[r.a.key].name} (${TIERS[a.tier-1]})`);
- if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');}
+ if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');if(counts())gev('forge');}
  if(done.length){achRetro();}return done;}
 let lastFight=null;
 function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
  sfx(win?'win':'lose');let forged=[];
  lastFight={stats:B.stats,es:B.es,log:B.log.slice(),blocked:B.blocked,t:B.t,foe:f.name,win};
  if(state.pfPending){state.proof=(state.proof||[]).concat([{k:state.pfPending,res:win?'win':'lose'}]).slice(-MAXFIGHTS);state.pfPending=null;}
- if(win){missionWin(f);state.wins++;state.winStreak++;state.lossStreak=0;state.stopLosses=0;forged=forge();state.mood='';
+ if(win){missionWin(f);if(counts()){gev('win');if(f.elite||f.boss)gev('elite');}state.wins++;state.winStreak++;state.lossStreak=0;state.stopLosses=0;forged=forge();state.mood='';
   for(const it of inWhere('bag')){const d=ITEMS[it.key];if(d.trig==='souls')it.souls=(it.souls||0)+1;if(d.grows)it.grow=Math.min(8,(it.grow||0)+1);codexAdd(it.key,'wins');}
   if(f.art)codexFoe(f.art,true);if(counts()){PROF.totalWins++;saveProf();}battleAch(f);}
  else{if(has('bigorna'))forged=forge();if(state.surv)state.survLives--;else state.lives--;state.lossStreak++;state.winStreak=0;state.stopLosses++;state.mood='loss';}
@@ -679,6 +685,7 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>
  <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`}</p>
  <div class="k-card score"><small>Pontuação:</small><strong>${sc}</strong>${state.asc?`<em>(Ascensão ${state.asc}: +${state.asc*5}%)</em>`:''}</div>
+ ${state.acct&&!surv?`<p class="bonus center">Na conta: +${state.acct.gold} ouro, +${state.acct.stone} pedras, +${state.acct.xp} XP</p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
  ${won&&!surv&&state.mode==='normal'&&state.asc<10?`<p class="bonus center">Ascensão ${Math.min(10,state.asc+1)} liberada para ${CLASSES[state.cls].name}.</p>`:''}
  ${state.mode==='seed'?'<p class="muted">Partida com seed manual: não conta para Ascensão, Codex nem conquistas.</p>':''}
  ${report||''}
@@ -690,7 +697,7 @@ function startSurvival(){runFront();state.surv=true;state.survLives=3;state.surv
 function score(){const won=state.wins>=GOAL;return Math.round((state.wins*100+(won?250:0)+(state.surv?(state.wins-GOAL)*150:0)+(state.surv?state.survLives:state.lives)*25)*(1+.05*state.asc));}
 
 /* ================= PROFILE UPDATES ================= */
-function ach(id){if(!counts()||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1],1),400);
+function ach(id){if(!counts()||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();const rb=window.AlforjeMeta.achRuby(META(),[id]);saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1]+(rb>0?' · +'+rb+' 💎':''),1),400);
  if(id==='frostwin')setTimeout(()=>toast('Coruja das Neves liberada na loja',1),2200);}
 function achRetro(){if(!counts())return;const r=Object.keys(PROF.codex.recipes);if(r.length>=1)ach('forge1');if(r.length>=6)ach('forge6');if(RECIPES.every(x=>PROF.codex.recipes[x[2]]))ach('forge_all');
  if(Object.values(PROF.codex.items).filter(x=>x.seen||x.bought).length>=40)ach('codex40');if(Object.values(PROF.codex.foes).filter(x=>x.beat).length>=20)ach('foes20');}
@@ -705,11 +712,15 @@ function recordJourney(won){if(state.recorded)return;state.recorded=true;
   if(state.mode==='normal'){if(state.asc>=ascMax(cls))PROF.asc[cls]=Math.min(10,state.asc+1);PROF.sticker[cls]=Math.max(PROF.sticker[cls]==null?-1:PROF.sticker[cls],state.asc);
    if(state.asc>=1)ach('asc1');if(state.asc>=5)ach('asc5');if(state.asc>=10)ach('asc10');}
   if(state.mode==='challenge'&&state.chal){PROF.chalDone[state.chal]=1;ach('chal1');if(CHALLENGES.every(c=>PROF.chalDone[c.id]))ach('chal_all');}}
- if(state.mode==='daily'){const d=runDay();PROF.daily[d]=Math.max(PROF.daily[d]||0,sc);ach('daily');mission('daily');boardPost(sc);}
+ if(state.mode==='daily'){const d=runDay();PROF.daily[d]=Math.max(PROF.daily[d]||0,sc);ach('daily');mission('daily');gev('daily');boardPost(sc);}
  if(won)mission('journey');
+ journeyAcct(won);
  PROF.history.unshift({d:Date.now(),cls,asc:state.asc,mode:state.mode,chal:state.chal,wins:state.wins,lives:state.lives,won,surv:0,seed:state.seed,score:sc,sub:state.sub,
   build:inWhere('bag').map(i=>[i.key,i.tier]),code:buildCode()});PROF.history=PROF.history.slice(0,20);saveProf();
  if(won&&counts())ghostPost();runPost(won);}
+/* o que a jornada rende à conta: uma vez por jornada (state.acct marca); o resumo fica no estado para a janela final */
+function journeyAcct(won){if(state.acct)return;const M=window.AlforjeMeta,m=META(),r=M.journeyRewards(state.wins,won,state.asc||0,state.mode);
+ const up=M.addXp(m,r.xp);M.applyReward(m,{gold:r.gold,stone:r.stone});state.acct={gold:r.gold,stone:r.stone,xp:r.xp,lv:M.levelOf(m.xp).lv,up:up>0};gev('journey');}
 function recordSurv(){const h=PROF.history[0];PROF.bestSurv=Math.max(PROF.bestSurv||0,state.wins);if(state.wins>=SURV_GOAL)ach('surv');
  if(h&&state.recorded){h.surv=state.wins;h.score=score();h.build=inWhere('bag').map(i=>[i.key,i.tier]);h.code=buildCode();}
  if(state.mode==='daily'){const d=runDay(),sc=score();PROF.daily[d]=Math.max(PROF.daily[d]||0,sc);boardPost(sc);}saveProf();}
@@ -780,10 +791,10 @@ async function cloudInit(){try{if(!API)return;const uid=await API.init();if(!uid
  if(d&&d.prof&&ct>lt+2000)cloudAdopt(d);else if(lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
  }catch(e){}}
 function cloudAdopt(d){if(state&&state.phase==='battle'){setTimeout(()=>cloudAdopt(d),3000);return;}
- try{const p=JSON.parse(d.prof);if(!p||!p.codex)return;PROF=Object.assign(freshProf(),p);
+ try{const p=JSON.parse(d.prof);if(!p||!p.codex)return;PROF=Object.assign(freshProf(),p);META();
   let s=null;if(d.run){try{s=JSON.parse(d.run);}catch(e){}}
   if(s&&s.items&&s.bag){if(s.phase==='battle'||s.phase==='result')s.phase='shop';setState(s);}
-  try{localStorage.setItem(PROFKEY,d.prof);if(d.run)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
+  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(d.run)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
   applyOpts();applySkin();closeOverlay();resumeView();toast('☁ Progresso recuperado da nuvem',1);}catch(e){}}
 function resumeView(){if(!state.cls||state.phase==='class'){classScreen();return;}showRun();
  if(state.phase==='end'){render();endScreen(state.surv?state.wins>=SURV_GOAL:state.wins>=GOAL,'');}
@@ -992,8 +1003,14 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
  <button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}>COMEÇAR</button>`,'jogar');}
 const ASCTXT=`<ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Vencer a Ascensão N libera N+1 só para aquela classe.</p>`;
+/* energia: a jornada custa ao ser criada (Normal, Desafios e Seed); Diário e Duelo são grátis */
+function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}
+/* provisório: a Tarefa 4 troca por a janela de energia */
+function noEnergy(){toast('Sem energia para começar a jornada');}
 function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  if(M.mode==='daily'){if(k!==dailyClass())return;}else if(!classOpen(k)&&!opts)return;
+ const cost=journeyCost(M.mode);
+ if(cost>0){if(!window.AlforjeMeta.spendEnergy(META(),cost,Date.now())){noEnergy();return;}saveProf();gev('energy',cost);}
  setState(fresh());state.cls=k;state.mode=M.mode;
  if(M.mode==='normal')state.asc=Math.max(0,Math.min(M.asc[k]||0,opts&&opts.asc!=null?10:ascMax(k)));if(opts&&opts.asc!=null)state.asc=opts.asc;
  const seed=M.mode==='daily'?'D'+todayStr():M.mode==='seed'&&M.seed?String(M.seed).trim():Math.random().toString(36).slice(2,10);
@@ -1004,6 +1021,8 @@ function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  const kit=(M.kit[k]===1&&(ascMax(k)>=3||opts&&opts.kit))?1:0;state.kit=kit;
  for(const [key,x,y] of C.kits[kit].items){const d=ITEMS[key];if(canPlace('bag',x,y,d.w,d.h))state.items.push({id:state.nid++,key,tier:1,x,y,w:d.w,h:d.h,where:'bag'});else{const sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);if(sp)state.items.push({id:state.nid++,key,tier:1,...sp});}}
  state.route=STOPS.map(s=>Math.floor(R()*s.v.length));rollElites();state.phase='shop';rollShop();
+ if(cost>0){const pm=window.AlforjeMeta.permOf(META());state.perm={hp:pm.hp,block:pm.block,dmgPct:pm.dmgPct,crit:pm.crit};state.gold+=pm.gold;
+  if(pm.pet&&state.chal!=='nopets')state.pets[0]={key:pm.pet.key,tier:1,ch:PET_CHARGES,mul:pm.pet.mul};}
  sfx('merge');save();closeOverlay();showRun();render();if(!PROF.tut&&!opts)setTimeout(coachStart,350);}
 /* ----- tutorial (INF-05) ----- */
 const TUT=[['Toque, segure e arraste','Toque num item ou card para ver a ficha curta acima dele, com Comprar, Girar e Vender. Para mover, segure um instante (ou já arraste): o item fica acima do dedo para você ver onde ele cai. Só o que está na Mochila luta.'],
@@ -1240,7 +1259,7 @@ window.addEventListener('resize',()=>{if(!drag)render();});
 ['h_warrior','h_rogue','h_pyro','h_paladin','p_raven','p_salamander','p_turtle','p_pixie','p_owl'].forEach(img);
 STOPS.forEach(s=>s.v.forEach(v=>img('e_'+v.art)));for(const c in POSE)for(const p in POSE[c])if(p!=='_'&&p!=='s')img('hp_'+c+'_'+p);Object.values(BGS).forEach(b=>img(b.full||b.strip));
 window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set state(s){setState(s);},get PROF(){return PROF;},set PROF(p){PROF=p;},MENU,page,showRun,cloudAdopt,classScreen,buy,fight,skip,finish,render,newBattle,step,makePlayer,makeFoe,readyRecipes,forge,addItem,addPet,rollShop,
- expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},
+ expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},loadProf,META,journeyCost,
  get B(){return B;},set B(b){B=b;}};
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
 function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);setState((data&&data.state)||load()||fresh());
