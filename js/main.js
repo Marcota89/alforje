@@ -1040,10 +1040,10 @@ function petsScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Co
  const cards=PETKEYS.map(k=>{const P=PETS[k],L=m.pets[k]||0,own=L>0,max=L>=AM.PET_MAX,fc=AM.feedCost(L),poor=m.food<fc,on=m.petOn===k,mul=(1+.1*(L-1)).toFixed(1).replace('.',',');
   if(!own)return `<div class="k-card petc lock" role="group" aria-label="Companheiro não obtido"><img class="sil" src="a/p_${k}.webp" alt=""><div class="pt"><b>???</b><small>Ainda não obtido. Choque um ovo para descobrir.</small></div></div>`;
   return `<div class="k-card petc${on?' on':''}" role="group" aria-label="${P.name}, nível ${L} de ${AM.PET_MAX}${on?', na jornada':''}"><img src="a/p_${k}.webp" alt=""><div class="pt"><b>${P.name} <em>Nv ${L}/${AM.PET_MAX}</em></b><small>${P.desc} · efeitos ×${mul}</small><small>${P.act}: ${P.actDesc}</small></div>
-   <div class="pb2"><button class="k-btn o sm" data-feed="${k}" ${max||poor?'disabled':''} aria-label="Alimentar ${P.name}${max?': nível máximo':`: ${fc} rações${poor?'. Faltam '+(fc-m.food):''}`}">${max?'Nível máximo':`Alimentar · 🍖 ${fc}`}</button><button class="k-btn ${on?'g':'v'} sm" data-take="${k}" aria-pressed="${on}">${on?'✔ Na jornada':'Levar na jornada'}</button></div></div>`;}).join('');
+   <div class="pb2"><div class="pbx"><button class="k-btn o sm" data-feed="${k}" ${max||poor?'disabled':''} aria-label="Alimentar ${P.name}${max?': nível máximo':`: ${fc} rações${poor?'. Faltam '+(fc-m.food):''}`}">${max?'Nível máximo':`Alimentar · 🍖 ${fc}`}</button>${!max&&poor?`<small class="why" aria-hidden="true">Faltam ${fc-m.food} 🍖</small>`:''}</div><div class="pbx"><button class="k-btn ${on?'g':'v'} sm" data-take="${k}" aria-pressed="${on}">${on?'✔ Na jornada':'Levar na jornada'}</button></div></div></div>`;}).join('');
  page(`<h2>Companheiros</h2>
  <div class="k-card pc pethd" id="petH"><span class="pcnt">${have}/${PETKEYS.length} companheiros · você tem 🍖 ${fmtN(m.food)}</span>
-  <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">Chocar ovo (${m.egg}) 🥚</button>
+  <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">Chocar ovo (${m.egg}) 🥚</button>${m.egg<1?'<small class="why" aria-hidden="true">Sem ovos — ganhe no Diário ou na Loja</small>':''}
   <small>${all?'Você já tem todos: cada ovo vira 10 rações.':'Cada ovo choca um companheiro que ainda falta.'} Só um vai na jornada, na 1ª vaga, e não entra no desafio sem companheiros.</small></div>
  <div class="petl">${cards}</div>${backBtn()}`,'pets');}
 function petAct2(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;
@@ -1073,7 +1073,7 @@ function tabDot(){const m=META(),AM=window.AlforjeMeta,now=Date.now();
  const n=m?(AM.calToday(m,now).claimed?0:1)+AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0;
  set('diario',n,String(n),`Diário, ${n} para pegar`);
  set('equip',m&&Object.keys(AM.GEAR).some(k=>canUp(m,k)),'!','Equipar, melhoria possível');
- set('pets',m&&m.egg>0,'!','Pets, ovo para chocar');}
+ set('pets',m&&m.egg>0&&(PETKEYS.some(k=>!m.pets[k])||m.food<AM.CAP),'!','Pets, ovo para chocar');}
 function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Diário','diario');return;}
  const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
  const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;

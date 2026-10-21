@@ -405,7 +405,7 @@ window.navGear = async () => {
     m.stone = 0; A.equipScreen();
     R.poor = q('#eqUp').disabled && /Faltam 2 🪨/.test(q('.eqd').textContent) && !dot('equip');
     const g0 = JSON.stringify(m.gear); q('#eqUp').click(); R.poorNo = JSON.stringify(m.gear) === g0 && m.gold === 800;
-    m.stone = 5; m.gold = 10; A.equipScreen(); R.poorGold = q('#eqUp').disabled && /Faltam 150 💰|Faltam \d+ 💰/.test(q('.eqd').textContent);
+    m.stone = 5; m.gold = 10; m.gear.armor = 3; A.equipScreen(); R.poorGold = q('#eqUp').disabled && /Faltam 140 💰/.test(q('.eqd').textContent);
     // nível 20: máximo
     m.stone = 99; m.gold = 9999; m.gear.armor = 20; A.equipScreen();
     R.max = q('#eqUp').disabled && /NÍVEL MÁXIMO/.test(q('#eqUp').textContent) && q('.eqs.sel').classList.contains('t4') && /Lendário/.test(q('.eqs.sel').textContent);

@@ -246,7 +246,7 @@
 #mpage .eqs.t4{--tc:var(--t4);background:linear-gradient(180deg,#fff,#fff0c4)}
 #mpage .eqs img{height:46px;width:auto;max-width:64px;object-fit:contain}
 #mpage .eqs .ef{color:var(--orange-d)}
-#mpage .eqs small{font-size:11.5px;color:var(--muted)}
+#mpage .eqs small{font-size:12.5px;color:var(--muted)}
 #mpage .eqs .lvb{position:absolute;top:-10px;left:-5px;padding:1px 7px;background:var(--tc);border:2px solid #fff;border-radius:10px;color:#fff;font:900 11px/1.3 var(--f-body);text-shadow:0 1px 0 rgba(0,0,0,.45)}
 #mpage .eqs.sel{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--ink-brown)}
 #mpage .eqs.sel::after{content:"✔";position:absolute;top:-10px;right:-5px;min-width:22px;height:22px;border-radius:11px;background:var(--ink-brown);border:2px solid #fff;color:#fff;font:900 12px/18px var(--f-body)}
@@ -263,6 +263,8 @@
 #mpage .pethd .k-btn{width:100%}
 #mpage .pethd small,#mpage .petc small{font:800 12.5px/1.3 var(--f-body);color:var(--muted)}
 #mpage .petl{display:grid;gap:8px}
+#mpage .pbx{display:grid;gap:3px;align-content:start;min-width:0}
+#mpage .why{font:800 12.5px/1.25 var(--f-body);color:var(--muted);text-align:center}
 #mpage .petc{display:grid;grid-template-columns:56px minmax(0,1fr);gap:6px 10px;align-items:center;padding:10px}
 #mpage .petc>img{width:56px;height:56px;object-fit:contain;justify-self:center}
 #mpage .petc .pt{display:grid;gap:2px;min-width:0}
@@ -271,7 +273,7 @@
 #mpage .petc.on{border-color:#25a845;box-shadow:0 0 0 3px #bdf5ad}
 #mpage .petc.lock{opacity:.85}
 #mpage .petc .pb2{grid-column:1/3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-#mpage .petc .pb2 .k-btn{justify-self:stretch;min-width:0;min-height:46px;padding:0 6px;font-size:14.5px;line-height:1.1;text-align:center}
+#mpage .petc .pb2 .k-btn{justify-self:stretch;min-width:0;min-height:48px;padding:0 6px;font-size:14.5px;line-height:1.1;text-align:center}
 
 /* texto grande */
 body.big #mpage :is(.muted,.howto,.hdet span,.achv,.hrow,.chal span,.story,.chk,.fld){font-size:16px}
@@ -289,7 +291,7 @@ body.big #mpage .dcell .dv,body.big #mpage .dch small{font-size:13px}
 body.big #mpage .dgoal .gt{font-size:15px}
 body.big #mpage .dgoal .gt span,body.big #mpage .shopc .st small{font-size:14px}
 body.big #mpage .eqs{font-size:14.5px}
-body.big #mpage .eqs small,body.big #mpage .eqn,body.big #mpage .pethd small,body.big #mpage .petc small{font-size:14px}
+body.big #mpage .eqs small,body.big #mpage .why,body.big #mpage .eqn,body.big #mpage .pethd small,body.big #mpage .petc small{font-size:14px}
 body.big #mpage .eqst,body.big #mpage .pethd .pcnt{font-size:15px}
 body.big #mpage .petc .pb2 .k-btn{font-size:15px}
 
