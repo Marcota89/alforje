@@ -31,11 +31,15 @@ function newGoals(dk){return {ids:drawGoals(dk),p:{},done:[],pts:0,chests:CHESTS
 const isObj=o=>o&&typeof o==='object'&&!Array.isArray(o);
 const isNum=n=>typeof n==='number'&&Number.isFinite(n);
 /* o dia da meta só avança (comparação de strings ISO): relógio para trás não reabre nada */
-function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&isObj(g.p)&&Array.isArray(g.done)&&isNum(g.pts)&&Array.isArray(g.chests)&&g.chests.length===CHESTS.length;}
-/* exceção: dia salvo mais de 2 dias à frente do relógio = relógio corrigido; refaz o dia (e solta o calendário preso no futuro) */
+function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&g.ids.every(id=>GOALS[id])&&isObj(g.p)&&Array.isArray(g.done)&&isNum(g.pts)&&Array.isArray(g.chests)&&g.chests.length===CHESTS.length;}
+/* exceção: dia salvo mais de 2 dias à frente do relógio = relógio corrigido. Só o marcador do dia volta para hoje:
+   propagandas, compras, prêmios, metas e calendário já usados continuam usados. dayMax guarda o dia mais adiantado já aberto,
+   e nada reabre (contadores, metas) até o relógio passar dele; cal.last fica no futuro, então o bônus de hoje continua pego. */
 function rollDay(m,now){const dk=dayKey(now),ahead=typeof m.day==='string'&&m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS;
- if(typeof m.day!=='string'||dk>m.day||ahead){if(ahead&&m.cal&&typeof m.cal.last==='string'&&m.cal.last>dk)m.cal.last=dayKey(Date.parse(dk)-DAY_MS);
-  m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.goals=newGoals(m.day);return m;}
+ if(ahead){if(!(typeof m.dayMax==='string'&&m.dayMax>=m.day))m.dayMax=m.day;m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
+ if(typeof m.day!=='string'||dk>m.day){
+  if(typeof m.day==='string'&&typeof m.dayMax==='string'&&dk<=m.dayMax){m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
+  delete m.dayMax;m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.goals=newGoals(m.day);return m;}
  if(!goalsOk(m.goals))m.goals=newGoals(m.day);
  return m;}
 /* preenche com o padrão o que faltar numa meta antiga ou parcial */
@@ -51,6 +55,7 @@ function backfill(m,prof,now){
  if(typeof m.cal.last!=='string')m.cal.last='';
  if(!isNum(m.cal.idx)||m.cal.idx<0)m.cal.idx=0;
  if(typeof m.day!=='string')m.day='';
+ if('dayMax' in m&&typeof m.dayMax!=='string')delete m.dayMax;
  if(!isObj(m.ad))m.ad={};
  for(const k in AD_LIMIT)if(!isNum(m.ad[k]))m.ad[k]=0;
  if(!isObj(m.rw))m.rw={};
@@ -96,7 +101,7 @@ function goalsToday(m,now){rollDay(m,now);const g=m.goals;
  return {ids:g.ids.slice(),p:Object.assign({},g.p),done:g.done.slice(),pts:g.pts,
   chests:CHESTS.map((c,i)=>({at:c.at,reward:c.reward,ready:g.pts>=c.at&&!g.chests[i],claimed:!!g.chests[i]})),endsIn:endsIn(now)};}
 function goalEvent(m,now,ev,n){rollDay(m,now);if(n==null)n=1;const g=m.goals,out=[];
- for(const id of g.ids){const d=GOALS[id];if(d.ev!==ev||g.done.includes(id))continue;
+ for(const id of g.ids){const d=GOALS[id];if(!d||d.ev!==ev||g.done.includes(id))continue;
   g.p[id]=Math.min(d.n,(g.p[id]||0)+n);
   if(g.p[id]>=d.n){g.done.push(id);g.pts+=GOAL_PTS;out.push(id);}}
  return out;}

@@ -248,9 +248,37 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   check(M.calToday(ck, T0).claimed && ck.day === '2026-10-22', 'relógio 1 dia à frente: segue travado (Ruling 1)');
   ck.day = '2026-10-24'; ck.cal.last = '2026-10-24'; ck.rw.daily = 1; ck.goals.pts = 40;
   const ct = M.calToday(ck, T0);
-  check(ck.day === '2026-10-21' && ck.ad.shop === 0 && ck.goals.pts === 0 && ck.rw.daily === 0 && !ct.claimed, 'relógio 3 dias à frente: dia refeito, contadores e calendário liberados');
-  ck.day = '2026-10-23';
-  M.goalsToday(ck, T0); check(ck.day === '2026-10-23', 'exatamente 2 dias à frente: ainda não corrige');
+  check(ck.day === '2026-10-21' && ck.dayMax === '2026-10-24' && ck.ad.shop === 1 && ck.goals.pts === 40 && ck.rw.daily === 1 && ct.claimed && ck.cal.last === '2026-10-24',
+    'relógio 3 dias à frente: só o marcador do dia volta; contadores, metas e calendário continuam usados');
+  check(M.calToday(ck, T0 + DAY).claimed && ck.ad.shop === 1 && ck.day === '2026-10-22', 'dia real seguinte, ainda antes do dia já aberto: nada reabre');
+  check(!M.calToday(ck, T0 + 4 * DAY).claimed && ck.ad.shop === 0 && ck.rw.daily === 0 && ck.dayMax === undefined, 'depois do dia mais adiantado já aberto: o dia vira normalmente');
+  const c2 = mk(); c2.day = '2026-10-23';
+  M.goalsToday(c2, T0); check(c2.day === '2026-10-23', 'exatamente 2 dias à frente: ainda não corrige');
+
+  // Loop do relógio (P1 #4): 10 ciclos de +3 dias / pegar tudo / voltar não rendem nada a mais
+  {
+    const lp = mk(); lp.energy = 0;
+    const grab = t => { let n = 0; if (M.claimCal(lp, t, true)) n++; for (let i = 0; i < 3; i++) if (M.adUse(lp, t, 'energy')) n++; if (M.adUse(lp, t, 'shop')) n++;
+      if (M.rewardOk(lp, t, 'daily')) { M.markReward(lp, t, 'daily'); n++; } return n; };
+    const first = grab(T0);
+    let real = 0, future = 0; const perCycle = [];
+    for (let c = 0; c < 10; c++) { lp.energy = 0; const f = grab(T0 + 3 * DAY); future += f; const r = grab(T0); real += r; perCycle.push(f + '/' + r); }
+    check(first === 6, 'loop do relógio: dia real paga uma vez (calendário, 3 propagandas, ouro, prêmio do Diário)');
+    check(real === 0, 'loop do relógio: 10 voltas ao dia real não pagam nada de novo (' + perCycle.join(' ') + ')');
+    check(future === 6, 'loop do relógio: o dia adiantado paga só na 1ª ida, e nunca de novo (' + future + ')');
+    let between = 0; for (let d = 1; d <= 3; d++) between += grab(T0 + d * DAY);
+    check(between === 0 && grab(T0 + 4 * DAY) === 6, 'loop do relógio: dias reais até o dia já aberto não pagam; o dia seguinte paga normal');
+  }
+
+  // meta do dia com id desconhecido (P2 #7): sorteia de novo, e goalEvent não quebra
+  {
+    const g = mk(); g.goals.ids[2] = 'oldgoal_removed';
+    M.goalsToday(g, T0);
+    check(g.goals.ids.every(id => M.GOALS[id]), 'metas: id desconhecido força novo sorteio');
+    const h = mk(); h.goals.ids[0] = 'nope';
+    let threw = false; try { M.goalEvent(h, T0, 'buy', 1); } catch (e) { threw = true; }
+    check(!threw && h.goals.ids.every(id => M.GOALS[id]), 'metas: goalEvent com id desconhecido não lança');
+  }
 
   // Ruling 7: compra que não cabe inteira é recusada
   const sh = mk(); sh.ruby = 100; sh.energy = 80;
