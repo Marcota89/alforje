@@ -270,6 +270,20 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
     check(between === 0 && grab(T0 + 4 * DAY) === 6, 'loop do relógio: dias reais até o dia já aberto não pagam; o dia seguinte paga normal');
   }
 
+  // teto do dayMax: relógio mais de 14 dias à frente não trava o calendário por semanas/anos
+  {
+    const fz = mk(); M.claimCal(fz, T0, false);
+    M.claimCal(fz, T0 + 30 * DAY, false); M.adUse(fz, T0 + 30 * DAY, 'shop');
+    const back = M.calToday(fz, T0);
+    check(back.claimed && fz.dayMax === undefined && fz.cal.last === '2026-10-21' && fz.ad.shop === 1, 'relógio 30 dias à frente e de volta: hoje segue pego, sem dayMax, contadores usados');
+    check(!M.calToday(fz, T0 + DAY).claimed, 'relógio 30 dias à frente: o dia real seguinte reabre (vazamento limitado aceito)');
+    const old = mk(); old.dayMax = '2027-06-01'; old.cal.last = '2027-06-01';
+    M.calToday(old, T0);
+    check(old.dayMax === undefined && old.cal.last === '2026-10-21', 'dayMax salvo mais de 14 dias à frente é esquecido');
+    const near = mk(); M.claimCal(near, T0 + 10 * DAY, false); M.calToday(near, T0);
+    check(near.dayMax === '2026-10-31' && near.cal.last === '2026-10-31', '10 dias à frente: dentro do teto, segue travado até o dia aberto');
+  }
+
   // meta do dia com id desconhecido (P2 #7): sorteia de novo, e goalEvent não quebra
   {
     const g = mk(); g.goals.ids[2] = 'oldgoal_removed';

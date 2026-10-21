@@ -35,8 +35,13 @@ function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&g.ids.e
 /* exceção: dia salvo mais de 2 dias à frente do relógio = relógio corrigido. Só o marcador do dia volta para hoje:
    propagandas, compras, prêmios, metas e calendário já usados continuam usados. dayMax guarda o dia mais adiantado já aberto,
    e nada reabre (contadores, metas) até o relógio passar dele; cal.last fica no futuro, então o bônus de hoje continua pego. */
+/* teto: dia aberto mais de 14 dias à frente = relógio quebrado; esquece dayMax e o bônus de hoje conta como pego (amanhã reabre).
+   Vazamento aceito: quem pula mais de 14 dias de uma vez ganha o dia pulado. */
+const far=(d,dk)=>Date.parse(d)-Date.parse(dk)>14*DAY_MS;
+function capFar(m,dk){delete m.dayMax;if(m.cal&&typeof m.cal.last==='string'&&m.cal.last>dk)m.cal.last=dk;}
 function rollDay(m,now){const dk=dayKey(now),ahead=typeof m.day==='string'&&m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS;
- if(ahead){if(!(typeof m.dayMax==='string'&&m.dayMax>=m.day))m.dayMax=m.day;m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
+ if(typeof m.dayMax==='string'&&far(m.dayMax,dk))capFar(m,dk);
+ if(ahead){if(far(m.day,dk))capFar(m,dk);else if(!(typeof m.dayMax==='string'&&m.dayMax>=m.day))m.dayMax=m.day;m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
  if(typeof m.day!=='string'||dk>m.day){
   if(typeof m.day==='string'&&typeof m.dayMax==='string'&&dk<=m.dayMax){m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
   delete m.dayMax;m.day=dk;m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.goals=newGoals(m.day);return m;}

@@ -49,16 +49,21 @@ function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWin
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
 function META(){return window.AlforjeMeta?window.AlforjeMeta.ensureMeta(PROF,Date.now()):null;}
-/* PROF_HOLD: o perfil salvo estava ilegível (cópia em alforje-prof6-bak); o perfil novo não grava por cima até a nuvem responder */
-let PROF_HOLD=false;
+/* PROF_HOLD: o perfil salvo estava ilegível (cópia em alforje-prof6-bak). Fica marcado em alforje-prof-hold até a nuvem
+   responder de verdade (loadSave): enquanto isso o perfil grava só neste aparelho, nunca vai para a nuvem e não mexe em alforje-ts */
+const HOLDKEY='alforje-prof-hold';
+let PROF_HOLD=false;try{PROF_HOLD=localStorage.getItem(HOLDKEY)==='1';}catch(e){}
+/* TAB_LOCK: outra aba mexeu na jornada ou no perfil; esta aba para de gravar */
+let TAB_LOCK=false;
 function loadProf(){let raw=null;try{raw=localStorage.getItem(PROFKEY);}catch(e){}
  if(raw!=null){let p=null;try{p=JSON.parse(raw);}catch(e){}
   if(p&&typeof p==='object'&&!Array.isArray(p)&&p.codex&&typeof p.codex==='object')PROF=window.AlforjeSave.fixProf(Object.assign(freshProf(),p),freshProf());
-  else{PROF_HOLD=true;try{localStorage.setItem(PROFKEY+'-bak',raw);}catch(e){}}}
+  else{try{if(!PROF_HOLD)localStorage.setItem(PROFKEY+'-bak',raw);localStorage.setItem(HOLDKEY,'1');}catch(e){}PROF_HOLD=true;}}
  try{const old=+localStorage.getItem('alforje-best')||0;if(old>PROF.best)PROF.best=old;}catch(e){}
  /* não usa saveProf aqui: markDirty ainda não enxerga CLOUD nesta altura do arquivo */
- META();if(!PROF_HOLD)try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}}
-function saveProf(){if(PROF_HOLD)return;try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
+ META();try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}}
+function releaseHold(){if(!PROF_HOLD)return;PROF_HOLD=false;try{localStorage.removeItem(HOLDKEY);}catch(e){}}
+function saveProf(){if(TAB_LOCK)return;try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
 loadProf();
 const counts=()=>state&&state.mode!=='seed';
 /* evento das metas do dia (a meta soma sozinha; quem chama decide se vale) */
@@ -83,10 +88,10 @@ let muted=false;try{muted=localStorage.getItem('alforje-mute')==='1';}catch(e){}
 let state=null,B=null,CS=56;
 /* toda troca do estado da partida passa por aqui, para o módulo de simulação enxergar o mesmo objeto */
 function setState(s){state=s;SIM.setState(s);return s;}
-function save(){try{if(state.phase!=='battle'){localStorage.setItem(RUNKEY,JSON.stringify(state));markDirty();}}catch(e){}}
+function save(){if(TAB_LOCK)return;try{if(state.phase!=='battle'){localStorage.setItem(RUNKEY,JSON.stringify(state));markDirty();}}catch(e){}}
 /* a luta grava a partida na entrada (fase 'battle', fila já aplicada): recarregar no meio resolve a mesma luta */
-function saveFight(){try{localStorage.setItem(RUNKEY,JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})));markDirty();}catch(e){}}
-let RUN_BAD=false;
+function saveFight(s){if(TAB_LOCK)return false;try{localStorage.setItem(RUNKEY,JSON.stringify(Object.assign({},s,{undo:null,sel:null,selMore:false})));}catch(e){return false;}markDirty();return true;}
+let RUN_BAD=false,RESUME_WAIT=false;
 function dropRun(raw,why){RUN_BAD=true;try{console.warn('alforje: jornada salva descartada ('+why+')');}catch(e){}
  try{if(raw)localStorage.setItem(RUNKEY+'-bak',raw);localStorage.removeItem(RUNKEY);}catch(e){}}
 function checkRun(s,raw){if(s==null)return null;const why=window.AlforjeSave.runProblem(s);
@@ -578,7 +583,8 @@ function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;co
 /* ================= ACTIONS ================= */
 let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
 function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,sel:null}));}
-function undo(){if(!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
+const inShop=()=>!!state&&state.phase==='shop';
+function undo(){if(!inShop()||!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
 function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;pq(['cx',target.key,'merged']);pq(['m','merge']);gq('merge');
  if(target.tier===4){state.mood='legend';pq(['a','legend']);pq(['m','legend']);}toast(`Fundido! ${ITEMS[target.key].name} agora é ${TIERS[target.tier-1]}${target.tier===3?' e despertou':''}`);}
 const canMerge=()=>state.chal!=='nofuse';
@@ -587,42 +593,42 @@ function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key==
  state.items.push({id:state.nid++,key,tier,...sp});return true;}
 function addPet(key,tier){const twin=state.pets.find(p=>p&&p.key===key&&p.tier===tier&&p.tier<4);if(twin){twin.tier++;sfx('merge');toast(`${PETS[key].name} evoluiu para ${TIERS[twin.tier-1]}!`);return true;}
  const i=state.pets.indexOf(null);if(i<0)return false;state.pets[i]={key,tier,ch:PET_CHARGES};return true;}
-function buy(i){const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
+function buy(i){if(!inShop())return;const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
  snapshot();const ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
  state.gold-=p;state.shop[i]=null;if(!o.pet)pq(['cx',o.key,'bought']);gq('buy');sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);snapNew();}
-function sell(id,ok){const it=state.items.find(i=>i.id===id);if(!it)return;
+function sell(id,ok){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;
  if(it.tier>=3&&!ok){confirmBox(`Vender ${ITEMS[it.key].name} ${TIERS[it.tier-1]}?`,`Itens Épicos e Lendários não voltam. Você recebe ${sellPrice(it.key,it.tier)} de ouro.`,'Vender',()=>sell(id,true));return;}
  snapshot();const v=sellPrice(it.key,it.tier);state.gold+=v;state.items=state.items.filter(i=>i!==it);sfx('coin');buzz(10);state.sel=null;save();render();sayMerchant();toastUndo(`Vendido por ${v} de ouro`);}
-function sellPet(i,ok){const p=state.pets[i];if(!p)return;if(p.tier>=3&&!ok){confirmBox(`Vender ${PETS[p.key].name}?`,`Você recebe ${sellPrice(p.key,p.tier,true)} de ouro.`,'Vender',()=>sellPet(i,true));return;}
+function sellPet(i,ok){if(!inShop())return;const p=state.pets[i];if(!p)return;if(p.tier>=3&&!ok){confirmBox(`Vender ${PETS[p.key].name}?`,`Você recebe ${sellPrice(p.key,p.tier,true)} de ouro.`,'Vender',()=>sellPet(i,true));return;}
  snapshot();const v=sellPrice(p.key,p.tier,true);state.gold+=v;state.pets[i]=null;toast(`Vendido por ${v} de ouro`);state.sel=null;save();render();}
-function rotate(id){const it=state.items.find(i=>i.id===id);if(!it)return;if(canPlace(it.where,it.x,it.y,it.h,it.w,it.id)){[it.w,it.h]=[it.h,it.w];sfx('click');save();render();}else toast('Sem espaço para girar aqui');}
-function reroll(){const c=rerollCost();if(state.gold<c)return;state.gold-=c;if(state.freeReroll)state.freeReroll=false;else state.rerollN++;state.undo=null;rollShop();sfx('click');state.sel=null;save();render();sayMerchant();}
-function hammer(id){const it=state.items.find(i=>i.id===id);if(!it||it.tier>=4||state.hammerUsed)return;const c=hammerCost(it);if(state.gold<c){toast('Ouro insuficiente');return;}
+function rotate(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;if(canPlace(it.where,it.x,it.y,it.h,it.w,it.id)){[it.w,it.h]=[it.h,it.w];sfx('click');save();render();}else toast('Sem espaço para girar aqui');}
+function reroll(){if(!inShop())return;const c=rerollCost();if(state.gold<c)return;state.gold-=c;if(state.freeReroll)state.freeReroll=false;else state.rerollN++;state.undo=null;rollShop();sfx('click');state.sel=null;save();render();sayMerchant();}
+function hammer(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it||it.tier>=4||state.hammerUsed)return;const c=hammerCost(it);if(state.gold<c){toast('Ouro insuficiente');return;}
  snapshot();state.gold-=c;state.hammerUsed=true;state.freeHammer=false;it.tier++;mergedId=it.id;sfx('merge');pq(['cx',it.key,'merged']);if(it.tier===4){state.mood='legend';pq(['a','legend']);}
  toast(`Martelo do Mascate: ${ITEMS[it.key].name} agora é ${TIERS[it.tier-1]}`);state.sel=null;save();render();}
 /* ITM-06: expansion with shape choice + pocket modifier */
 function expandOptions(){const s=state.bag,o=[],pk=rshuffle(POCKETKEYS);
  if(s.cols<maxCols())o.push({dir:'col',pocket:pk[0]});if(s.rows<MAXROWS)o.push({dir:'row',pocket:pk[1]});
  if(o.length===1)o.push({dir:o[0].dir,pocket:pk[2]});return o;}
-function expandScreen(free){if(!canExpand()){if(free)nextQueue();return;}
+function expandScreen(free){if(!inShop())return;if(!canExpand()){if(free)nextQueue();return;}
  if(!state.expandOpts)state.expandOpts=expandOptions();const b=state.bag;
  overlay(`<h2>Ampliar a mochila</h2><p class="muted center">Escolha o formato. A nova linha vira um bolso com um efeito.${free?' (De graça.)':` Custa ${BAGCOST[state.bagLvl]} de ouro.`}</p><div class="rewards">
  ${state.expandOpts.map((o,i)=>`<button class="k-card choice" data-exp="${i}" data-free="${free?1:''}"><i class="ico"><span class="shape" style="--c:${o.dir==='col'?b.cols+1:b.cols};--r:${o.dir==='row'?b.rows+1:b.rows};--pk:${POCKETS[o.pocket].col}" data-dir="${o.dir}"></span></i><div><b>${o.dir==='col'?'Mais uma coluna':'Mais uma fileira'} → ${o.dir==='col'?b.cols+1:b.cols}×${o.dir==='row'?b.rows+1:b.rows}</b><span>${POCKETS[o.pocket].name}: ${POCKETS[o.pocket].desc}.</span></div></button>`).join('')}</div>
  ${free?'':'<button class="k-btn v" id="closeOv">Agora não</button>'}`);
  document.querySelectorAll('.shape').forEach(el=>{const c=+el.style.getPropertyValue('--c'),r=+el.style.getPropertyValue('--r'),dir=el.dataset.dir;let h='';for(let y=0;y<r;y++)for(let x=0;x<c;x++)h+=`<i class="${(dir==='col'&&x===c-1)||(dir==='row'&&y===r-1)?'n':''}"></i>`;el.innerHTML=h;el.style.gridTemplateColumns=`repeat(${c},8px)`;});}
-function doExpand(i,free){const o=state.expandOpts[i];if(!o)return;if(!free){const c=BAGCOST[state.bagLvl];if(state.gold<c)return;state.gold-=c;}
+function doExpand(i,free){if(!inShop())return;const o=state.expandOpts&&state.expandOpts[i];if(!o)return;if(!free){const c=BAGCOST[state.bagLvl];if(state.gold<c)return;state.gold-=c;}
  const b=state.bag;if(o.dir==='col'){for(let y=0;y<b.rows;y++)b.pockets[K(b.cols,y)]=o.pocket;b.cols++;}else{for(let x=0;x<b.cols;x++)b.pockets[K(x,b.rows)]=o.pocket;b.rows++;}
  state.bagLvl++;mission('expand');state.expandOpts=null;state.undo=null;sfx('merge');toast(`Mochila ${b.cols}×${b.rows} · ${POCKETS[o.pocket].name} · carga +1`);save();
  if(free)nextQueue();else{closeOverlay();render();}}
-function petAct(i){const p=state.pets[i];if(!p||!(p.ch>0))return;const k=p.key;
+function petAct(i){if(!inShop())return;const p=state.pets[i];if(!p||!(p.ch>0))return;const k=p.key;
  if(k==='raven'){state.freeReroll=true;toast('Corvo: a próxima troca de itens é grátis');}
  else if(k==='turtle'){state.extraLock=(state.extraLock||0)+1;toast('Tartaruga: pode reservar mais 1 item nesta parada');}
  else if(k==='salamander'){state.freeHammer=true;state.hammerUsed=false;toast('Salamandra: o Martelo está quente e de graça');}
  else if(k==='pixie'){state.gold+=3;toast('Fada: +3 de ouro');}
  else if(k==='owl'){const ix=state.shop.map((o,j)=>o&&!o.locked&&!o.pet?j:-1).filter(j=>j>=0);if(!ix.length){toast('Nada para trocar na loja');return;}const j=rpick(ix);state.shop[j]={key:rpick(shopPool()),tier:rollTier(2)};codexSee(state.shop[j].key);toast('Coruja: achou algo melhor na loja');}
  p.ch--;state.undo=null;sfx('trig');save();render();}
-function skipShop(){const e=state.skipOffer;if(!e)return;confirmBox('Pular a loja desta parada?',`Os itens à venda somem e você ganha a ${ETIQ[e].name}: ${ETIQ[e].desc}.`,'Pular loja',()=>{
- state.shop=state.shop.map(()=>null);if(e==='ouro')state.gold+=8;else if(e==='trocas')state.etiq.trocas=true;else state.pendingEtiq=e;state.skipOffer=null;state.undo=null;sfx('trig');toast(ETIQ[e].name+' guardada');save();render();});}
+function skipShop(){if(!inShop())return;const e=state.skipOffer;if(!e)return;confirmBox('Pular a loja desta parada?',`Os itens à venda somem e você ganha a ${ETIQ[e].name}: ${ETIQ[e].desc}.`,'Pular loja',()=>{
+ if(!inShop()||state.skipOffer!==e)return;state.shop=state.shop.map(()=>null);if(e==='ouro')state.gold+=8;else if(e==='trocas')state.etiq.trocas=true;else state.pendingEtiq=e;state.skipOffer=null;state.undo=null;sfx('trig');toast(ETIQ[e].name+' guardada');save();render();});}
 
 /* ================= BATTLE FLOW ================= */
 function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque ao menos uma arma na mochila');return;}
@@ -631,9 +637,13 @@ function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque
   overlay(`<h2>Lutar já?</h2><p class="center">Você ainda tem <b>${state.gold}</b> de ouro e há itens que cabem no bolso. Guardar rende juros (+${interest()} agora).</p>
   <label class="chk"><input type="checkbox" id="noAskChk"> Não perguntar de novo</label><div class="two"><button class="k-btn g" id="fightGo">Lutar assim mesmo</button><button class="k-btn v" id="closeOv">Voltar à loja</button></div>`);return;}
  if(state.gold>=30)ach('rich');if(state.pets.filter(Boolean).length===3&&state.chal!=='nopets')ach('pets3');
+ const pf=state.mode==='daily'?snapOf(state):null;/* prova do placar: a mochila exatamente como entrou nesta luta */
+ const entry=Object.assign({},state,{sel:null,undo:null,mood:'',gq:null,pq:null,phase:'battle'},pf?{pfPending:pf}:{});
+ if(!saveFight(entry)){toast(TAB_LOCK?'O jogo foi aberto em outra aba':'Não deu para salvar a partida neste aparelho (armazenamento cheio ou bloqueado). A luta não começou.',1);return;}
+ if(drag){cleanup();drag=null;}
  state.sel=null;state.undo=null;state.mood='';const q=state.gq,pq0=state.pq;state.gq=null;state.pq=null;
- if(state.mode==='daily')state.pfPending=snapOf(state);/* prova do placar: a mochila exatamente como entrou nesta luta */
- state.phase='battle';saveFight();qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
+ if(pf)state.pfPending=pf;
+ state.phase='battle';qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
  const f=foeDef();if(f.art)codexFoe(f.art,false);saveProf();closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
 let finishing=false;
 function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='lose';B.ev.length=0;}
@@ -804,29 +814,56 @@ var CLOUD={ready:false,uid:null,busy:false,dirty:false,timer:0};
 const API=window.AlforjeCloud||null;
 /* só para testes no navegador: localStorage 'alforje-test-offline'='1' desliga a nuvem (nem entra, nem lê, nem grava; alforje-ts fica parado) */
 function testOffline(){try{return localStorage.getItem('alforje-test-offline')==='1';}catch(e){return false;}}
-function markDirty(){if(testOffline()){CLOUD.ready=false;return;}try{localStorage.setItem('alforje-ts',String(Date.now()));}catch(e){}if(!CLOUD.ready)return;CLOUD.dirty=true;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudPush,4000);}
+function markDirty(){if(TAB_LOCK||PROF_HOLD)return;if(testOffline()){CLOUD.ready=false;return;}try{localStorage.setItem('alforje-ts',String(Date.now()));}catch(e){}if(!CLOUD.ready)return;CLOUD.dirty=true;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudPush,4000);}
 function cloudFlush(){if(CLOUD.ready&&CLOUD.dirty){clearTimeout(CLOUD.timer);cloudPush();}}
 function runJSON(){try{return state&&state.phase!=='battle'?JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})):(localStorage.getItem(RUNKEY)||'');}catch(e){return '';}}
-async function cloudPush(){if(testOffline()){CLOUD.ready=false;return;}if(!CLOUD.ready||CLOUD.busy||!CLOUD.dirty)return;CLOUD.busy=true;CLOUD.dirty=false;
+async function cloudPush(){if(TAB_LOCK||PROF_HOLD)return;if(testOffline()){CLOUD.ready=false;return;}if(!CLOUD.ready||CLOUD.busy||!CLOUD.dirty)return;CLOUD.busy=true;CLOUD.dirty=false;
  try{let lt=0;try{lt=+localStorage.getItem('alforje-ts')||Date.now();}catch(e){lt=Date.now();}
   await API.pushSave({t:lt,v:VER,prof:JSON.stringify(PROF),run:runJSON()});}
  catch(e){CLOUD.dirty=true;}
  CLOUD.busy=false;if(CLOUD.dirty&&CLOUD.ready)CLOUD.timer=setTimeout(cloudPush,6000);}
+/* o boot espera a nuvem responder (ou desistir) antes de resolver uma luta pendente */
+let cloudDone=null;const CLOUD_DONE=new Promise(r=>cloudDone=r);
 async function cloudInit(){try{if(!API||testOffline())return;const uid=await API.init();if(!uid)return;CLOUD.uid=uid;
  const d=await API.loadSave();if(testOffline())return;CLOUD.ready=true;
  let lt=0;try{lt=+localStorage.getItem('alforje-ts')||0;}catch(e){}
  const ct=d?(+d.t||0):0;
- const hold=PROF_HOLD;PROF_HOLD=false;
- if(d&&d.prof&&(ct>lt+2000||hold))cloudAdopt(d);else if(!hold&&lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
- }catch(e){}finally{PROF_HOLD=false;}}
-function cloudAdopt(d){if(state&&state.phase==='battle'){setTimeout(()=>cloudAdopt(d),3000);return;}
- try{const p=JSON.parse(d.prof);if(!p||typeof p!=='object'||!p.codex||typeof p.codex!=='object')return;PROF=window.AlforjeSave.fixProf(Object.assign(freshProf(),p),freshProf());META();
-  let s=null;if(d.run){try{s=JSON.parse(d.run);}catch(e){}}
-  s=checkRun(s,d.run);if(s){if(s.phase==='result')s.phase='shop';setState(s);}
-  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(s)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
+ /* perfil local ilegível: a nuvem respondeu; com perfil lá, ele vence (cloudAdopt solta o hold); sem nada lá, o local passa a valer */
+ if(PROF_HOLD){if(d&&d.prof)cloudAdopt(d);else{releaseHold();CLOUD.dirty=true;cloudPush();}}
+ else if(d&&d.prof&&ct>lt+2000)cloudAdopt(d);else if(lt>ct&&(PROF.totalWins||PROF.history.length||(state&&state.cls))){CLOUD.dirty=true;cloudPush();}
+ postFlush();
+ }catch(e){}finally{cloudDone();}}
+/* envios ao servidor (placar do Diário, fantasma, estatística): sem nuvem pronta ficam numa fila local e saem uma vez quando ela fica pronta */
+const POSTKEY='alforje-post-pending';
+function postJobs(){try{const a=JSON.parse(localStorage.getItem(POSTKEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}}
+function postQueue(job){if(testOffline())return;if(CLOUD.ready&&!TAB_LOCK){postSend(job);return;}
+ const a=postJobs();a.push(job);try{localStorage.setItem(POSTKEY,JSON.stringify(a.slice(-20)));}catch(e){}}
+function postFlush(){if(!CLOUD.ready||TAB_LOCK||testOffline())return;const a=postJobs();if(!a.length)return;try{localStorage.removeItem(POSTKEY);}catch(e){}a.forEach(postSend);}
+async function postSend(j){try{
+ if(j.k==='board'){const r=await API.submit('daily',{entry:j.entry});if(r&&r.ok&&!r.kept)toast('🏆 Marca registrada no placar de hoje',1);else if(r&&!r.ok)toast('O placar recusou esta marca: '+r.why,1);}
+ else if(j.k==='ghost')await API.submit('ghost',{code:j.code,asc:j.asc});
+ else if(j.k==='run')await API.postRun(j.rec);}catch(e){}}
+/* outra aba gravou a jornada ou o perfil: esta aba trava (sem gravar por cima) e oferece recarregar */
+window.addEventListener('storage',e=>{if(TAB_LOCK)return;if(e.key!==RUNKEY&&e.key!==PROFKEY&&e.key!==null)return;tabLock();});
+function tabLock(){TAB_LOCK=true;CLOUD.ready=false;CLOUD.dirty=false;clearTimeout(CLOUD.timer);if(typeof drag!=='undefined'&&drag){try{cleanup();}catch(x){}drag=null;}
+ const d=document.createElement('div');d.id='tablock';d.setAttribute('role','alertdialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-labelledby','tablockT');
+ d.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(14,10,18,.88)';
+ d.innerHTML='<div class="k-card" style="max-width:340px;text-align:center;padding:20px"><h2 id="tablockT">O jogo foi aberto em outra aba</h2><p>Para não perder progresso, continue na outra aba ou recarregue esta.</p><button class="k-btn g" id="tablockBtn" type="button">Recarregar</button></div>';
+ document.body.appendChild(d);const b=d.querySelector('#tablockBtn');b.addEventListener('click',()=>location.reload());try{b.focus();}catch(x){}}
+function cloudAdopt(d){if(TAB_LOCK)return;if(state&&state.phase==='battle'&&!RESUME_WAIT){setTimeout(()=>cloudAdopt(d),3000);return;}
+ try{let p=null;try{p=JSON.parse(d.prof);}catch(e){}if(!p||typeof p!=='object'||!p.codex||typeof p.codex!=='object'){releaseHold();return;}
+  PROF=window.AlforjeSave.fixProf(Object.assign(freshProf(),p),freshProf());META();RESUME_WAIT=false;
+  /* jornada da nuvem com defeito: não derruba nem sobrescreve a jornada local; o save() logo abaixo manda a local para a nuvem */
+  let s=null;if(d.run){try{s=JSON.parse(d.run);}catch(e){s='';}}
+  const bad=s!=null&&(s===''||!!window.AlforjeSave.runProblem(s));
+  if(s&&!bad){window.AlforjeSave.fillRun(s,fresh());if(s.phase==='result')s.phase='shop';setState(s);}
+  else if(bad){try{console.warn('alforje: jornada da nuvem com defeito; mantida a local');}catch(e){}}
+  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(s&&!bad)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
+  releaseHold();
+  if(bad&&state&&state.phase!=='battle')save();
   applyOpts();applySkin();closeOverlay();
   try{if(state.cls&&state.phase==='battle')resumeFight();else resumeView();}catch(e){bootFail(e);}
-  toast(RUN_BAD?'Jornada salva estava corrompida e foi descartada':'☁ Progresso recuperado da nuvem',1);RUN_BAD=false;}catch(e){}}
+  hideSplash();toast('☁ Progresso recuperado da nuvem',1);}catch(e){}}
 function resumeView(){if(!state.cls||state.phase==='class'){campScreen();return;}showRun();
  if(state.phase==='end'){render();endScreen(state.surv?state.wins>=SURV_GOAL:state.wins>=GOAL,'');}
  else{render();if(state.cur)showCur();else if(state.queue&&state.queue.length)nextQueue();}}
@@ -834,11 +871,10 @@ function resumeView(){if(!state.cls||state.phase==='class'){campScreen();return;
 const dayIxOf=d=>Math.round(Date.parse(d+'T00:00:00Z')/864e5);
 const OFFLINE_MSG='Sem conexão com o servidor agora. Seu progresso continua salvo neste aparelho.';
 /* o registro leva a prova (a mochila de cada luta); o servidor refaz as lutas e só grava o que confere */
-async function boardPost(sc){if(!CLOUD.ready||!sc||state.mode!=='daily')return;
+function boardPost(sc){if(!sc||state.mode!=='daily')return;
  const d=runDay(),entry={v:2,d,s:sc,cls:state.cls||'',w:state.wins||0,t:Date.now(),pf:state.proof||[]};
  if(!verifyDaily(entry,dayIxOf(d)).ok)return;/* partida sem prova completa (por exemplo, começada antes desta versão): não vai ao placar */
- try{const r=await API.submit('daily',{entry});
-  if(r&&r.ok&&!r.kept)toast('🏆 Marca registrada no placar de hoje',1);else if(r&&!r.ok)toast('O placar recusou esta marca: '+r.why,1);}catch(e){}}
+ postQueue({k:'board',entry});}
 async function boardScreen(){page(`<h2>Placar de hoje</h2><div class="k-card pc"><p class="muted center small">${todayStr()} (UTC) · mesma seed e mesma classe para todos · cada marca é conferida no servidor</p><div id="boardList" class="board"><p class="muted center">Carregando…</p></div><div id="nameBox" class="namebox"></div></div><button class="k-btn v" id="backRet">Voltar</button>`,'jogar');
  const el=()=>$('#boardList');
  if(!CLOUD.ready){el().innerHTML=`<p class="muted center">${OFFLINE_MSG} Seu melhor de hoje: <b>${PROF.daily[todayStr()]||0}</b>.</p>`;return;}
@@ -904,8 +940,7 @@ function coachTick(){const c=$('#coach');if(!c)return;if(COACH.step<0||!state||!
  b.dataset.side=below?'below':'above';b.style.setProperty('--ax',Math.max(22,Math.min(b.offsetWidth-22,r.left+r.width/2-b.getBoundingClientRect().left))+'px');}
 setInterval(()=>{if(COACH.step>=0)coachTick();},500);
 /* ----- duelo automático: fantasmas de outros jogadores ----- */
-async function ghostPost(){if(!CLOUD.ready||state.mode==='duel'||state.mode==='seed')return;
- try{await API.submit('ghost',{code:buildCode(),asc:state.asc||0});}catch(e){}}
+function ghostPost(){if(state.mode==='duel'||state.mode==='seed')return;postQueue({k:'ghost',code:buildCode(),asc:state.asc||0});}
 async function ghostPick(){if(!CLOUD.ready){toast(OFFLINE_MSG,1);return;}
  try{const L=(await API.ghosts(300)).filter(g=>g.user_id!==CLOUD.uid&&parseCode(g.code));
   if(!L.length){toast('Ainda não há fantasmas de outros jogadores. Vença uma jornada para deixar o seu.',1);return;}
@@ -913,8 +948,8 @@ async function ghostPick(){if(!CLOUD.ready){toast(OFFLINE_MSG,1);return;}
   MENU.duel=g.code;MENU.ghostName=(nm||'Um viajante')+` · ${CLASSES[g.cls]?CLASSES[g.cls].name:''} · ${g.wins||0} vitórias`;classScreen();}
  catch(e){toast('Não deu para buscar fantasmas agora');}}
 /* ----- estatísticas de partidas (para ajustar o balanço) ----- */
-async function runPost(won){if(!CLOUD.ready||OPT().stats===0)return;
- try{await API.postRun({v:VER,c:state.cls,sub:state.sub||'',a:state.asc||0,m:state.mode,w:state.wins,won:won?1:0,r:state.round,it:inWhere('bag').map(i=>i.key+':'+i.tier).join(',')});}catch(e){}}
+function runPost(won){if(OPT().stats===0)return;
+ postQueue({k:'run',rec:{v:VER,c:state.cls,sub:state.sub||'',a:state.asc||0,m:state.mode,w:state.wins,won:won?1:0,r:state.round,it:inWhere('bag').map(i=>i.key+':'+i.tier).join(',')}});}
 /* ----- imagem de resultado para compartilhar ----- */
 function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
 async function shareCard(){toast('Montando a imagem…');const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
@@ -1319,7 +1354,7 @@ function moveGhost(px,py){ghost.style.transform=`translate(${px-drag.gdx}px,${py
  const k=Math.round(px/8)+'|'+Math.round(py/8)+'|'+drag.rot;if(k!==drag.lastK){drag.lastK=k;showPreview(target(px,py));}
  if(tipEl&&!tipEl.hidden){const r=tipEl.getBoundingClientRect();const gy=py-drag.gdy;let x=px+18,y=gy-r.height-10;if(x+r.width>innerWidth-8)x=px-r.width-18;if(y<8)y=Math.min(innerHeight-r.height-8,py+30);tipEl.style.transform=`translate(${Math.max(8,x)}px,${y}px)`;}}
 function endDrag(px,py){
- if((drag.mx||0)<8){render();return;}/* long-press sem mover = cancelar, nunca soltar no lugar errado */
+ if(!inShop()||(drag.mx||0)<8){render();return;}/* long-press sem mover = cancelar; fora da loja (luta começou) nada muda *//* long-press sem mover = cancelar, nunca soltar no lugar errado */
  const t=target(px,py),di=dragInfo();
  if(t&&t.sell){sell(drag.id);return;}
  if(t&&t.ok){
@@ -1418,7 +1453,7 @@ document.addEventListener('click',e=>{
  else if(id==='buy')buy(state.sel.shop);else if(id==='sell')sell(state.sel.id);else if(id==='rot')rotate(state.sel.id);
  else if(id==='hammer')hammer(state.sel.id);else if(id==='noforge'){const it=state.items.find(i=>i.id===state.sel.id);if(it){it.noforge=!it.noforge;toast(it.noforge?'Este item não será forjado':'Forja liberada');save();render();}}
  else if(id==='sellPet')sellPet(state.sel.pet);else if(id==='petAct')petAct(state.sel.pet);
- else if(id==='lockBtn'){const o=state.shop[state.sel.shop];if(!o.locked&&state.shop.filter(x=>x&&x.locked).length>=lockLimit()){toast('Limite de reservas atingido');return;}o.locked=!o.locked;toast(o.locked?'Reservado para a próxima parada':'Reserva liberada');save();renderShop();renderPop();}
+ else if(id==='lockBtn'){if(!inShop()||!state.sel)return;const o=state.shop[state.sel.shop];if(!o)return;if(!o.locked&&state.shop.filter(x=>x&&x.locked).length>=lockLimit()){toast('Limite de reservas atingido');return;}o.locked=!o.locked;toast(o.locked?'Reservado para a próxima parada':'Reserva liberada');save();renderShop();renderPop();}
  else if(id==='close'){state.sel=null;state.selMore=false;render();}
  else if(id==='undo')undo();else if(id==='skipShop'){closeDrawer();skipShop();}
  else if(id==='recipesBtn')overlay(`<h2>Receitas</h2>${recipeBook()}${backBtn()}`);
@@ -1465,7 +1500,7 @@ window.addEventListener('resize',()=>{if(!drag)render();});
 ['h_warrior','h_rogue','h_pyro','h_paladin','p_raven','p_salamander','p_turtle','p_pixie','p_owl'].forEach(img);
 STOPS.forEach(s=>s.v.forEach(v=>img('e_'+v.art)));for(const c in POSE)for(const p in POSE[c])if(p!=='_'&&p!=='s')img('hp_'+c+'_'+p);Object.values(BGS).forEach(b=>img(b.full||b.strip));
 window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set state(s){setState(s);},get PROF(){return PROF;},set PROF(p){PROF=p;},MENU,page,showRun,cloudAdopt,classScreen,buy,fight,skip,finish,render,newBattle,step,makePlayer,makeFoe,readyRecipes,forge,addItem,addPet,rollShop,
- expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,adStop,closeOverlay,menuTick,menuTicking:()=>!!menuT,equipScreen,petsScreen,dailyScreen,shopScreen,
+ expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},cloudInit,postJobs,sell,sellPet,rotate,skipShop,get TAB_LOCK(){return TAB_LOCK;},get PROF_HOLD(){return PROF_HOLD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,adStop,closeOverlay,menuTick,menuTicking:()=>!!menuT,equipScreen,petsScreen,dailyScreen,shopScreen,
  get B(){return B;},set B(b){B=b;}};
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
 /* não deu para retomar: guarda a jornada em alforje-run6-bak, descarta e abre o acampamento */
@@ -1477,12 +1512,15 @@ function boot(data){setState((data&&data.state&&checkRun(data.state))||load()||f
  if(state.phase==='result')state.phase='shop';
  achRetro();
  if(state.phase==='class'||!state.cls){if(state.phase!=='class')setState(fresh());campScreen();RET='camp';if(PROF.ver!==VER&&(PROF.totalWins||PROF.history.length||localStorage.getItem('alforje-run4')))newsScreen();else if(PROF.ver!==VER){PROF.ver=VER;saveProf();}}
- else if(state.phase==='battle')resumeFight();
+ else if(state.phase==='battle')RESUME_WAIT=true;/* resolvida em start(), depois da nuvem */
  else resumeView();}
 function start(data){applyOpts();applySkin();setTimeout(cloudInit,0);
  try{boot(data);}catch(e){bootFail(e);}
  if(RUN_BAD){RUN_BAD=false;setTimeout(()=>toast('Jornada salva estava corrompida e foi descartada',1),600);}
- cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);hideSplash();}
+ cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
+ if(!RESUME_WAIT){hideSplash();return;}
+ const go=()=>{if(!RESUME_WAIT)return;RESUME_WAIT=false;try{if(state.cls&&state.phase==='battle')resumeFight();else resumeView();}catch(e){bootFail(e);}hideSplash();};
+ Promise.race([CLOUD_DONE,new Promise(r=>setTimeout(r,4000))]).then(go,go);}
 try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({state:Object.assign({},state,{undo:null})}));}catch(e){}
 if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(start);else start(window.claude&&window.claude.hot&&window.claude.hot.data||{});
 
