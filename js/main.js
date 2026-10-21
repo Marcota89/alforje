@@ -1012,8 +1012,45 @@ function moreScreen(){page(`<h2>Mais</h2><div class="morelist">
  <button class="k-btn v" id="newsBtn">✨ Novidades</button><button class="k-btn v" id="optBtn">⚙️ Opções</button></div>${backBtn()}`,'jogar');}
 /* páginas das abas Equipar, Pets, Diário e Loja: as Tarefas 5 e 6 trocam estes "Em breve" */
 function soonScreen(t,tab){page(`<h2>${t}</h2><div class="k-card pc"><p class="muted center">Em breve.</p></div>${backBtn()}`,tab);}
-function equipScreen(){soonScreen('Equipamento','equip');}
-function petsScreen(){soonScreen('Companheiros','pets');}
+/* ----- Equipar (4 peças) e Pets (coleção permanente) ----- */
+const GEAR_ART={weapon:'sword',armor:'plate',bag:'purse'},TIER_NAME=['','Comum','Raro','Épico','Lendário'];
+let EQSEL='weapon';
+const gearEff=(s,L)=>{const v=window.AlforjeMeta.GEAR[s].per*(L-1);return s==='weapon'?`+${v}% dano`:s==='armor'?`+${v} escudo`:s==='ring'?`+${v}% crítico`:`+${v} ouro`;};
+const gearArt=(s,L)=>'a/'+(s==='ring'?'ring_'+window.AlforjeMeta.gearTier(L):GEAR_ART[s])+'.webp';
+function canUp(m,s){const AM=window.AlforjeMeta,L=m.gear[s];if(L>=AM.GEAR_MAX)return false;const c=AM.gearCost(L);return m.stone>=c.stone&&m.gold>=c.gold;}
+function equipScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Equipamento','equip');return;}
+ const ks=Object.keys(AM.GEAR);if(!AM.GEAR[EQSEL])EQSEL='weapon';
+ const cells=ks.map(s=>{const L=m.gear[s],t=AM.gearTier(L),sel=s===EQSEL,nm=AM.GEAR[s].t,ef=gearEff(s,L);
+  return `<button class="eqs t${t}${sel?' sel':''}" data-slot="${s}" aria-pressed="${sel}" aria-label="${nm}, nível ${L}, ${TIER_NAME[t]}, ${ef}${canUp(m,s)?', melhoria possível':''}"><span class="lvb" aria-hidden="true">Nv ${L}</span><img src="${gearArt(s,L)}" alt=""><b aria-hidden="true">${nm}</b><span class="ef" aria-hidden="true">${ef}</span><small aria-hidden="true">${TIER_NAME[t]}</small></button>`;}).join('');
+ const s=EQSEL,L=m.gear[s],nm=AM.GEAR[s].t,max=L>=AM.GEAR_MAX,c=AM.gearCost(L),ok=canUp(m,s),sf=Math.max(0,c.stone-m.stone),gf=Math.max(0,c.gold-m.gold);
+ const lack=max?'Nível máximo':ok?'':`Faltam ${[sf?sf+' 🪨':'',gf?fmtN(gf)+' 💰':''].filter(Boolean).join(' e ')}`;
+ const p=AM.permOf(m),st=[['❤️','Vida','+'+p.hp],['🛡️','Escudo','+'+p.block],['⚔️','Dano','+'+Math.round(p.dmgPct*100)+'%'],['🎯','Crítico','+'+Math.round(p.crit*100)+'%'],['💰','Ouro inicial','+'+p.gold]];
+ page(`<h2>Equipamento</h2>
+ <div class="eqg" id="eqG">${cells}</div>
+ <div class="k-card pc eqd"><b>${nm} · Nv ${L} · ${TIER_NAME[AM.gearTier(L)]}</b>
+  <span class="eqn">${max?`Agora ${gearEff(s,L)}`:`Agora ${gearEff(s,L)} · Nv ${L+1}: ${gearEff(s,L+1)}`}</span>
+  <button class="k-btn g" id="eqUp" ${ok?'':'disabled'} aria-label="${max?nm+' no nível máximo':`Melhorar ${nm} para o nível ${L+1}: ${c.stone} pedras e ${c.gold} de ouro${lack?'. '+lack:''}`}">${max?'NÍVEL MÁXIMO':`MELHORAR · 🪨 ${c.stone} · 💰 ${fmtN(c.gold)}`}</button>
+  <small class="eqn${lack&&!max?' warn':''}">${lack||'Pronto para melhorar'} · você tem 🪨 ${fmtN(m.stone)} · 💰 ${fmtN(m.gold)}</small></div>
+ <ul class="k-card eqst" aria-label="Bônus no começo da jornada">${st.map(x=>`<li><span aria-hidden="true">${x[0]}</span> ${x[1]} ${x[2]}</li>`).join('')}</ul>
+ ${backBtn()}`,'equip');}
+function eqUp(){const m=META(),AM=window.AlforjeMeta;if(!m)return;const s=EQSEL;
+ if(AM.upgradeGear(m,s)){gev('upgrade');toast(`${AM.GEAR[s].t} no nível ${m.gear[s]}`);}else toast('Faltam recursos para melhorar');equipScreen();}
+function petsScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Companheiros','pets');return;}
+ const have=PETKEYS.filter(k=>m.pets[k]).length,all=have===PETKEYS.length;
+ const cards=PETKEYS.map(k=>{const P=PETS[k],L=m.pets[k]||0,own=L>0,max=L>=AM.PET_MAX,fc=AM.feedCost(L),poor=m.food<fc,on=m.petOn===k,mul=(1+.1*(L-1)).toFixed(1).replace('.',',');
+  if(!own)return `<div class="k-card petc lock" role="group" aria-label="Companheiro não obtido"><img class="sil" src="a/p_${k}.webp" alt=""><div class="pt"><b>???</b><small>Ainda não obtido. Choque um ovo para descobrir.</small></div></div>`;
+  return `<div class="k-card petc${on?' on':''}" role="group" aria-label="${P.name}, nível ${L} de ${AM.PET_MAX}${on?', na jornada':''}"><img src="a/p_${k}.webp" alt=""><div class="pt"><b>${P.name} <em>Nv ${L}/${AM.PET_MAX}</em></b><small>${P.desc} · efeitos ×${mul}</small><small>${P.act}: ${P.actDesc}</small></div>
+   <div class="pb2"><button class="k-btn o sm" data-feed="${k}" ${max||poor?'disabled':''} aria-label="Alimentar ${P.name}${max?': nível máximo':`: ${fc} rações${poor?'. Faltam '+(fc-m.food):''}`}">${max?'Nível máximo':`Alimentar · 🍖 ${fc}`}</button><button class="k-btn ${on?'g':'v'} sm" data-take="${k}" aria-pressed="${on}">${on?'✔ Na jornada':'Levar na jornada'}</button></div></div>`;}).join('');
+ page(`<h2>Companheiros</h2>
+ <div class="k-card pc pethd" id="petH"><span class="pcnt">${have}/${PETKEYS.length} companheiros · você tem 🍖 ${fmtN(m.food)}</span>
+  <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">Chocar ovo (${m.egg}) 🥚</button>
+  <small>${all?'Você já tem todos: cada ovo vira 10 rações.':'Cada ovo choca um companheiro que ainda falta.'} Só um vai na jornada, na 1ª vaga, e não entra no desafio sem companheiros.</small></div>
+ <div class="petl">${cards}</div>${backBtn()}`,'pets');}
+function petAct2(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;
+ if(t.id==='hatch'){const r=AM.hatch(m,Math.random);if(r===null){toast(m.egg<1?'Sem ovos para chocar':'Rações no máximo');}else{saveProf();toast(r==='food'?'Você já tem todos: o ovo virou 10 🍖':`Novo companheiro: ${PETS[r].name}!`,true);}}
+ else if(t.dataset.feed){const k=t.dataset.feed;if(AM.feedPet(m,k)){gev('upgrade');toast(`${PETS[k].name} no nível ${m.pets[k]}`);}else toast('Faltam rações');}
+ else if(t.dataset.take){const k=t.dataset.take;AM.setPetOn(m,m.petOn===k?null:k);saveProf();toast(m.petOn?`${PETS[k].name} vai na próxima jornada`:'Nenhum companheiro na jornada');}
+ petsScreen();}
 /* ----- Diário (bônus diário + metas do dia) e Loja de rubis ----- */
 const RES_ICO={gold:'💰',energy:'⚡',stone:'🪨',food:'🍖',ruby:'💎',egg:'🥚'},RES_NAME={gold:'Ouro',energy:'Energia',stone:'Pedras',food:'Rações',ruby:'Rubis',egg:'Ovos'},RES_ORDER=['gold','energy','stone','food','ruby','egg'];
 const rwTxt=r=>RES_ORDER.filter(k=>r[k]>0).map(k=>`${fmtN(r[k])} ${RES_ICO[k]}`).join(' ');
@@ -1027,12 +1064,16 @@ const snapRes=m=>{const o={};for(const k of RES_ORDER)o[k]=m[k]||0;return o;};
 function gainToast(m,b,r,pre){const AM=window.AlforjeMeta,got={},lost=[];
  for(const k of RES_ORDER)if(r[k]>0){got[k]=(m[k]||0)-b[k];if(got[k]<r[k])lost.push(`${RES_NAME[k]} no máximo (${k==='energy'?AM.ENERGY_CAP:fmtN(AM.CAP)})`);}
  toast((pre||'Ganhou ')+(rwTxt(got)||'nada')+(lost.length?' · '+lost.join(', '):''),true);}
-/* ponto vermelho na aba Diário: bônus por pegar + baús prontos */
-function tabDot(){const b=document.querySelector('#mtabs [data-nav="diario"]');if(!b)return;const m=META(),AM=window.AlforjeMeta,now=Date.now();
- const n=m?(AM.calToday(m,now).claimed?0:1)+AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0,d=b.querySelector('.k-dot');
- if(!n){if(d)d.remove();b.removeAttribute('aria-label');return;}
- if(!d)b.insertAdjacentHTML('beforeend',`<span class="k-dot" aria-hidden="true">${n}</span>`);else if(d.textContent!==String(n))d.textContent=n;
- b.setAttribute('aria-label',`Diário, ${n} para pegar`);}
+/* pontos vermelhos nas abas: Diário (bônus por pegar + baús prontos), Equipar (alguma melhoria possível) e Pets (ovo para chocar) */
+function tabDot(){const m=META(),AM=window.AlforjeMeta,now=Date.now();
+ const set=(k,n,txt,lbl)=>{const b=document.querySelector(`#mtabs [data-nav="${k}"]`);if(!b)return;const d=b.querySelector('.k-dot');
+  if(!n){if(d)d.remove();b.removeAttribute('aria-label');return;}
+  if(!d)b.insertAdjacentHTML('beforeend',`<span class="k-dot" aria-hidden="true">${txt}</span>`);else if(d.textContent!==txt)d.textContent=txt;
+  b.setAttribute('aria-label',lbl);};
+ const n=m?(AM.calToday(m,now).claimed?0:1)+AM.goalsToday(m,now).chests.filter(c=>c.ready).length:0;
+ set('diario',n,String(n),`Diário, ${n} para pegar`);
+ set('equip',m&&Object.keys(AM.GEAR).some(k=>canUp(m,k)),'!','Equipar, melhoria possível');
+ set('pets',m&&m.egg>0,'!','Pets, ovo para chocar');}
 function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Diário','diario');return;}
  const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
  const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
@@ -1090,7 +1131,7 @@ function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSE
  <button class="k-btn g cgo" id="campGo">JORNADA${m?`<small>⚡ ${AM.JOURNEY_COST}</small>`:''}</button>
  ${al?`<button class="k-btn ad cad" id="adEnergy" data-ad ${al.dis?'disabled':''}>${al.t}</button>`:''}</div>`,'jogar');}
 /* redesenha a página do menu que está aberta (depois de uma propaganda, por exemplo) */
-function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else if($('#dCal'))dailyScreen();else if($('#shopL'))shopScreen();else menuTop();}
+function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else if($('#dCal'))dailyScreen();else if($('#shopL'))shopScreen();else if($('#eqG'))equipScreen();else if($('#petH'))petsScreen();else menuTop();}
 /* propaganda: janela de 3 s que não fecha antes; depois conta o uso do dia (adUse) e chama onDone(ok); ok = o que entrou (energia/ouro), false se recusou.
    'double' não gasta aqui: claimCal(m,now,true) gasta o contador do dobro dentro dele. */
 let adT=0;
@@ -1385,6 +1426,7 @@ document.addEventListener('click',e=>{
  else if(id==='back')backTo();else if(id==='backMore'){if(inRun())backTo();else moreScreen();}
  else if(id==='cMore')moreScreen();else if(id==='campGo')classScreen();else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
  else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='calGet'||id==='calDbl'||id==='adShop'||t.dataset.chest!=null||t.dataset.ir!=null||t.dataset.buy)metaAct(t);else if(id==='neGoals')dailyScreen('goals');
+ else if(t.dataset.slot){EQSEL=t.dataset.slot;equipScreen();}else if(id==='eqUp')eqUp();else if(id==='hatch'||t.dataset.feed||t.dataset.take)petAct2(t);
  else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} ⚡ (limite ${cap})`:'+10 ⚡ de energia');menuRefresh();});
  else if(id==='helpBtn'){if(state.cls&&state.phase!=='class')runMenu();else campScreen();}
  else if(id==='howBtn')page(`<h2>Como jogar</h2><div class="k-card pc">${HOWTO}<h4>Afinidades</h4><ul class="howto">${TAGKEYS.map(k=>`<li><b style="color:${TAGS[k].col}">${TAGS[k].name}</b>: 3 → ${TAGS[k].t3}; 5 → ${TAGS[k].t5}.</li>`).join('')}</ul><h4>Gestos</h4><ul class="howto"><li><b>Toque</b> num item ou card: ficha curta acima dele, com os botões.</li><li><b>Segure</b> (ou arraste) para mover; o item fica acima do dedo. Toque duas vezes num item para girar, ou use ⟳ enquanto arrasta.</li><li><b>Vender</b>: arraste o item até a faixa da loja, que vira Vender durante o arrasto.</li><li><b>Baú</b>: botão na barra de baixo; ao arrastar um item da mochila, o Baú aparece no lugar da loja.</li><li>Prefere sem arrastar? Ligue <b>Mover por toque</b> em Opções.</li></ul></div>${backMoreBtn()}`,'jogar');

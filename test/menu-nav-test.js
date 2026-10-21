@@ -358,3 +358,115 @@ window.navDaily = async () => {
     'nextDay', 'nextCal', 'reopen', 'shop', 'buy1', 'buy2', 'buy3', 'buy3No', 'others', 'noBuyGoal', 'poor', 'adGold'].every(k => R[k]);
   return R;
 };
+//   await navGear()   -> Equipar e Pets (Tarefa 6): melhora a arma até o nível 3 (pedras e ouro descontados certo, permOf, meta 'upgrade'), peça selecionada,
+//                        botão desabilitado sem recursos e no nível 20, pontos nas abas (Equipar com melhoria, Pets com ovo), jornada nova com o dano, choca um ovo
+//                        (pet novo na coleção), alimenta, marca para levar (um por vez) e confere que a próxima jornada normal começa com ele na vaga 0
+//                        e o Diário (e o desafio sem companheiros) não. Sem nuvem; devolve perfil, jornada e localStorage no fim. Precisa de test/ui-audit.js.
+window.navGear = async () => {
+  const A = window.__alforje, AM = window.AlforjeMeta, R = {}, q = s => document.querySelector(s), qa = s => [...document.querySelectorAll(s)];
+  const PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts';
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  if (!window.alforjeAudit) return { error: 'carregue test/ui-audit.js antes' };
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode, chal: A.MENU.chal,
+    profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: JSON.parse(JSON.stringify(A.state)), ready: A.CLOUD.ready };
+  const hadRun = !!(keep.stateObj.cls && keep.stateObj.phase !== 'class');
+  const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
+  const aud = () => window.alforjeAudit(), audits = [];
+  const fresh = () => { A.state.phase = 'class'; A.state.cls = null; };
+  try {
+    if (hadRun) fresh();
+    const m = A.META(); m.day = ''; A.META();
+    Object.assign(m, { gold: 1000, stone: 10, food: 20, egg: 1, ruby: 0, xp: 0, energy: 30, eAt: Date.now(), petOn: null });
+    m.pets = {}; for (const k in m.gear) m.gear[k] = 1;
+    m.goals.ids = ['upgrade1', 'win5', 'merge3', 'forge1', 'buy8']; m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; m.goals.chests = [false, false, false];
+    const dot = k => q(`#mtabs [data-nav="${k}"] .k-dot`);
+    // 1) página Equipar: 4 peças, arma selecionada, pontos nas duas abas (melhoria possível e ovo)
+    q('[data-nav="equip"]').click(); q('[data-slot="weapon"]').click(); // a peça marcada é lembrada entre visitas: começa pela arma
+    const cells = qa('#eqG .eqs');
+    R.page = cells.length === 4 && cells[0].dataset.slot === 'weapon' && cells[0].getAttribute('aria-pressed') === 'true' && cells.slice(1).every(c => c.getAttribute('aria-pressed') === 'false') && !!q('#eqUp') && qa('.eqst li').length === 5;
+    R.cellText = /Nv 1/.test(cells[0].textContent) && /\+0% dano/.test(cells[0].textContent) && /Comum/.test(cells[0].textContent);
+    R.dotEq = !!dot('equip') && /melhoria/.test(q('#mtabs [data-nav="equip"]').getAttribute('aria-label'));
+    R.dotPets = !!dot('pets') && /ovo/.test(q('#mtabs [data-nav="pets"]').getAttribute('aria-label'));
+    R.btn1 = !q('#eqUp').disabled && /MELHORAR · 🪨 1 · 💰 50/.test(q('#eqUp').textContent);
+    audits.push(aud());
+    // 2) arma até o nível 3: 1 pedra + 50 ouro, depois 2 pedras + 100 ouro
+    q('#eqUp').click();
+    R.up1 = m.gear.weapon === 2 && m.stone === 9 && m.gold === 950 && /MELHORAR · 🪨 2 · 💰 100/.test(q('#eqUp').textContent) && /Nv 2/.test(q('.eqs.sel').textContent);
+    R.goal = m.goals.p.upgrade1 === 1 && m.goals.done.includes('upgrade1') && m.goals.pts === 20;
+    q('#eqUp').click();
+    R.up2 = m.gear.weapon === 3 && m.stone === 7 && m.gold === 850 && m.gear.armor === 1 && /\+4% dano/.test(q('.eqs.sel').textContent);
+    const p = AM.permOf(m);
+    R.perm = Math.abs(p.dmgPct - .04) < 1e-9 && p.block === 0 && p.crit === 0 && p.gold === 0 && p.hp === 0 && /Dano \+4%/.test(q('.eqst').textContent);
+    // 3) escolher outra peça: só ela é marcada e melhorada
+    q('[data-slot="armor"]').click();
+    R.selArmor = q('[data-slot="armor"]').getAttribute('aria-pressed') === 'true' && q('[data-slot="weapon"]').getAttribute('aria-pressed') === 'false' && /Armadura/.test(q('.eqd').textContent);
+    q('#eqUp').click(); R.upArmor = m.gear.armor === 2 && m.gear.weapon === 3 && m.stone === 6 && m.gold === 800 && /Escudo \+3/.test(q('.eqst').textContent);
+    // 4) sem recursos: botão desabilitado, texto do que falta, sem ponto na aba, clique não muda nada
+    m.stone = 0; A.equipScreen();
+    R.poor = q('#eqUp').disabled && /Faltam 2 🪨/.test(q('.eqd').textContent) && !dot('equip');
+    const g0 = JSON.stringify(m.gear); q('#eqUp').click(); R.poorNo = JSON.stringify(m.gear) === g0 && m.gold === 800;
+    m.stone = 5; m.gold = 10; A.equipScreen(); R.poorGold = q('#eqUp').disabled && /Faltam 150 💰|Faltam \d+ 💰/.test(q('.eqd').textContent);
+    // nível 20: máximo
+    m.stone = 99; m.gold = 9999; m.gear.armor = 20; A.equipScreen();
+    R.max = q('#eqUp').disabled && /NÍVEL MÁXIMO/.test(q('#eqUp').textContent) && q('.eqs.sel').classList.contains('t4') && /Lendário/.test(q('.eqs.sel').textContent);
+    audits.push(aud());
+    // 5) jornada nova recebe os bônus da arma (nível 3)
+    m.gear.armor = 1; m.stone = 0; m.gold = 0; m.egg = 1; m.food = 20; m.pets = {}; m.petOn = null; A.MENU.mode = 'normal'; A.MENU.chal = null; fresh();
+    A.pickClass('warrior');
+    R.journeyPerm = A.state.cls === 'warrior' && A.state.mode === 'normal' && Math.abs(A.state.perm.dmgPct - .04) < 1e-9 && A.state.perm.block === 0;
+    R.journeyNoPet = !A.state.pets[0];
+    // 6) Pets: 5 em silhueta, chocar o ovo dá um pet novo
+    q('[data-nav="pets"]').click();
+    const lockN = () => qa('#mpage .petc.lock').length;
+    R.petsPage = qa('#mpage .petc').length === 5 && lockN() === 5 && !!q('#petH') && /Chocar ovo \(1\)/.test(q('#hatch').textContent) && !q('#hatch').disabled && !!dot('pets');
+    audits.push(aud());
+    q('#hatch').click();
+    const keys = Object.keys(m.pets), k = keys[0];
+    R.hatch = keys.length === 1 && m.pets[k] === 1 && m.egg === 0 && lockN() === 4 && /Novo companheiro/.test(q('#toast').textContent) && q('#hatch').disabled && /Chocar ovo \(0\)/.test(q('#hatch').textContent) && !dot('pets');
+    R.hatchNoEgg = (q('#hatch').click(), Object.keys(m.pets).length === 1 && m.egg === 0);
+    // 7) alimentar: Nv 1 -> 2 custa 2 rações; conta como meta 'upgrade'
+    m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; A.petsScreen();
+    q(`[data-feed="${k}"]`).click();
+    R.feed = m.pets[k] === 2 && m.food === 18 && m.goals.p.upgrade1 === 1 && /Nv 2\/10/.test(q('#mpage .petc:not(.lock)').textContent) && /Alimentar · 🍖 3/.test(q(`[data-feed="${k}"]`).textContent);
+    m.food = 2; A.petsScreen(); R.feedPoor = q(`[data-feed="${k}"]`).disabled; q(`[data-feed="${k}"]`).click(); R.feedPoorNo = m.pets[k] === 2 && m.food === 2;
+    m.food = 99; m.pets[k] = 10; A.petsScreen(); R.feedMax = q(`[data-feed="${k}"]`).disabled && /Nível máximo/.test(q(`[data-feed="${k}"]`).textContent);
+    m.pets[k] = 2; m.food = 18;
+    // 8) levar na jornada: um por vez, marcado
+    const other = AM_other(k); m.pets[other] = 1; A.petsScreen();
+    q(`[data-take="${k}"]`).click();
+    R.take = m.petOn === k && q(`[data-take="${k}"]`).getAttribute('aria-pressed') === 'true' && /Na jornada/.test(q(`[data-take="${k}"]`).textContent) && q(`[data-take="${other}"]`).getAttribute('aria-pressed') === 'false';
+    q(`[data-take="${other}"]`).click();
+    R.takeOne = m.petOn === other && q(`[data-take="${k}"]`).getAttribute('aria-pressed') === 'false';
+    q(`[data-take="${other}"]`).click(); R.takeOff = m.petOn === null;
+    q(`[data-take="${k}"]`).click(); R.takeAgain = m.petOn === k;
+    audits.push(aud());
+    // 9) próxima jornada normal: o levado na vaga 0 (nível 2 = efeitos x1,1); Diário e desafio sem companheiros não
+    A.MENU.mode = 'normal'; fresh(); A.pickClass('warrior');
+    const s0 = A.state.pets[0];
+    R.journeyPet = !!s0 && s0.key === k && Math.abs(s0.mul - 1.1) < 1e-9 && s0.ch > 0 && A.state.mode === 'normal';
+    A.MENU.mode = 'daily'; fresh();
+    for (const c of window.AlforjeData.CLASSKEYS) { A.pickClass(c); if (A.state.cls) break; }
+    R.dailyNoPet = A.state.mode === 'daily' && !A.state.pets[0] && A.state.perm == null;
+    A.MENU.mode = 'challenge'; A.MENU.chal = 'nopets'; m.energy = 30; fresh(); A.pickClass('warrior');
+    R.nopets = A.state.chal === 'nopets' && !A.state.pets[0];
+    A.MENU.mode = 'normal'; A.MENU.chal = null;
+    // 10) já tem todos: o ovo vira 10 rações
+    for (const c of window.AlforjeData.PETKEYS) m.pets[c] = m.pets[c] || 1; m.egg = 1; m.food = 5; q('[data-nav="pets"]').click();
+    R.allTxt = /já tem todos/i.test(q('#petH').textContent);
+    q('#hatch').click(); R.allFood = m.egg === 0 && m.food === 15 && /virou 10/.test(q('#toast').textContent);
+    audits.push(aud());
+  } finally {
+    A.adStop(); A.closeOverlay(); clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
+    A.PROF = keep.profObj; A.state = keep.stateObj; A.MENU.mode = keep.mode; A.MENU.chal = keep.chal;
+    [[PK, keep.prof], [RK, keep.run], [TK, keep.ts]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+    if (off0 == null) localStorage.removeItem(NAV_OFF);
+    A.CLOUD.ready = off0 == null ? keep.ready : false;
+    if (hadRun) { A.showRun(); A.render(); } else A.campScreen();
+  }
+  R.tsSame = localStorage.getItem(TK) === keep.ts;
+  R.audits = audits; R.auditClean = audits.length === 5 && audits.every(a => a.length === 0);
+  R.pass = R.tsSame && R.auditClean && ['page', 'cellText', 'dotEq', 'dotPets', 'btn1', 'up1', 'goal', 'up2', 'perm', 'selArmor', 'upArmor', 'poor', 'poorNo', 'poorGold', 'max', 'journeyPerm', 'journeyNoPet',
+    'petsPage', 'hatch', 'hatchNoEgg', 'feed', 'feedPoor', 'feedPoorNo', 'feedMax', 'take', 'takeOne', 'takeOff', 'takeAgain', 'journeyPet', 'dailyNoPet', 'nopets', 'allTxt', 'allFood'].every(x => R[x]);
+  return R;
+  function AM_other(k) { return window.AlforjeData.PETKEYS.find(x => x !== k); }
+};
