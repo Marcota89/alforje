@@ -16,30 +16,31 @@
 /* placar VS (fora da arena, acima dela) */
 .vs{margin:0 8px;padding:1px 8px;min-height:46px;display:flex;align-items:center;box-shadow:0 3px 0 var(--orange-d)}
 .hud{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
-.side{display:grid;gap:0;min-width:0;align-content:center}
-.side.e{justify-items:end;text-align:right}
-.fname{font:400 13px/13px 'Lilita One',system-ui,sans-serif;color:var(--ink-brown);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.fname em{font-style:normal;color:var(--orange-d);font-size:11px}
-.bar{position:relative;width:100%;height:13px;border-radius:7px;background:#f3e2c0;border:1px solid #c98a3a;overflow:hidden}
-.bar i{position:absolute;inset:0 auto 0 0;transition:width .15s}
-.side.p .bar i{background:linear-gradient(90deg,#86f36f,#25a845)}
-.side.e .bar i{background:linear-gradient(90deg,#ff8a6a,#e0303a)}
-.bar b{position:absolute;left:0;right:auto;bottom:0;height:4px;background:linear-gradient(90deg,#8fd0ff,#2f7bff)}
-.side.e .bar i,.side.e .bar b{left:auto;right:0}
-.hpt{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font:400 11px/11px 'Lilita One',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-brown);white-space:nowrap;text-shadow:0 0 2px #fff,1px 0 0 #fff,-1px 0 0 #fff}
-.tags{display:flex;gap:3px;flex-wrap:nowrap;min-height:12px;overflow:hidden}
-.side.e .tags{justify-content:flex-end}
-.tag{font:400 11px/12px 'Lilita One',system-ui,sans-serif;padding:0 5px;border-radius:6px;background:rgba(90,42,0,.12);color:var(--ink-brown);white-space:nowrap}
-.tag.dps{color:var(--orange-d)} .tag.elite{color:#c81e3a}
-.mid{text-align:center;font:400 8px/9px 'Lilita One',system-ui,sans-serif;color:var(--orange-d)}
-.mid strong{display:block;font:400 18px/18px 'Lilita One',system-ui,sans-serif;color:var(--orange);text-shadow:0 2px 0 #fff}
-body.big .fname{font-size:14px;line-height:16px}
-body.big .hpt,body.big .tag{font-size:12px}
+#vs .side{display:grid;gap:0;min-width:0;align-content:center}
+#vs .side.e{justify-items:end;text-align:right}
+#vs .fname{font:400 13px/13px 'Lilita One',system-ui,sans-serif;color:var(--ink-brown);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#vs .fname em{font-style:normal;color:var(--orange-d);font-size:11px}
+#vs .bar{position:relative;width:100%;height:13px;border-radius:7px;background:#f3e2c0;border:1px solid #c98a3a;overflow:hidden}
+#vs .bar i{position:absolute;inset:0 auto 0 0;transition:width .15s}
+#vs .side.p .bar i{background:linear-gradient(90deg,#86f36f,#25a845)}
+#vs .side.e .bar i{background:linear-gradient(90deg,#ff8a6a,#e0303a)}
+#vs .bar b{position:absolute;left:0;right:auto;bottom:0;height:4px;background:linear-gradient(90deg,#8fd0ff,#2f7bff)}
+#vs .side.e .bar i,#vs .side.e .bar b{left:auto;right:0}
+#vs .hpt{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font:400 11px/11px 'Lilita One',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-brown);white-space:nowrap;text-shadow:0 0 2px #fff,1px 0 0 #fff,-1px 0 0 #fff}
+#vs .tags{display:flex;gap:3px;flex-wrap:nowrap;min-height:12px;overflow:hidden}
+#vs .side.e .tags{justify-content:flex-end}
+#vs .tag{font:400 11px/12px 'Lilita One',system-ui,sans-serif;padding:0 5px;border-radius:6px;background:rgba(90,42,0,.12);color:var(--ink-brown);white-space:nowrap}
+#vs .tag.dps{color:var(--orange-d)}
+#vs .tag.elite{color:#c81e3a}
+#vs .mid{text-align:center;font:400 8px/9px 'Lilita One',system-ui,sans-serif;color:var(--orange-d)}
+#vs .mid strong{display:block;font:400 18px/18px 'Lilita One',system-ui,sans-serif;color:var(--orange);text-shadow:0 2px 0 #fff}
+body.big #vs .fname{font-size:14px;line-height:16px}
+body.big #vs .hpt,body.big #vs .tag{font-size:12px}
 body.big .topbar .k-pill{font-size:12.5px}
 
 /* arena: moldura branca de 3px, cantos de 14px */
 .arena{position:relative;overflow:hidden;margin:0 8px;height:var(--arenah,140px);flex:none;background:#000;border:3px solid #fff;border-radius:14px;box-shadow:0 3px 0 rgba(0,0,0,.25)}
-.stage{position:relative}
+#arena .stage{position:relative}
 .arena .stage{height:100%}
 .arena canvas{display:block;width:100%;height:100%}
 
