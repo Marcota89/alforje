@@ -43,28 +43,29 @@ function playDaily(dayIx) {
   return { s, entry: { v: 2, d: S.dayStr(dayIx), s: sc, cls: s.cls, w: s.wins, t: 1, pf: proof } };
 }
 
-// 0. "diário inalterado": golden recorded from the sim BEFORE permanent bonuses (state.perm / pet mul). Days 0..19, same upgrade policy as playDaily.
+// 0. "diário inalterado": golden regravado com o sim da v1.2 (teto de veneno/queimadura, Tocha, elite da parada 9, chefe, Couraça Viva 12%).
+//    Antes: gravado do sim da v8 (sem bônus permanentes). Dias 0..19, mesma política de melhoria de playDaily. Mudar o sim muda este golden: regrave e publique a função do servidor junto.
 const DAILY_GOLDEN = [
   "1:W12.6,L18.5,L18.5,L18.5,L18.5,L18.5",
   "6:W7.2,W6.3,W4.5,W3.6,W4.5,W3.6,L2.7,L2.7,L2.7,L2.7,L2.7",
   "5:W6.6,W4.9,L4.7,W4.9,W4.9,W3.2,L3,L2.4,L3,L3",
-  "2:W26,W19,L6.7,L7.5,L6.7,L7,L10.1",
-  "2:W10,W11,L6.7,L6.7,L8.5,L8.5,L8.5",
+  "2:W26,W19,L11.1,L11.1,L10.3,L11.8,L11.9",
+  "6:W10,W11.9,L8.5,L8.5,W8.8,W6.2,W5.8,L6,L4.9,W5.8,L3.1",
   "0:L14,L14,L14,L12.7,L14",
   "5:W6.3,W6.3,L4.7,L4.7,L4.7,W4.5,W3.6,W3.6,L3.9,L3.1",
   "5:W6.6,W4.9,W4.9,W3.2,W3.2,L3.8,L3.8,L3.8,L3.8,L3.8",
   "5:W21.4,L12,L12,W14.2,W9.4,W7.5,W4.6,L4,L7.9,L7.3",
-  "5:W12,W8.8,W10,W5.8,W5.8,L6.7,L6.7,L6.7,L6.7,L6.7",
+  "2:W12,W9,L10.3,L10.3,L10.3,L10.3,L10.3",
   "1:L23.3,L23.3,W22.2,L18.7,L18.7,L18.7",
-  "2:W5.4,W7.2,L3.1,L3.1,L3.1,L3.1,L3.1",
+  "2:W5.4,W7.2,L3.6,L3.6,L3.6,L3.6,L3.6",
   "5:W6.6,W4.9,W4.9,W4.9,W3.2,L3.1,L3.1,L3.1,L3.1,L3.1",
   "4:W26,W14.2,L13.9,W16.6,W7.5,L6,L8,L7.7,L6.5",
-  "2:W10,W8.8,L8.5,L8.5,L8.5,L8.5,L8.5",
+  "2:W10,W9,L8.8,L8.8,L8.8,L8.8,L8.8",
   "1:L23.3,L23.3,W20.6,L12.7,L12.7,L12.7",
   "5:W8.1,W8.1,L4.8,L6,W4.5,W2.7,W2.7,L3.7,L3.7,L3.7",
-  "6:W6.6,W4.9,W4.9,W3.4,W4.9,L4,L3.7,L4,L3.7,W3.2,L4.1",
-  "2:W26,W14.2,L7,L9.4,L7.5,L10.1,L10.1",
-  "5:W10,W8.8,W6,W6.2,W6,L6.7,L6.7,L6.7,L6.7,L6.7"
+  "5:W6.6,W4.9,W4.9,W3.4,W4.9,L4,L3.7,L4,L3.7,L3.7",
+  "2:W26,W14.2,L11.8,L11.8,L11.1,L11.9,L11.9",
+  "5:W10,W9,W6,W6.2,W6,L6.7,L6.7,L6.7,L6.7,L6.7"
 ];
 {
   let okAll = 0;
@@ -153,6 +154,88 @@ const kitOk = { c: 'alchemist', sub: null, bl: [], b: [5, 4, {}], lv: 0, i: [['b
 check(S.buildPlausible(kitOk).ok, 'kit inicial do Alquimista na 1Âª rodada Ã© aceito' + (S.buildPlausible(kitOk).ok ? '' : ': ' + S.buildPlausible(kitOk).why));
 let kitsOk = 0; for (const c of D.CLASSKEYS) for (const kit of D.CLASSES[c].kits) { const k = { c, sub: null, bl: [], b: [D.CLASSES[c].bag[0], D.CLASSES[c].bag[1], {}], lv: 0, p: [], w: 0, r: 1, a: 0, ch: null, i: kit.items.map(([key, x, y]) => [key, 1, x, y, D.ITEMS[key].w, D.ITEMS[key].h]) }; if (S.buildPlausible(k).ok) kitsOk++; }
 check(kitsOk === 10, `os 10 kits iniciais passam na 1Âª rodada: ${kitsOk}/10`);
+
+// ===== v1.2: balanceamento =====
+// mochila de teste (Guerreiro 7x6, parada `wins`) e luta contra um boneco que não ataca, por `secs` segundos
+function rig(items, opts) {
+  opts = opts || {}; const s = S.setState(S.fresh()); s.cls = opts.cls || 'warrior'; s.sub = opts.sub || null; s.seed = 'v12'; s.rng = 5; s.wins = opts.wins || 0; s.round = s.wins + 1;
+  s.bag = { cols: 7, rows: 6, pockets: {} }; s.route = D.STOPS.map(() => 0); s.elites = {};
+  for (const [key, tier, x, y] of items) { const d = D.ITEMS[key]; s.items.push({ id: s.nid++, key, tier, x, y, w: d.w, h: d.h, where: 'bag' }); }
+  return s;
+}
+function dummy(s, secs) {
+  S.setState(s); const b = S.newBattle();
+  b.e = { side: 'e', name: 'Boneco', hp: 1e6, max: 1e6, block: 0, reflect: 0, critMult: 2, mult: 1, burn: 0, poison: 0, frost: 0, bt: 1, pt: 2, pti: b.p.poisonTick, bdi: b.p.burnDecay, ft: 3, trig: null, mods: [], chill: 0, weapons: [], heals: [] };
+  b.ft = 1e9; b.ft0 = 1e9; let maxBurn = 0, maxPoison = 0;
+  while (b.t < secs) { S.step(b, .05); maxBurn = Math.max(maxBurn, b.e.burn); maxPoison = Math.max(maxPoison, b.e.poison); }
+  return { dmg: 1e6 - b.e.hp, maxBurn, maxPoison, b };
+}
+// decisão 1: Anel do Veterano não empilha — só o de maior raridade conta
+{
+  const sw = ['sword', 1, 0, 0];
+  const dm = rings => S.withState(rig([sw, ...rings], { wins: 9 }), () => S.weaponStats(S.inWhere('bag')[0]).dmg);
+  const none = dm([]), one1 = dm([['vetring', 1, 3, 3]]), two1 = dm([['vetring', 1, 3, 3], ['vetring', 1, 5, 5]]), one3 = dm([['vetring', 3, 3, 3]]), mix = dm([['vetring', 1, 3, 3], ['vetring', 3, 5, 5], ['vetring', 2, 6, 0]]);
+  check(one1 > none && two1 === one1, `v1.2 Anel do Veterano: 2 anéis Comuns = 1 anel (${none} -> ${one1} -> ${two1})`);
+  check(mix === one3 && one3 > one1, `v1.2 Anel do Veterano: Comum + Raro + Épico = só o Épico (${mix} = ${one3})`);
+  const s = rig([['dagger', 1, 0, 0], ['dagger', 1, 1, 0], ['vetring', 1, 3, 3]], { wins: 9 });
+  check(S.withState(s, () => S.inWhere('bag').filter(S.isWeapon).every(w => S.weaponStats(w).dmg > D.ITEMS.dagger.dmg)), 'v1.2 Anel do Veterano: o bônus continua valendo para todas as armas');
+}
+// decisão 2: teto de veneno e queimadura
+{
+  const base = dummy(rig([['sword', 1, 3, 2]]), 20).dmg;
+  let worst = 0; for (let t = 1; t <= 4; t++) for (const [x, y] of [[2, 2], [4, 2], [3, 1], [3, 4]]) worst = Math.max(worst, dummy(rig([['sword', 1, 3, 2], ['torch', t, x, y]]), 20).dmg / base);
+  check(worst <= 3, `v1.2 Tocha (qualquer raridade, melhor posição) multiplica a Espada Curta T1 por no máximo 3× (${worst.toFixed(2)}×)`);
+  const st = rig([['staff', 4, 0, 0]]); const sw = S.withState(st, () => S.weaponStats(st.items[0]).burn); const r = dummy(st, 30);
+  check(r.maxBurn <= Math.round(S.DOT_K.burn * sw), `v1.2 queimadura no alvo não passa do teto (${r.maxBurn} <= ${S.DOT_K.burn}×${sw})`);
+  const v = rig([['viper', 4, 0, 0]]); const pv = S.withState(v, () => S.weaponStats(v.items[0]).poison); const rv = dummy(v, 30);
+  check(rv.maxPoison <= Math.round(S.DOT_K.poison * pv) && rv.maxPoison > 0, `v1.2 veneno no alvo não passa do teto (${rv.maxPoison} <= ${S.DOT_K.poison}×${pv})`);
+  const two = dummy(rig([['staff', 2, 0, 0], ['staff', 2, 1, 0]]), 30), one = dummy(rig([['staff', 2, 0, 0]]), 30);
+  check(two.maxBurn > one.maxBurn, `v1.2 o teto soma as armas: duas fontes de queimadura sobem o teto (${one.maxBurn} -> ${two.maxBurn})`);
+  const d40 = dummy(rig([['firedagger', 2, 0, 0]]), 40).dmg, d20 = dummy(rig([['firedagger', 2, 0, 0]]), 20).dmg;
+  check(d40 / d20 < 2.3, `v1.2 dano contínuo deixa de crescer ao quadrado: Adaga Ígnea T2 em 40 s = ${(d40 / d20).toFixed(2)}× o de 20 s (antes 3,6×)`);
+  const py = dummy(rig([['firedagger', 1, 0, 0]], { cls: 'pyro' }), 30);
+  check(py.b.combust > 0, `v1.2 Piromante ainda alcança a Combustão com aplicação pequena (${py.b.combust} combustões)`);
+  // inimigos comuns não têm teto (o veneno do Assassino Venenoso continua acumulando no herói)
+  const s = S.setState(S.fresh()); s.cls = 'warrior'; s.seed = 'v12p'; s.rng = 9; s.bag = { cols: 5, rows: 4, pockets: {} }; s.wins = 8; s.round = 9; s.route = D.STOPS.map(() => 1); s.elites = {};
+  s.items.push({ id: s.nid++, key: 'shield', tier: 4, x: 0, y: 0, w: 2, h: 2, where: 'bag' }, { id: s.nid++, key: 'helm', tier: 4, x: 2, y: 0, w: 2, h: 1, where: 'bag' });
+  s.items.push({ id: s.nid++, key: 'dagger', tier: 1, x: 4, y: 0, w: 1, h: 1, where: 'bag' });
+  S.setState(s); const bb = S.newBattle(); let mp = 0, g = 0; while (!bb.done && g++ < 4000) { S.step(bb, .05); mp = Math.max(mp, bb.p.poison); }
+  check(S.foeDef().arch === 'veneno' && mp > 2 * (1 + Math.floor(8 / 3)), `v1.2 inimigo comum sem teto: o veneno do Ceifador acumula (${mp})`);
+}
+// decisão 3: a forja não rebaixa
+check(S.forgeTier(4, 1) === 4 && S.forgeTier(1, 3) === 3 && S.forgeTier(2, 2) === 2, 'v1.2 forja herda a maior raridade (4+1 -> 4, 1+3 -> 3)');
+// decisões 4 e 5: Salamandra 1× por parada; a reserva extra da Tartaruga só vale na parada
+{
+  const s = S.fresh(); s.hammerUsed = true;
+  check(S.salamanderHeat(s) === true && s.freeHammer && !s.hammerUsed, 'v1.2 Salamandra: 1ª vez na parada esquenta o Martelo (grátis e liberado)');
+  s.hammerUsed = true; s.freeHammer = false;
+  check(S.salamanderHeat(s) === false && s.hammerUsed && !s.freeHammer, 'v1.2 Salamandra: 2ª vez na mesma parada é recusada');
+  S.newStop(s, 2); check(!s.salamUsed && !s.hammerUsed && !s.freeHammer && S.salamanderHeat(S.newStop(s, 2)), 'v1.2 Salamandra: volta na parada seguinte (Martelo grátis não passa de uma parada para outra)');
+  const t = S.fresh(); t.extraLock = 2; t.shop = [{ key: 'sword', tier: 1, locked: true }, { key: 'dagger', tier: 1, locked: true }, null, { key: 'axe', tier: 2, locked: true }, { key: 'bow', tier: 1, locked: true }];
+  S.newStop(t, 2);
+  check(t.extraLock === 0 && t.shop.filter(o => o && o.locked).length === 2 && t.shop[0].locked && t.shop[1].locked && !t.shop[3].locked && !t.shop[4].locked, 'v1.2 Tartaruga: na parada seguinte ficam só 2 reservas (as extras são soltas)');
+  const u = S.fresh(); u.shop = [{ key: 'sword', tier: 1, locked: true }, { key: 'dagger', tier: 1, locked: true }, { key: 'axe', tier: 1, locked: true }];
+  S.newStop(u, 3); check(u.shop.every(o => o.locked), 'v1.2 Tartaruga: com Olho Clínico (limite 3) as 3 reservas ficam');
+}
+// decisão 8: Bênção de Prata depois da 6ª vitória
+check(S.blessTier(6) === 'p' && [3, 8, 9].every(w => S.blessTier(w) === 'b'), 'v1.2 Bênção de Prata na 6ª vitória; 3ª, 8ª (A1+) e 9ª dão Bronze');
+check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${D.GOAL - 1 - D.SILVER_WIN} paradas antes do chefe`);
+// decisões 6 e 7: a elite da parada 9 deixou de ser a parede; a Ascensão pesa desde a A1
+{
+  const hp = (asc, wins) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.route = D.STOPS.map(() => 0); s.elites = {}; return S.foeStats().hp; };
+  check(D.STOPS[8].hp < D.STOPS[7].hp * 1.15 && D.STOPS[9].hp > 2 * D.STOPS[8].hp, `v1.2 elite da parada 9 (vida base ${D.STOPS[8].hp}) abaixo do chefe (${D.STOPS[9].hp})`);
+  check(hp(1, 4) > hp(0, 4) && hp(5, 4) > hp(1, 4) && hp(10, 4) > hp(5, 4), `v1.2 Ascensão: vida do inimigo da parada 5 sobe já na A1 (${hp(0, 4)}, ${hp(1, 4)}, ${hp(5, 4)}, ${hp(10, 4)})`);
+}
+// decisão 9: teto de ouro apertado — uma jornada honesta passa, mochila 1,5× acima do teto não
+{
+  check(S.goldCap(2) < 213 && S.goldCap(10) <= 300 && S.goldCap(14) <= 400, `v1.2 goldCap apertado (r2 ${S.goldCap(2)}, r10 ${S.goldCap(10)}, r14 ${S.goldCap(14)}; antes 213/939/1243)`);
+  let mono = true; for (let r = 2; r <= S.MAXFIGHTS + 1; r++) if (S.goldCap(r) < S.goldCap(r - 1)) mono = false;
+  check(mono, 'v1.2 goldCap só cresce com a rodada');
+  const k = { c: 'warrior', sub: null, bl: [], b: [7, 5, {}], lv: 3, i: [], p: [], w: 9, r: 10, a: 0, ch: null };
+  let y = 0, x = 0; while (S.buildPlausible(k).ok) { k.i.push(['dagger', 3, x, y, 1, 1]); if (++x >= 7) { x = 0; y++; } if (y >= 5) break; }
+  const why = S.buildPlausible(k).why; k.i.pop();
+  check(why === 'mochila cara demais para a rodada' && S.buildPlausible(k).cost <= S.goldCap(10), `v1.2 goldCap recusa a 1ª mochila acima do teto da rodada 10 (${S.goldCap(10)})`);
+}
 
 console.log(fails ? `\n${fails} falha(s)` : '\ntudo certo');
 process.exit(fails ? 1 : 0);

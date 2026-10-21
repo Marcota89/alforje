@@ -32,7 +32,7 @@ const ITEMS={
  potion:{name:'Frasco de Cura',w:1,h:1,price:3,type:'support',heal:5,healCd:4,tags:['sagrado']},
  whet:{name:'Pedra de Amolar',w:1,h:1,price:3,type:'support',pat:'orto',adjDmg:2,tags:['metal']},
  clover:{name:'Trevo de Quatro',w:1,h:1,price:3,type:'support',pat:'diag',adjCrit:.12,tags:['natureza']},
- torch:{name:'Tocha',w:1,h:1,price:2,type:'support',pat:'orto',adjBurn:1,tags:['fogo']},
+ torch:{name:'Tocha',w:1,h:1,price:2,type:'support',pat:'orto',adjBurn:.9,tags:['fogo']},
  feather:{name:'Pena de Grifo',w:1,h:1,price:3,type:'support',pat:'row',adjHaste:.1,tags:['natureza']},
  venom:{name:'Frasco de Veneno',w:1,h:1,price:3,type:'support',pat:'orto',adjPoison:1,tags:['veneno']},
  ring:{name:'Anel de Sangue',w:1,h:1,price:4,type:'support',pat:'orto',adjLife:.12,tags:[]},
@@ -89,7 +89,7 @@ const SHOPKEYS=Object.keys(ITEMS).filter(k=>!ITEMS[k].recipe);
 const PATNAME={orto:'lados',diag:'diagonais',row:'fileira inteira',col:'coluna inteira',ring:'lados e diagonais'};
 const PETS={
  raven:{name:'Corvo',price:5,dmg:3,cd:1.5,crit:.15,desc:'Bica o inimigo',act:'Bico Ágil',actDesc:'1 troca de itens grátis'},
- salamander:{name:'Salamandra',price:5,burn:2,cd:2,desc:'Cospe brasas',act:'Forja Quente',actDesc:'o próximo uso do Martelo do Mascate sai de graça'},
+ salamander:{name:'Salamandra',price:5,burn:2,cd:2,desc:'Cospe brasas',act:'Forja Quente',actDesc:'o Martelo do Mascate trabalha mais uma vez, de graça (1× por parada)'},
  turtle:{name:'Tartaruga',price:5,block:8,cd:4,tick:3,desc:'Protege com o casco',act:'Casco-Cofre',actDesc:'reserva mais 1 item nesta parada'},
  pixie:{name:'Fada',price:5,heal:3,cd:2.5,desc:'Cura com pó de fada',act:'Pó de Ouro',actDesc:'+3 de ouro'},
  owl:{name:'Coruja das Neves',price:5,frost:2,cd:2.5,desc:'Sopra geada no inimigo',act:'Vigia',actDesc:'troca 1 oferta da loja por um item Raro ou melhor',unlock:'frostwin'}
@@ -145,7 +145,7 @@ const ARCH={
 const MODS={
  furia:{name:'Fúria',desc:'abaixo de 50% de vida ataca 40% mais rápido',ans:'dano em rajada para atravessar a metade rápido'},
  casca:{name:'Casca Grossa',desc:'começa com escudo igual a 30% da vida',ans:'Perfurar, Purga, veneno e queimadura'},
- reflexo:{name:'Couraça Viva',desc:'reflete 25% do dano de cada golpe',ans:'Purga desliga o reflexo; veneno e queimadura não são refletidos'},
+ reflexo:{name:'Couraça Viva',pct:.12,desc:'reflete 12% do dano de cada golpe',ans:'Purga desliga o reflexo; veneno e queimadura não são refletidos'},
  regen2:{name:'Sangue Velho',desc:'a cura dobra abaixo de 50% de vida',ans:'Purga corta a cura pela metade'},
  reforco:{name:'Reforço',desc:'aos 8s chega ajuda: +25% de vida e um ataque rápido a mais',ans:'vença antes dos 8s ou tenha escudo'},
  gelo:{name:'Hálito Gélido',desc:'cada golpe aplica 1 de Gelo em você',ans:'armas pesadas sofrem menos; Purga e cura compram tempo'},
@@ -195,15 +195,17 @@ const STOPS=[
   {name:'Salamandra Anciã',art:'lavasal',h:44,claw:1,arch:'bruto',line:'(o chão derrete onde ela pisa)'},
   {name:'Cão de Vulcão',art:'hellhound',h:42,claw:1,arch:'fogo',line:'(rosna, e sai fumaça do focinho)'},
   {name:'Bruxa Pestilenta',art:'plaguewitch',h:50,arch:'veneno',line:'Uma gota cura. Duas, nem tanto. Quer adivinhar quantas tem aqui?'}]},
- {biome:'crypt',hp:225,dps:15.5,elite:1,v:[
+ {biome:'crypt',hp:155,dps:10.5,elite:1,v:[
   {name:'Lich Menor',art:'lich',h:56,arch:'espinhos',line:'Mais um herói. Tenho uma prateleira só para mochilas.'},
   {name:'Ceifador',art:'reaper',h:58,arch:'veneno',line:'Não vim por você. Vim pelo que está na sua mochila.'},
   {name:'Gárgula de Obsidiana',art:'obsidian',h:50,claw:1,arch:'espinhos',line:'(a pedra dela ainda está quente do vulcão)'}]},
- {biome:'volcano',hp:340,dps:20,boss:1,v:[
+ {biome:'volcano',hp:345,dps:20,boss:1,v:[
   {name:'Wyrm Rubro',art:'wyrm',h:70,claw:1,arch:'chefe',line:'O velho também chegou até aqui. Quer ver o que sobrou dele?'}]}
 ];
-const BAGCOST=[5,8,11], MAXEXP=3, MAXCOLS=7, MAXROWS=6, CHEST_ROWS=2, GOAL=10, SURV_GOAL=14, LIVES=5;
-/* Bênçãos (EVE-01): b = bronze (elites 3 e 6), p = prata (elite 9) */
+const BAGCOST=[5,8,11], MAXEXP=3, MAXCOLS=7, MAXROWS=6, CHEST_ROWS=2, GOAL=10, SURV_GOAL=14, LIVES=5, SILVER_WIN=6;
+/* v1.2: força extra dos inimigos por nível de Ascensão, cumulativa: [por nível da A1 à A5, por nível da A6 à A10] */
+const ASC_FOE={hp:[.12,.03],dmg:[.12,.03]};
+/* Bênçãos (EVE-01): b = bronze (elites 3, 8 e 9), p = prata (elite 6, depois da 6ª vitória: SILVER_WIN) */
 const BLESS={
  mascate:{t:'b',name:'Mascate Generoso',desc:'+1 vaga na loja.'},
  cofre:{t:'b',name:'Cofre',desc:'Teto de juros +1.'},
@@ -273,6 +275,6 @@ const MERCH={
  over:['Mochila pesada demais! Armas demais deixam todas lentas.'],
  surv:['Daqui para o norte eu não vendo fiado. Nem para você.']
 };
-Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH});
+Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH});
 window.AlforjeData=Object.freeze(D);
 })();

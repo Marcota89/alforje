@@ -44,8 +44,8 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 
 
 /* ================= PROFILE (codex, ascension, history, achievements) ================= */
-const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.1';
-function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
+const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.2';
+function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},ascW:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
 function META(){return window.AlforjeMeta?window.AlforjeMeta.ensureMeta(PROF,Date.now()):null;}
@@ -65,13 +65,15 @@ function loadProf(){let raw=null;try{raw=localStorage.getItem(PROFKEY);}catch(e)
 function releaseHold(){if(!PROF_HOLD)return;PROF_HOLD=false;try{localStorage.removeItem(HOLDKEY);}catch(e){}}
 function saveProf(){if(TAB_LOCK)return;try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
 loadProf();
-const counts=()=>state&&state.mode!=='seed';
+const counts=()=>!!state&&window.AlforjeMeta.progressCounts(state.mode);
 /* evento das metas do dia (a meta soma sozinha; quem chama decide se vale) */
 function gev(ev,n){try{const m=META();if(!m)return;window.AlforjeMeta.goalEvent(m,Date.now(),ev,n);saveProf();}catch(e){}}
 /* compra e fusão podem ser desfeitas: ficam na fila do estado (o Desfazer a restaura) e só contam ao lutar */
 function gq(ev){state.gq=state.gq||{};state.gq[ev]=(state.gq[ev]||0)+1;}
 function pq(op){(state.pq=state.pq||[]).push(op);}
-function qFlush(q,p){if(q)for(const ev in q)gev(ev,q[ev]);
+/* metas do dia que vêm da partida: o Duelo não soma (só paga a recompensa de conta do dia) */
+function rgev(ev,n){if(state&&state.mode!=='duel')gev(ev,n);}
+function qFlush(q,p){if(q)for(const ev in q)rgev(ev,q[ev]);
  if(p)for(const op of p){try{if(op[0]==='cx')codexAdd(op[1],op[2]);else if(op[0]==='m')mission(op[1]);else if(op[0]==='a')ach(op[1]);}catch(e){}}}
 function cx(key){return PROF.codex.items[key]||(PROF.codex.items[key]={seen:0,bought:0,merged:0,forged:0,wins:0});}
 function codexSee(key){if(!counts()||!ITEMS[key])return;cx(key).seen++;}
@@ -126,7 +128,7 @@ function whyLines(it){const out=[],links=supportLinks();const VIA={pat:'alcance'
 function readyRecipes(){const used=new Set(),out=[];
  for(const a of inWhere('bag'))for(const b of orthoNeighbors(a)){if(used.has(a.id)||used.has(b.id)||a.noforge||b.noforge)continue;
   const r=RECIPES.find(r=>r[0]===a.key&&r[1]===b.key&&(!r[3]||[...orthoNeighbors(a),...orthoNeighbors(b)].some(c=>c.key===r[3]&&c.id!==a.id&&c.id!==b.id)));
-  if(r){used.add(a.id);used.add(b.id);out.push({a,b,res:r[2],tier:Math.max(1,Math.floor((a.tier+b.tier+1)/2))});}}
+  if(r){used.add(a.id);used.add(b.id);out.push({a,b,res:r[2],tier:SIM.forgeTier(a.tier,b.tier)});}}
  return out;}
 function interestCap(){let c=3+(has('cofre')?1:0)-(state.asc>=3?1:0);for(const it of inWhere('bag'))if(ITEMS[it.key].intCap)c+=it.tier>=3?2:1;return Math.max(0,c);}
 function interest(){return Math.min(interestCap(),Math.floor(state.gold/(has('compostos')?4:5)));}
@@ -623,7 +625,7 @@ function doExpand(i,free){if(!inShop())return;const o=state.expandOpts&&state.ex
 function petAct(i){if(!inShop())return;const p=state.pets[i];if(!p||!(p.ch>0))return;const k=p.key;
  if(k==='raven'){state.freeReroll=true;toast('Corvo: a próxima troca de itens é grátis');}
  else if(k==='turtle'){state.extraLock=(state.extraLock||0)+1;toast('Tartaruga: pode reservar mais 1 item nesta parada');}
- else if(k==='salamander'){state.freeHammer=true;state.hammerUsed=false;toast('Salamandra: o Martelo está quente e de graça');}
+ else if(k==='salamander'){if(!SIM.salamanderHeat(state)){toast('A Salamandra já esquentou o Martelo nesta parada');return;}toast('Salamandra: o Martelo está quente e de graça');}
  else if(k==='pixie'){state.gold+=3;toast('Fada: +3 de ouro');}
  else if(k==='owl'){const ix=state.shop.map((o,j)=>o&&!o.locked&&!o.pet?j:-1).filter(j=>j>=0);if(!ix.length){toast('Nada para trocar na loja');return;}const j=rpick(ix);state.shop[j]={key:rpick(shopPool()),tier:rollTier(2)};codexSee(state.shop[j].key);toast('Coruja: achou algo melhor na loja');}
  p.ch--;state.undo=null;sfx('trig');save();render();}
@@ -652,14 +654,14 @@ function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='
 function resumeFight(){showRun();B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];skip();render();finish();}
 setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;setTimeout(()=>{finishing=false;finish();},700);}},100);
 function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier=r.tier;a.key=r.res;state.items=state.items.filter(i=>i!==r.b);done.push(`${ITEMS[r.a.key].name} (${TIERS[a.tier-1]})`);
- if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');gev('forge');}
+ if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');rgev('forge');}
  if(done.length){achRetro();}return done;}
 let lastFight=null;
 function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
  sfx(win?'win':'lose');let forged=[];
  lastFight={stats:B.stats,es:B.es,log:B.log.slice(),blocked:B.blocked,t:B.t,foe:f.name,win};
  if(state.pfPending){state.proof=(state.proof||[]).concat([{k:state.pfPending,res:win?'win':'lose'}]).slice(-MAXFIGHTS);state.pfPending=null;}
- if(win){missionWin(f);gev('win');if(f.elite||f.boss)gev('elite');state.wins++;state.winStreak++;state.lossStreak=0;state.stopLosses=0;forged=forge();state.mood='';
+ if(win){missionWin(f);rgev('win');if(f.elite||f.boss)rgev('elite');state.wins++;state.winStreak++;state.lossStreak=0;state.stopLosses=0;forged=forge();state.mood='';
   for(const it of inWhere('bag')){const d=ITEMS[it.key];if(d.trig==='souls')it.souls=(it.souls||0)+1;if(d.grows)it.grow=Math.min(8,(it.grow||0)+1);codexAdd(it.key,'wins');}
   if(f.art)codexFoe(f.art,true);if(counts()){PROF.totalWins++;saveProf();}battleAch(f);}
  else{if(has('bigorna'))forged=forge();if(state.surv)state.survLives--;else state.lives--;state.lossStreak++;state.winStreak=0;state.stopLosses++;state.mood='loss';}
@@ -671,7 +673,7 @@ function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.
  if(!state.surv&&state.lives<=0){recordJourney(false);state.phase='end';save();endScreen(false,report);return;}
  const it=interest(),cons=win?0:(state.stopLosses===1?Math.max(0,2-(state.asc>=2?1:0)):0),bonus=win?2:0,base=income(),inc=base+it+cons+bonus;
  if(it>=interestCap()&&it>0)state.intMax=(state.intMax||0)+1;
- state.round++;state.gold+=inc;state.rerollN=0;state.hammerUsed=false;state.extraLock=0;state.freeReroll=false;state.expandOpts=null;rollShop();state.phase='shop';
+ state.round++;state.gold+=inc;SIM.newStop(state,lockLimit()-(state.extraLock||0));state.expandOpts=null;rollShop();state.phase='shop';
  state.queue=[];
  if(win){if(f.elite&&!state.surv)state.queue.push('bless');if(state.wins===4&&!state.sub)state.queue.push('sub');if(state.wins===6)state.queue.push('event');
   state.skipOffer=[1,3,7].includes(state.wins)?rpick(ETIQKEYS):null;}
@@ -692,8 +694,8 @@ function resultTables(){const L=lastFight;if(!L)return '';
 function nextQueue(){runFront();const q=state.queue.shift();state.cur=q||null;save();if(!q){closeOverlay();render();return;}showCur();}
 function showCur(){runFront();const q=state.cur;
  if(q==='bless')blessScreen();else if(q==='sub')subScreen();else if(q==='event')eventScreen();else if(q==='expandfree')expandScreen(true);else nextQueue();}
-function blessScreen(){if(!state.reward){const silver=state.wins===9;const pool=Object.keys(BLESS).filter(k=>BLESS[k].t===(silver?'p':'b')&&!state.bless.includes(k)&&(!BLESS[k].ok||BLESS[k].ok(state)));state.reward=rshuffle(pool).slice(0,3);save();}
- overlay(`<h2>Bênção ${state.wins===9?'de Prata':'de Bronze'}</h2><p class="muted center">O figurão caiu. Escolha uma Bênção para o resto da jornada.</p><div class="rewards">
+function blessScreen(){if(!state.reward){const silver=SIM.blessTier(state.wins)==='p';const pool=Object.keys(BLESS).filter(k=>BLESS[k].t===(silver?'p':'b')&&!state.bless.includes(k)&&(!BLESS[k].ok||BLESS[k].ok(state)));state.reward=rshuffle(pool).slice(0,3);save();}
+ overlay(`<h2>Bênção ${SIM.blessTier(state.wins)==='p'?'de Prata':'de Bronze'}</h2><p class="muted center">O figurão caiu. Escolha uma Bênção para o resto da jornada.</p><div class="rewards">
  ${state.reward.map(k=>`<button class="k-card choice" data-bless="${k}"><i class="ico"><img src="${spr('star')}" class="px" alt=""></i><div><b>${BLESS[k].name}</b><span>${BLESS[k].desc}</span></div></button>`).join('')}</div>`);}
 function takeBless(k){state.bless.push(k);state.reward=null;sfx('merge');
  if(k==='alforje')state.queue.unshift('expandfree');
@@ -717,18 +719,22 @@ function endScreen(won,report){$('#app').classList.remove('in-battle');const sur
  <p>${won&&!surv?`Vitória com ${state.lives} vida${state.lives>1?'s':''} sobrando, em ${state.round} rodadas.`:`Você chegou a ${state.wins} vitória${state.wins===1?'':'s'}${surv?` (parada ${state.wins} de ${SURV_GOAL})`:` de ${GOAL}`}.`}</p>
  <div class="k-card score"><small>Pontuação:</small><strong>${sc}</strong>${state.asc?`<em>(Ascensão ${state.asc}: +${state.asc*5}%)</em>`:''}</div>
  ${state.acct&&state.acct.none?`<p class="muted small center">Recompensa de conta do ${state.mode==='duel'?'Duelo':'Diário'} já recebida hoje.</p>`:state.acct?`<p class="bonus center">Na conta: +${state.acct.gold} ouro, +${state.acct.stone} pedra${state.acct.stone===1?'':'s'}, +${state.acct.xp} XP</p>${state.acct.up?`<p class="bonus center">Nível ${state.acct.lv}!</p>`:''}`:''}
- ${won&&!surv&&state.mode==='normal'&&state.asc<10?`<p class="bonus center">Ascensão ${Math.min(10,state.asc+1)} liberada para ${CLASSES[state.cls].name}.</p>`:''}
+ ${won&&!surv&&state.mode==='normal'?ascLine():''}
  ${state.mode==='seed'?'<p class="muted">Partida com seed manual: não conta para Ascensão, Codex nem conquistas.</p>':''}
  ${report||''}
  <button class="k-btn o" id="shareBtn">📷 Compartilhar imagem do resultado</button>
  <div class="two"><button class="k-btn v" id="copyBuild">Copiar código da build</button>${canSurv?'<button class="k-btn ad" id="goSurv">Continuar: Sobrevivência</button>':''}</div>
  <button class="k-btn g" id="again">Voltar ao início</button>`);}
+/* fim de jornada vencida no Normal: liberou a próxima Ascensão ou quantas vitórias faltam no nível atual */
+function ascLine(){const c=state.cls,n=CLASSES[c].name;if(state.ascUp)return `<p class="bonus center">Ascensão ${ascMax(c)} liberada para ${n}.</p>`;
+ if(state.asc<ascMax(c)||ascMax(c)>=10)return '';const left=window.AlforjeMeta.ASC_WINS-((PROF.ascW||{})[c]||0);
+ return `<p class="muted center">Mais ${left} vitória${left>1?'s':''} na Ascensão ${state.asc} libera${left>1?'m':''} a ${state.asc+1} para ${n}.</p>`;}
 function startSurvival(){runFront();state.surv=true;state.survLives=3;state.survRoute=[0,1,2,3].map(()=>({s:5+Math.floor(R()*4),v:Math.floor(R()*3)}));
- state.phase='shop';state.round++;state.gold+=income()+interest();state.rerollN=0;state.hammerUsed=false;state.queue=[];state.skipOffer=null;rollShop();save();closeOverlay();toast('Sobrevivência: 3 vidas até a parada 14',1);render();}
+ state.phase='shop';state.round++;state.gold+=income()+interest();SIM.newStop(state,lockLimit()-(state.extraLock||0));state.queue=[];state.skipOffer=null;rollShop();save();closeOverlay();toast('Sobrevivência: 3 vidas até a parada 14',1);render();}
 function score(){const won=state.wins>=GOAL;return Math.round((state.wins*100+(won?250:0)+(state.surv?(state.wins-GOAL)*150:0)+(state.surv?state.survLives:state.lives)*25)*(1+.05*state.asc));}
 
 /* ================= PROFILE UPDATES ================= */
-function ach(id){if(!counts()||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();const mm=META(),rb=mm?window.AlforjeMeta.achRuby(mm,[id]):0;saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1]+(rb>0?' · +'+rb+' 💎':''),1),400);
+function ach(id){if(!(counts()||id==='duel'&&state&&state.mode==='duel')||PROF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PROF.ach[id]=Date.now();const mm=META(),rb=mm?window.AlforjeMeta.achRuby(mm,[id]):0;saveProf();setTimeout(()=>toast('🏆 Conquista: '+a[1]+(rb>0?' · +'+rb+' 💎':''),1),400);
  if(id==='frostwin')setTimeout(()=>toast('Coruja das Neves liberada na loja',1),2200);}
 function achRetro(){if(!counts())return;const r=Object.keys(PROF.codex.recipes);if(r.length>=1)ach('forge1');if(r.length>=6)ach('forge6');if(RECIPES.every(x=>PROF.codex.recipes[x[2]]))ach('forge_all');
  if(Object.values(PROF.codex.items).filter(x=>x.seen||x.bought).length>=40)ach('codex40');if(Object.values(PROF.codex.foes).filter(x=>x.beat).length>=20)ach('foes20');}
@@ -737,10 +743,10 @@ function battleAch(f){ach('first_win');const bag=inWhere('bag');if(bag.filter(i=
  if(Object.values(B.stats).reduce((a,s)=>a+(s.frost||0),0)>=20)ach('frost20');if(bag.filter(i=>hasTag(i,'gelo')).length>=3)ach('frostwin');
  if(B.combust>=3)ach('combust3');if(B.t<6)ach('fast');if(B.t>40)ach('fatigue_win');if(state.bagLvl>=MAXEXP)ach('full_bag');if(f.ghost)ach('duel');achRetro();}
 function recordJourney(won){if(state.recorded)return;state.recorded=true;
- const sc=score(),cls=state.cls;PROF.best=Math.max(PROF.best,state.wins);
+ const sc=score(),cls=state.cls;if(counts())PROF.best=Math.max(PROF.best,state.wins);
  if(counts()&&won){PROF.journeys++;PROF.classWins[cls]=(PROF.classWins[cls]||0)+1;ach('journey');if(CLASSKEYS.every(k=>PROF.classWins[k]))ach('all_classes');
   if(state.lives===state.maxLives)ach('flawless');if(!state.merges)ach('nofuse_win');
-  if(state.mode==='normal'){if(state.asc>=ascMax(cls))PROF.asc[cls]=Math.min(10,state.asc+1);PROF.sticker[cls]=Math.max(PROF.sticker[cls]==null?-1:PROF.sticker[cls],state.asc);
+  if(state.mode==='normal'){state.ascUp=window.AlforjeMeta.ascWin(PROF,cls,state.asc);PROF.sticker[cls]=Math.max(PROF.sticker[cls]==null?-1:PROF.sticker[cls],state.asc);
    if(state.asc>=1)ach('asc1');if(state.asc>=5)ach('asc5');if(state.asc>=10)ach('asc10');}
   if(state.mode==='challenge'&&state.chal){PROF.chalDone[state.chal]=1;ach('chal1');if(CHALLENGES.every(c=>PROF.chalDone[c.id]))ach('chal_all');}}
  if(state.mode==='daily'){const d=runDay();PROF.daily[d]=Math.max(PROF.daily[d]||0,sc);ach('daily');mission('daily');gev('daily');boardPost(sc);}
@@ -752,7 +758,7 @@ function recordJourney(won){if(state.recorded)return;state.recorded=true;
 /* o que a jornada rende à conta: uma vez por jornada (state.acct marca); o resumo fica no estado para a janela final */
 function journeyAcct(won){if(state.acct)return;const M=window.AlforjeMeta,m=META();if(!m)return;const r=M.journeyRewards(state.wins,won,state.asc||0,state.mode),now=Date.now(),ok=M.rewardOk(m,now,state.mode);
  if(ok)M.markReward(m,now,state.mode);else{r.gold=0;r.stone=0;r.xp=0;}
- const up=M.addXp(m,r.xp);M.applyReward(m,{gold:r.gold,stone:r.stone});state.acct={gold:r.gold,stone:r.stone,xp:r.xp,lv:M.levelOf(m.xp).lv,up:up>0,none:!ok};gev('journey');}
+ const up=M.addXp(m,r.xp);M.applyReward(m,{gold:r.gold,stone:r.stone});state.acct={gold:r.gold,stone:r.stone,xp:r.xp,lv:M.levelOf(m.xp).lv,up:up>0,none:!ok};rgev('journey');}
 /* Sobrevivência: paga só a diferença para a fórmula com o total de vitórias (bônus de 10 vitórias uma vez, 10 XP por vitória) */
 function survAcct(){const a=state.acct,M=window.AlforjeMeta,m=META();if(!a||!m||a.none)return;const r=M.journeyRewards(state.wins,true,state.asc||0,state.mode);
  const d={gold:Math.max(0,r.gold-a.gold),stone:Math.max(0,r.stone-a.stone),xp:Math.max(0,r.xp-a.xp)};if(!d.gold&&!d.stone&&!d.xp)return;
@@ -1073,7 +1079,8 @@ function soonScreen(t,tab){page(`<h2>${t}</h2><div class="k-card pc"><p class="m
 /* ----- Equipar (4 peças) e Pets (coleção permanente) ----- */
 const GEAR_ART={weapon:'sword',armor:'plate',bag:'purse'},TIER_NAME=['','Comum','Raro','Épico','Lendário'];
 let EQSEL='weapon';
-const gearEff=(s,L)=>{const v=window.AlforjeMeta.GEAR[s].per*(L-1);return s==='weapon'?`+${v}% dano`:s==='armor'?`+${v} escudo`:s==='ring'?`+${v}% crítico`:`+${v} ouro`;};
+const pct=v=>String(+v.toFixed(1)).replace('.',',');
+const gearEff=(s,L)=>{const v=window.AlforjeMeta.gearBonus(s,L);return s==='weapon'?`+${pct(v)}% dano`:s==='armor'?`+${v} escudo`:s==='ring'?`+${pct(v)}% crítico`:`+${v} ouro`;};
 const gearArt=(s,L)=>'a/'+(s==='ring'?'ring_'+window.AlforjeMeta.gearTier(L):GEAR_ART[s])+'.webp';
 function canUp(m,s){const AM=window.AlforjeMeta,L=m.gear[s];if(L>=AM.GEAR_MAX)return false;const c=AM.gearCost(L);return m.stone>=c.stone&&m.gold>=c.gold;}
 function equipScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Equipamento','equip');return;}
@@ -1082,7 +1089,7 @@ function equipScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('E
   return `<button class="eqs t${t}${sel?' sel':''}" data-slot="${s}" aria-pressed="${sel}" aria-label="${nm}, nível ${L}, ${TIER_NAME[t]}, ${ef}${canUp(m,s)?', melhoria possível':''}"><span class="lvb" aria-hidden="true">Nv ${L}</span><img src="${gearArt(s,L)}" alt=""><b aria-hidden="true">${nm}</b><span class="ef" aria-hidden="true">${ef}</span><small aria-hidden="true">${TIER_NAME[t]}</small></button>`;}).join('');
  const s=EQSEL,L=m.gear[s],nm=AM.GEAR[s].t,max=L>=AM.GEAR_MAX,c=AM.gearCost(L),ok=canUp(m,s),sf=Math.max(0,c.stone-m.stone),gf=Math.max(0,c.gold-m.gold);
  const lack=max?'Nível máximo':ok?'':`Faltam ${[sf?sf+' 🪨':'',gf?fmtN(gf)+' 💰':''].filter(Boolean).join(' e ')}`;
- const p=AM.permOf(m),st=[['❤️','Vida','+'+p.hp],['🛡️','Escudo','+'+p.block],['⚔️','Dano','+'+Math.round(p.dmgPct*100)+'%'],['🎯','Crítico','+'+Math.round(p.crit*100)+'%'],['💰','Ouro inicial','+'+p.gold]];
+ const p=AM.permOf(m),st=[['❤️','Vida','+'+p.hp],['🛡️','Escudo','+'+p.block],['⚔️','Dano','+'+pct(p.dmgPct*100)+'%'],['🎯','Crítico','+'+pct(p.crit*100)+'%'],['💰','Ouro inicial','+'+p.gold]];
  page(`<h2>Equipamento</h2>
  <div class="eqg" id="eqG">${cells}</div>
  <div class="k-card pc eqd"><b>${nm} · Nv ${L} · ${TIER_NAME[AM.gearTier(L)]}</b>
@@ -1211,7 +1218,7 @@ function heroSel(){const M=MENU;if(M.mode==='daily')return dailyClass();if(M.pic
 function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}render();const M=MENU,dayCls=dailyClass(),sel=heroSel();
  const modes=[['normal','Jornada'],['daily','Diário'],['challenge','Desafios'],['seed','Seed'],['duel','Duelo']];
  let info='';
- if(M.mode==='normal')info=`<p class="muted small">A jornada completa: 10 paradas, 5 vidas. Vencer libera o próximo nível de <b>Ascensão</b> daquela classe (+5% de pontuação por nível).</p>`;
+ if(M.mode==='normal')info=`<p class="muted small">A jornada completa: 10 paradas, 5 vidas. Duas vitórias no seu nível mais alto liberam o próximo nível de <b>Ascensão</b> daquela classe (+5% de pontuação por nível).</p>`;
  if(M.mode==='daily'){const d=todayStr();info=`<p class="muted small">Mesma seed para todo mundo hoje (${d}), classe do dia: <b>${CLASSES[dayCls].name}</b>, sem Ascensão. O placar é compartilhado com quem abre este jogo. Melhor hoje: <b>${PROF.daily[d]||0}</b>.</p><button class="k-btn v sm" id="boardBtn">Placar de hoje</button>`;}
  if(M.mode==='seed')info=`<label class="fld">Seed <input id="seedIn" value="${(M.seed||'').replace(/"/g,'')}" placeholder="ex.: montanha-rubra" maxlength="40"></label><p class="muted small">Mesma seed, mesma rota e mesmas lojas. Partidas com seed manual não contam para Ascensão, Codex nem conquistas.</p>`;
  if(M.mode==='challenge')info=`<div class="chals">${CHALLENGES.map((c,i)=>{const op=chalUnlocked(i);return `<button class="chal${M.chal===c.id?' on':''}" data-chal="${c.id}" aria-pressed="${M.chal===c.id}" ${op?'':'disabled'}><b>${PROF.chalDone[c.id]?'✓ ':''}${c.name}</b><span>${op?c.desc:'Complete mais jornadas para liberar.'}</span></button>`;}).join('')}</div>`;
@@ -1232,7 +1239,7 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  ${M.mode==='normal'&&ascMax('warrior')+ascMax('rogue')+ascMax('pyro')+ascMax('paladin')>0?`<details class="k-card fold"><summary>O que cada Ascensão muda</summary>${ASCTXT}</details>`:''}
  <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
  <div class="gorow"><button class="k-btn v" id="back">Voltar</button><button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}>${goLbl}</button></div>`,'jogar');}
-const ASCTXT=`<ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Vencer a Ascensão N libera N+1 só para aquela classe.</p>`;
+const ASCTXT=`<p class="muted small">Cada nível deixa os inimigos mais fortes: +12% de vida e de dano por nível até a Ascensão 5 e +3% por nível depois. Além disso:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
 /* energia: a jornada custa ao ser criada (Normal, Desafios e Seed); Diário e Duelo são grátis */
 function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}
 /* sem energia para a jornada: quanto falta, propaganda (se sobrar no dia), Loja e Metas */
@@ -1278,6 +1285,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
+ <li><b>v8.2</b>: a estrada foi rebalanceada. Veneno e queimadura agora têm teto e a Tocha esquenta um pouco menos; o Anel do Veterano não empilha (vale o melhor); a Forja nunca rebaixa um item; a Salamandra esquenta o Martelo 1× por parada; a reserva extra da Tartaruga vale só naquela parada. A elite da parada 9 ficou mais justa (a Couraça Viva reflete 12%) e o Wyrm voltou a ser a luta mais dura; a Bênção de Prata chega depois da 6ª vitória. A Ascensão pesa desde a A1 e cada nível pede 2 vitórias. Bônus permanentes menores e melhorias mais caras no fim, sem perder nada do que você já tem. O Duelo não conta mais para desbloqueios e conquistas, e a meta de melhorar some quando não há o que melhorar.</li>
  <li><b>v8.1</b>: correções. Recarregar no meio da luta agora mostra o resultado dela (a luta não volta para a loja); jornada ou perfil salvos com defeito não travam mais a abertura; compra arrastando ou por toque conta para a meta do dia; Desfazer não deixa mais missão, conquista ou Codex de uma fusão desfeita; mexer no relógio não reabre o bônus diário.</li>
  <li><b>v8</b>: a viagem ganhou fôlego. <b>Energia</b>: 30 no máximo, +1 a cada 8 minutos, e cada jornada custa 10 (Diário e Duelo são grátis; uma propaganda rende +10). <b>Bônus diário</b> de 7 dias, <b>metas do dia</b> com baús de prêmio, <b>Equipar</b>, <b>Pets</b> e <b>Loja</b> de rubis, e um <b>nível do herói</b> que cresce a cada vitória. Codex, Missões e Placar foram para o ☰ Mais.</li>
  <li><b>Depois da luta</b>: tabela por item (acionamentos, dano, críticos, escudo, cura e status), aba do inimigo e registro completo copiável.</li>

@@ -103,17 +103,30 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
 
 // equipamento
 {
-  check(eq(M.gearCost(1), { stone: 1, gold: 50 }) && eq(M.gearCost(5), { stone: 5, gold: 250 }), 'gearCost: L pedras, 50L ouro');
+  check(eq(M.gearCost(1), { stone: 1, gold: 25 }) && eq(M.gearCost(5), { stone: 5, gold: 625 }) && eq(M.gearCost(19), { stone: 19, gold: 9025 }), 'v1.2 gearCost: L pedras, 25×L² ouro');
+  { let st = 0, gd = 0; for (let L = 1; L < 20; L++) { st += M.gearCost(L).stone; gd += M.gearCost(L).gold; }
+    check(st === 190 && gd === 61750, 'v1.2: uma peça do 1 ao 20 custa 190 pedras e 61.750 de ouro (antes 9.500)'); }
   check([1, 5, 6, 10, 11, 15, 16, 20].map(M.gearTier).join() === '1,1,2,2,3,3,4,4', 'gearTier: raridades');
   const m = mk();
   check(M.upgradeGear(m, 'weapon') === false && m.gear.weapon === 1, 'upgrade sem recursos falha');
-  m.stone = 1; m.gold = 50;
+  m.stone = 1; m.gold = 25;
   check(M.upgradeGear(m, 'weapon') && m.gear.weapon === 2 && m.stone === 0 && m.gold === 0, 'upgrade gasta recursos e sobe');
+  m.gear.armor = 10; m.stone = 10; m.gold = 2499;
+  check(M.upgradeGear(m, 'armor') === false && m.gear.armor === 10, 'v1.2: nível 10 → 11 pede 2.500 de ouro (2.499 não basta)');
+  m.gold = 2500; check(M.upgradeGear(m, 'armor') && m.gear.armor === 11 && m.gold === 0 && m.stone === 0, 'v1.2: nível 10 → 11 com 10 pedras e 2.500 de ouro');
   m.gear.ring = 20; m.stone = 99; m.gold = 9999;
   check(M.upgradeGear(m, 'ring') === false && m.gear.ring === 20, 'nível 20 não sobe');
   const p = mk(); p.gear = { weapon: 6, armor: 4, ring: 3, bag: 5 }; p.xp = 300;
   const o = M.permOf(p); delete o.pet;
-  check(eq(o, { hp: 6, block: 9, dmgPct: .1, crit: .02, gold: 4 }), 'permOf: arma 6, armadura 4, anel 3, bolsa 5, nível 3');
+  check(eq(o, { hp: 2, block: 6, dmgPct: .05, crit: .01, gold: 2 }), 'v1.2 permOf: arma 6 (+5%), armadura 4 (+6), anel 3 (+1%), bolsa 5 (+2), nível 3 (+2 vida)');
+  const q = mk(); q.gear = { weapon: 20, armor: 20, ring: 20, bag: 20 }; q.xp = 1e9; const oq = M.permOf(q); delete oq.pet;
+  check(eq(oq, { hp: 29, block: 38, dmgPct: .19, crit: .095, gold: 9 }), 'v1.2 permOf no máximo: +29 vida, +38 escudo, +19% dano, +9,5% crítico, +9 ouro (antes 87/57/38%/19%/19)');
+  check([1, 2, 3, 4, 5, 20].map(L => M.gearBonus('bag', L)).join() === '0,0,1,1,2,9', 'v1.2: Bolsa +1 ouro a cada 2 níveis');
+  // migração: quem já tinha níveis mantém os níveis; só a fórmula muda (sem reembolso)
+  const old = { totalWins: 40, ach: {}, meta: { v: 1, day: '', energy: 12, eAt: T0, xp: 4500, gold: 321, ruby: 0, stone: 7, food: 0, egg: 0, gear: { weapon: 14, armor: 9, ring: 20, bag: 7 }, pets: { raven: 6 }, petOn: 'raven' } };
+  const mm = M.ensureMeta(old, T0);
+  check(eq(mm.gear, { weapon: 14, armor: 9, ring: 20, bag: 7 }) && mm.xp === 4500 && mm.gold === 321 && mm.stone === 7 && mm.pets.raven === 6, 'v1.2 migração: níveis, XP e recursos preservados');
+  check(M.permOf(mm).dmgPct === .13 && M.permOf(mm).block === 16 && M.permOf(mm).crit === .095 && M.permOf(mm).gold === 3 && M.permOf(mm).hp === M.levelOf(4500).lv - 1, 'v1.2 migração: bônus recalculados pela fórmula nova');
   check(M.permOf(mk()).hp === 0 && M.permOf(mk()).pet === null, 'permOf base: zero e sem companheiro');
 }
 
@@ -301,6 +314,43 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   sh.stone = 99998; check(M.buy(sh, T0, 'stone3') === false && sh.ruby === 85 && sh.stone === 99998, 'loja: 3 pedras com 99998 recusa');
   sh.stone = 99996; check(M.buy(sh, T0, 'stone3') && sh.stone === 99999, 'loja: 3 pedras que cabem compra');
   sh.egg = 99999; check(M.buy(sh, T0, 'egg') === false, 'loja: ovo no limite recusa');
+}
+
+// v1.2 — decisão 12: Ascensão libera com 2 vitórias de jornada no nível atual
+{
+  const p = { asc: {}, sticker: {} };
+  check(M.ASC_WINS === 2, 'v1.2: ASC_WINS = 2');
+  check(M.ascWin(p, 'warrior', 0) === false && (p.asc.warrior || 0) === 0 && p.ascW.warrior === 1, 'v1.2: 1ª vitória na A0 ainda não libera a A1');
+  check(M.ascWin(p, 'warrior', 0) === true && p.asc.warrior === 1 && p.ascW.warrior === 0, 'v1.2: 2ª vitória na A0 libera a A1 e zera a contagem');
+  check(M.ascWin(p, 'warrior', 0) === false && p.asc.warrior === 1 && p.ascW.warrior === 0, 'v1.2: vitória abaixo do nível atual não conta');
+  check(M.ascWin(p, 'rogue', 0) === false && p.asc.warrior === 1 && p.ascW.rogue === 1 && p.ascW.warrior === 0, 'v1.2: contagem é por classe');
+  const q = { asc: { pyro: 10 }, ascW: {} };
+  check(M.ascWin(q, 'pyro', 10) === false && q.asc.pyro === 10, 'v1.2: A10 é o teto');
+  const old = { asc: { paladin: 6 } }; // perfil de antes da v1.2: mantém o nível, começa a contagem do zero
+  check(M.ascWin(old, 'paladin', 6) === false && old.asc.paladin === 6 && M.ascWin(old, 'paladin', 6) === true && old.asc.paladin === 7, 'v1.2 migração: perfil antigo mantém a A6 e precisa de 2 vitórias para a A7');
+}
+
+// v1.2 — decisão 13: Duelo (e Seed) não contam para desbloqueios, conquistas nem jornada completa
+check(M.progressCounts('normal') && M.progressCounts('daily') && M.progressCounts('challenge') && !M.progressCounts('duel') && !M.progressCounts('seed'), 'v1.2: progressCounts — Duelo e Seed não contam; Normal, Diário e Desafio contam');
+{ const r = M.journeyRewards(10, true, 0, 'duel'); check(r.gold === 75 && r.xp === 100 && r.stone === 0, 'v1.2: Duelo ainda paga a recompensa de conta do dia (metade do ouro, XP)'); }
+
+// v1.2 — decisão 14: meta impossível é trocada pela próxima do sorteio do dia, só para aquele jogador
+{
+  let t = T0, guard = 0; while (!M.goalsToday(mk(null, t), t).ids.includes('upgrade1') && guard++ < 60) t += DAY;
+  const base = M.goalsToday(mk(null, t), t).ids;
+  check(base.includes('upgrade1'), 'v1.2: achou um dia com a meta "Melhore uma peça" (' + M.dayKey(t) + ')');
+  const maxed = pets => { const m = mk(null, t); for (const k in m.gear) m.gear[k] = M.GEAR_MAX; m.pets = pets; m.goals = null; return m; };
+  const full = maxed({ raven: M.PET_MAX, owl: M.PET_MAX });
+  const g = M.goalsToday(full, t);
+  check(!g.ids.includes('upgrade1') && g.ids.length === base.length && new Set(g.ids).size === g.ids.length, 'v1.2: tudo no máximo → a meta some, sem repetir outra (' + g.ids.join(',') + ')');
+  const ix = base.indexOf('upgrade1'), nx = g.ids[ix];
+  check(nx && !base.includes(nx) && g.ids.filter((x, i) => i !== ix).join() === base.filter((x, i) => i !== ix).join(), 'v1.2: entra a próxima da lista do dia, no mesmo lugar (' + nx + ')');
+  check(M.goalsToday(mk(null, t), t).ids.includes('upgrade1'), 'v1.2: só para aquele jogador — quem pode melhorar mantém a meta');
+  check(M.goalsToday(maxed({ raven: 3 }), t).ids.includes('upgrade1'), 'v1.2: equipamento no máximo mas companheiro para alimentar → meta continua');
+  check(!M.goalsToday(maxed({}), t).ids.includes('upgrade1'), 'v1.2: equipamento no máximo e nenhum companheiro → meta trocada');
+  const done = mk(null, t); M.goalEvent(done, t, 'upgrade', 1); for (const k in done.gear) done.gear[k] = M.GEAR_MAX;
+  check(M.goalsToday(done, t).done.includes('upgrade1') && M.goalsToday(done, t).ids.includes('upgrade1'), 'v1.2: meta já cumprida não é trocada');
+  check(M.goalEvent(full, t, M.GOALS[nx].ev, M.GOALS[nx].n).includes(nx), 'v1.2: a meta nova conta normalmente');
 }
 
 console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');

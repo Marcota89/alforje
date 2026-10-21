@@ -10,8 +10,10 @@ const GOAL_PTS=20,GOAL_COUNT=5;
 const GOALS={win5:{ev:'win',n:5,t:'Vença 5 lutas'},merge3:{ev:'merge',n:3,t:'Funda 3 itens'},energy20:{ev:'energy',n:20,t:'Gaste 20 de energia'},daily1:{ev:'daily',n:1,t:'Termine o Desafio Diário'},elite1:{ev:'elite',n:1,t:'Derrote 1 elite ou chefe'},forge1:{ev:'forge',n:1,t:'Forje 1 receita'},buy8:{ev:'buy',n:8,t:'Compre 8 itens na loja'},journey1:{ev:'journey',n:1,t:'Complete 1 jornada'},cal1:{ev:'cal',n:1,t:'Pegue o bônus diário'},upgrade1:{ev:'upgrade',n:1,t:'Melhore uma peça ou alimente um companheiro'}};
 const GOALKEYS=Object.keys(GOALS);
 /* equipamento: bônus por nível acima do 1 */
-const GEAR={weapon:{t:'Arma',per:2,perm:'dmgPct'},armor:{t:'Armadura',per:3,perm:'block'},ring:{t:'Anel',per:1,perm:'crit'},bag:{t:'Bolsa',per:1,perm:'gold'}};
-const HP_PER_LV=3,PET_LV_STEP=10;
+/* v1.2: Arma +1% de dano, Armadura +2 de escudo, Anel +0,5% de crítico, Bolsa +1 de ouro a cada 2 níveis; herói +1 de vida por nível */
+const GEAR={weapon:{t:'Arma',per:1,perm:'dmgPct'},armor:{t:'Armadura',per:2,perm:'block'},ring:{t:'Anel',per:.5,perm:'crit'},bag:{t:'Bolsa',per:.5,perm:'gold'}};
+const HP_PER_LV=1,PET_LV_STEP=10;
+const gearBonus=(slot,L)=>{const v=GEAR[slot].per*(Math.max(1,L)-1);return slot==='bag'?Math.floor(v):v;};
 /* propaganda: limite por dia; loja de rubis */
 const AD_LIMIT={energy:3,double:1,shop:1},AD_ENERGY=10,AD_GOLD=50;
 const SHOP={energy30:{ruby:15,kind:'energy',n:30,limit:2},stone3:{ruby:10,kind:'stone',n:3},food5:{ruby:10,kind:'food',n:5},egg:{ruby:30,kind:'egg',n:1}};
@@ -24,7 +26,8 @@ function mulberry(a){return function(){a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(
 const dayKey=now=>new Date(Number.isFinite(now)?now:Date.now()).toISOString().slice(0,10);
 const endsIn=now=>DAY_MS-((now%DAY_MS)+DAY_MS)%DAY_MS;
 /* sorteio determinístico: depende só da data */
-function drawGoals(dk){const r=mulberry(hashStr('metas|'+dk)||1),a=GOALKEYS.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,GOAL_COUNT);}
+function goalOrder(dk){const r=mulberry(hashStr('metas|'+dk)||1),a=GOALKEYS.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function drawGoals(dk){return goalOrder(dk).slice(0,GOAL_COUNT);}
 function newGoals(dk){return {ids:drawGoals(dk),p:{},done:[],pts:0,chests:CHESTS.map(()=>false)};}
 
 /* ===== criação, migração e virada do dia ===== */
@@ -39,7 +42,12 @@ function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&g.ids.e
    Vazamento aceito: quem pula mais de 14 dias de uma vez ganha o dia pulado. */
 const far=(d,dk)=>Date.parse(d)-Date.parse(dk)>14*DAY_MS;
 function capFar(m,dk){delete m.dayMax;if(m.cal&&typeof m.cal.last==='string'&&m.cal.last>dk)m.cal.last=dk;}
-function rollDay(m,now){const dk=dayKey(now),ahead=typeof m.day==='string'&&m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS;
+/* meta impossível: sem peça para melhorar nem companheiro para alimentar (tudo no máximo), "Melhore uma peça..." vira a próxima meta do sorteio do dia, só para este jogador */
+const canUpgradeAny=m=>Object.keys(GEAR).some(k=>(m.gear&&m.gear[k]||1)<GEAR_MAX)||Object.keys(m.pets||{}).some(k=>m.pets[k]>=1&&m.pets[k]<PET_MAX);
+function swapGoals(m){const g=m.goals,i=g.ids.indexOf('upgrade1');if(i<0||g.done.includes('upgrade1')||canUpgradeAny(m))return m;
+ const nx=goalOrder(m.day).find(id=>id!=='upgrade1'&&!g.ids.includes(id));if(nx){g.ids[i]=nx;delete g.p.upgrade1;}return m;}
+function rollDay(m,now){swapGoals(rollDay0(m,now));return m;}
+function rollDay0(m,now){const dk=dayKey(now),ahead=typeof m.day==='string'&&m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS;
  if(typeof m.dayMax==='string'&&far(m.dayMax,dk))capFar(m,dk);
  if(ahead){if(far(m.day,dk))capFar(m,dk);else if(!(typeof m.dayMax==='string'&&m.dayMax>=m.day))m.dayMax=m.day;m.day=dk;if(!goalsOk(m.goals))m.goals=newGoals(m.day);return m;}
  if(typeof m.day!=='string'||dk>m.day){
@@ -119,7 +127,8 @@ function levelOf(xp){let lv=1,rem=Math.max(0,xp|0);while(lv<LV_MAX&&rem>=100*lv)
 function addXp(m,n){const a=levelOf(m.xp).lv;m.xp+=Math.max(0,n|0);return levelOf(m.xp).lv-a;}
 
 /* ===== equipamento ===== */
-const gearCost=L=>({stone:L,gold:50*L});
+/* v1.2: de L para L+1, L pedras e 25×L² de ouro */
+const gearCost=L=>({stone:L,gold:25*L*L});
 const gearTier=L=>L<=5?1:L<=10?2:L<=15?3:4;
 function upgradeGear(m,slot){if(!GEAR[slot])return false;const L=m.gear[slot];if(L>=GEAR_MAX)return false;
  const c=gearCost(L);if(m.stone<c.stone||m.gold<c.gold)return false;
@@ -138,7 +147,7 @@ function setPetOn(m,key){m.petOn=key&&m.pets[key]?key:null;}
 
 /* ===== bônus guardados na partida ===== */
 function permOf(m){const lv=levelOf(m.xp).lv,g=m.gear,p=m.petOn&&m.pets[m.petOn]?{key:m.petOn,mul:(PET_LV_STEP+m.pets[m.petOn]-1)/PET_LV_STEP}:null;
- return {hp:HP_PER_LV*(lv-1),block:GEAR.armor.per*(g.armor-1),dmgPct:GEAR.weapon.per*(g.weapon-1)/100,crit:GEAR.ring.per*(g.ring-1)/100,gold:GEAR.bag.per*(g.bag-1),pet:p};}
+ return {hp:HP_PER_LV*(lv-1),block:gearBonus('armor',g.armor),dmgPct:gearBonus('weapon',g.weapon)/100,crit:gearBonus('ring',g.ring)/100,gold:gearBonus('bag',g.bag),pet:p};}
 
 /* ===== fim de jornada ===== */
 function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:0))*(1+.05*(asc||0))),stone=Math.floor(wins/3);
@@ -148,6 +157,15 @@ function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:
 /* Diário e Duelo pagam prêmio de conta só na 1ª jornada de cada modo por dia UTC */
 function rewardOk(m,now,mode){rollDay(m,now);return !(mode==='daily'||mode==='duel')||!(m.rw[mode]>0);}
 function markReward(m,now,mode){rollDay(m,now);if(mode==='daily'||mode==='duel')m.rw[mode]=(m.rw[mode]||0)+1;}
+
+/* ===== Ascensão e o que conta para o perfil ===== */
+/* a próxima Ascensão libera depois de ASC_WINS vitórias de jornada no nível atual (o maior liberado) da classe; vitórias em níveis abaixo não contam */
+const ASC_WINS=2,ASC_MAX=10;
+function ascWin(prof,cls,asc){if(!isObj(prof.asc))prof.asc={};if(!isObj(prof.ascW))prof.ascW={};const cur=prof.asc[cls]||0;
+ if(asc<cur||cur>=ASC_MAX)return false;prof.ascW[cls]=(prof.ascW[cls]||0)+1;
+ if(prof.ascW[cls]>=ASC_WINS){prof.asc[cls]=Math.min(ASC_MAX,Math.max(cur,asc)+1);prof.ascW[cls]=0;return true;}return false;}
+/* Seed e Duelo não contam para desbloqueios, conquistas, Codex nem "jornada completa" (o Duelo só paga a recompensa de conta do dia) */
+const progressCounts=mode=>mode!=='seed'&&mode!=='duel';
 
 /* ===== propaganda, loja, conquistas ===== */
 /* devolve false se recusou; senão o que entrou (energia/ouro) ou true (dobro). No limite (99 de energia, 99999 de ouro) recusa sem gastar a vez. */
@@ -162,7 +180,8 @@ function achRuby(m,achKeys){let n=0;
  for(const k of achKeys)if(!m.achBase.includes(k)&&!m.achPaid[k]){m.achPaid[k]=1;n++;}
  return n?addRes(m,'ruby',n*ACH_RUBY):0;}
 
-window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,
+window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,ASC_WINS,HP_PER_LV,
+ gearBonus,ascWin,progressCounts,canUpgradeAny,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
  levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,rewardOk,markReward,adUse,buy,achRuby};
 })();
