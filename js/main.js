@@ -1035,7 +1035,7 @@ function tabDot(){const b=document.querySelector('#mtabs [data-nav="diario"]');i
  b.setAttribute('aria-label',`Diário, ${n} para pegar`);}
 function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Diário','diario');return;}
  const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
- const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
+ const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
   return `<div class="dcell${got?' got':''}${cur?' now':''}${nxt?' nxt':''}${i===6?' d7':''}" role="img" aria-label="Dia ${i+1}: ${rwSay(r)}${got?', pego':cur?', hoje':nxt?', amanhã':''}"><span class="dn" aria-hidden="true">Dia ${i+1}</span><span class="di" aria-hidden="true">${ks.map(k=>RES_ICO[k]).join('')}</span><span class="dv" aria-hidden="true">${ks.map(k=>fmtN(r[k])).join(' · ')}</span></div>`;}).join('');
  const goals=g.ids.map(id=>{const d=AM.GOALS[id],p=g.p[id]||0,done=g.done.includes(id);
   return `<div class="dgoal${done?' ok':''}"><span class="gi" aria-hidden="true">${GOAL_ICO[d.ev]||'⭐'}</span><div class="gt"><b>${d.t}</b><span>${done?'Feita':p+'/'+d.n}</span><div class="pb" aria-hidden="true"><i style="width:${Math.round(p/d.n*100)}%"></i></div></div>${done?`<span class="gok" role="img" aria-label="Feita">✔</span>`:`<button class="k-btn g sm gir" data-ir="${GOAL_GO[d.ev]||'play'}" aria-label="Ir: ${d.t}">IR</button>`}</div>`;}).join('');
@@ -1053,7 +1053,7 @@ function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScree
  const pg=$('#mpage');if(part==='goals'){const e=$('#dGoals');if(e)pg.scrollTop=e.getBoundingClientRect().top-pg.getBoundingClientRect().top+pg.scrollTop-6;}else if(part==='cal')pg.scrollTop=0;}
 /* PEGAR e dobro: o dobro só paga depois da propaganda, dentro de claimCal(…,true) */
 function claimDaily(dbl){const AM=window.AlforjeMeta,m=META();if(!m)return;const b=snapRes(m),r=AM.claimCal(m,Date.now(),dbl);
- if(r){gev('cal');saveProf();gainToast(m,b,r);}menuRefresh();}
+ if(r){gev('cal');gainToast(m,b,r);}menuRefresh();}
 /* cliques das páginas Diário e Loja: PEGAR, dobro, baús, IR, compras e propaganda do ouro */
 function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t.id,now=Date.now();
  if(id==='calGet')claimDaily(false);

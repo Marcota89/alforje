@@ -256,23 +256,25 @@ window.navDaily = async () => {
   const hadRun = !!(keep.stateObj.cls && keep.stateObj.phase !== 'class');
   const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
   const realNow = Date.now; let shift = 0; Date.now = () => realNow.call(Date) + shift; // só dentro deste teste
-  const aud = () => (window.alforjeAudit ? window.alforjeAudit() : null);
+  if (!window.alforjeAudit) return { error: 'carregue test/ui-audit.js antes' };
+  const aud = () => window.alforjeAudit();
   try {
     if (hadRun) { A.state.phase = 'class'; A.state.cls = null; }
     const m = A.META(); m.day = ''; A.META(); // dia novo: zera propagandas, compras e sorteia as metas
     m.cal.last = ''; m.cal.idx = 0; m.gold = 0; m.ruby = 100; m.energy = 10; m.eAt = Date.now(); m.stone = 0; m.food = 0; m.egg = 0;
-    m.goals.ids = ['win5', 'merge3', 'buy8', 'daily1', 'upgrade1']; m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; m.goals.chests = [false, false, false];
+    m.goals.ids = ['win5', 'merge3', 'cal1', 'daily1', 'upgrade1']; m.goals.p = {}; m.goals.done = []; m.goals.pts = 0; m.goals.chests = [false, false, false];
     // 1) aba Diário: calendário 4x2, hoje em verde, ponto vermelho na aba
     q('[data-nav="diario"]').click();
     R.page = !!q('#dCal') && q('#dCal').querySelectorAll('.dcell').length === 7 && !!q('#dCal .dcell.d7') && q('#dCal .dcell.now') === q('#dCal .dcell') && !!q('#dGoals');
     R.dot1 = !!q('#mtabs [data-nav="diario"] .k-dot') && q('#mtabs [data-nav="diario"] .k-dot').textContent === '1';
+    const a0 = aud(); if (a0) R.audit0 = a0;
     const a1 = aud(); if (a1) R.audit1 = a1;
     // 2) PEGAR: ouro +100; o 2º clique não faz nada (botão desabilitado)
     q('#calGet').click();
     R.claim = m.gold === 100 && q('#calGet').disabled && q('#calDbl').disabled && /100/.test(q('#toast').textContent) && m.cal.idx === 1;
     q('#calGet').click(); R.noTwice = m.gold === 100;
     R.dot0 = !q('#mtabs [data-nav="diario"] .k-dot');
-    R.calGoalSeen = true; // 'cal1' não está sorteado aqui: o evento 'cal' é tolerado sem meta
+    R.calGoal = m.goals.p.cal1 === 1 && m.goals.done.includes('cal1'); // gev('cal') ao pegar o bônus
     // 3) dobro em outro perfil (calendário zerado, mesmo dia): propaganda de 3 s e ouro +200
     m.cal.last = ''; m.cal.idx = 0; m.gold = 0; m.ad.double = 0; A.dailyScreen();
     q('#calDbl').click(); await wait(1200);
@@ -283,9 +285,14 @@ window.navDaily = async () => {
     m.cal.last = ''; m.cal.idx = 0; m.gold = 0; A.dailyScreen();
     R.dblUsed = q('#calDbl').disabled && /já usado/.test(q('#calDbl').textContent) && !q('#calGet').disabled;
     q('#calGet').click(); R.dblUsedGold = m.gold === 100;
+    // dia 7 pego: o índice volta a 0; a célula 0 é "amanhã" (não ✔) e só as 7 anteriores ficam pegas
+    m.cal.last = ''; m.cal.idx = 6; A.dailyScreen(); q('#calGet').click();
+    const cs = [...document.querySelectorAll('#dCal .dcell')];
+    R.wrap = cs.length === 7 && m.cal.idx === 0 && cs[0].classList.contains('nxt') && !cs[0].classList.contains('got') && /amanhã/.test(cs[0].getAttribute('aria-label')) && cs.slice(1).every(c => c.classList.contains('got')) && /Dia 1/.test(q('#dCal .muted').textContent);
+    m.cal.last = AM.dayKey(Date.now()); m.cal.idx = 1; m.gold = 0; A.dailyScreen(); // pego hoje; amanhã é o Dia 2
     // 4) metas até 40 pontos e baú (energia 95 + 10: sobra e avisa)
     const done = id => { const d = AM.GOALS[id]; AM.goalEvent(m, Date.now(), d.ev, d.n); };
-    done('win5'); done('merge3'); m.energy = 95; m.gold = 0;
+    done('win5'); m.energy = 95; m.gold = 0;
     A.dailyScreen();
     R.pts = m.goals.pts === 40 && q('[data-chest="0"]') && !q('[data-chest="0"]').disabled && q('[data-chest="1"]').disabled && q('[data-chest="2"]').disabled;
     R.dot2 = q('#mtabs [data-nav="diario"] .k-dot') && q('#mtabs [data-nav="diario"] .k-dot').textContent === '1';
@@ -297,8 +304,8 @@ window.navDaily = async () => {
     q('[data-ir="play"]') && (R.irPlayBtn = true);
     const goals = () => [...document.querySelectorAll('#dGoals .dgoal')];
     const irOf = t => goals().find(g => g.textContent.includes(t)).querySelector('[data-ir]');
-    R.irKinds = irOf('Desafio Diário').dataset.ir === 'daily' && irOf('Melhore').dataset.ir === 'equip' && irOf('Compre 8').dataset.ir === 'play';
-    irOf('Compre 8').click(); R.irPlay = !!q('#campGo') && q('#mtabs [data-nav="jogar"]').classList.contains('on');
+    R.irKinds = irOf('Desafio Diário').dataset.ir === 'daily' && irOf('Melhore').dataset.ir === 'equip' && irOf('Funda 3').dataset.ir === 'play';
+    irOf('Funda 3').click(); R.irPlay = !!q('#campGo') && q('#mtabs [data-nav="jogar"]').classList.contains('on');
     A.dailyScreen(); irOf('Desafio Diário').click(); R.irDaily = !!q('#goBtn') && A.MENU.mode === 'daily';
     A.dailyScreen(); irOf('Melhore').click(); R.irEquip = q('#mtabs [data-nav="equip"]').classList.contains('on');
     A.dailyScreen('goals'); R.irGoalsScroll = !!q('#dGoals');
@@ -308,8 +315,18 @@ window.navDaily = async () => {
     R.nextCal = !q('#calGet').disabled && q('#dCal .dcell.now .dn').textContent === 'Dia 2' && m.goals.pts === 0 && !q('[data-chest="0"]').classList.contains('got') && !!q('#mtabs [data-nav="diario"] .k-dot');
     // reabrir pela aba também mostra o dia novo
     q('[data-nav="loja"]').click(); q('[data-nav="diario"]').click(); R.reopen = q('#dCal').dataset.day === AM.dayKey(Date.now()) && !q('#calGet').disabled;
+    // limites: energia 99 trava a compra de energia; ouro 99999 trava a propaganda do ouro
+    m.ruby = 100; m.energy = 99; m.gold = 99999; m.ad.shop = 0; m.buys.energy30 = 0; A.shopScreen();
+    R.capEnergy = q('[data-buy="energy30"]').disabled && /Energia no máximo/.test(q('[data-buy="energy30"]').closest('.shopc').textContent);
+    R.capGold = q('#adShop').disabled && /Ouro no máximo/.test(q('#adShop').textContent);
+    q('[data-buy="energy30"]').click(); R.capNoSpend = m.ruby === 100 && m.energy === 99;
+    // IR -> Desafio com jornada em andamento: não mexe na jornada, só avisa
+    const st0 = A.state, ph0 = A.state.phase, cls0 = A.state.cls; A.state.cls = 'warrior'; A.state.phase = 'shop'; m.goals.ids = ['daily1', 'win5', 'merge3', 'forge1', 'buy8']; A.dailyScreen();
+    q('[data-ir="daily"]').click();
+    R.irRun = A.state === st0 && A.state.cls === 'warrior' && A.state.phase === 'shop' && !!q('#dGoals') && !q('#goBtn') && /Termine ou abandone/.test(q('#toast').textContent);
+    A.state.cls = cls0; A.state.phase = ph0; m.goals.ids = ['buy8', 'win5', 'merge3', 'forge1', 'daily1'];
     // 7) Loja: energia 2x por 15 💎 (3ª desabilitada), não conta como meta 'buy'; ouro por propaganda 1/dia
-    m.goals.ids = ['buy8', 'win5', 'merge3', 'forge1', 'daily1']; m.goals.p = {}; m.energy = 20; m.ruby = 100; m.gold = 0;
+    m.goals.ids = ['buy8', 'win5', 'merge3', 'forge1', 'daily1']; m.goals.p = {}; m.energy = 20; m.ruby = 100; m.gold = 0; m.stone = 0; m.food = 0; m.egg = 0;
     q('[data-nav="loja"]').click();
     R.shop = document.querySelectorAll('#shopL .shopc').length === 4 && /0\/2 hoje/.test(q('[data-buy="energy30"]').closest('.shopc').textContent);
     const a3 = aud(); if (a3) R.audit3 = a3;
@@ -335,9 +352,9 @@ window.navDaily = async () => {
     if (hadRun) { A.showRun(); A.render(); } else A.campScreen();
   }
   R.tsSame = localStorage.getItem(TK) === keep.ts; R.clockBack = Math.abs(Date.now() - realNow.call(Date)) < 50;
-  const audits = [R.audit1, R.audit2, R.audit3, R.audit4].filter(Boolean);
+  const audits = [R.audit0, R.audit1, R.audit2, R.audit3, R.audit4].filter(Boolean);
   R.auditClean = audits.every(a => a.length === 0);
-  R.pass = R.tsSame && R.clockBack && R.auditClean && ['page', 'dot1', 'claim', 'noTwice', 'dot0', 'adOpen', 'double', 'dblUsed', 'dblUsedGold', 'pts', 'dot2', 'chest', 'dot3', 'irKinds', 'irPlay', 'irDaily', 'irEquip',
+  R.pass = R.tsSame && R.clockBack && R.auditClean && ['page', 'dot1', 'claim', 'noTwice', 'dot0', 'calGoal', 'wrap', 'capEnergy', 'capGold', 'capNoSpend', 'irRun', 'adOpen', 'double', 'dblUsed', 'dblUsedGold', 'pts', 'dot2', 'chest', 'dot3', 'irKinds', 'irPlay', 'irDaily', 'irEquip',
     'nextDay', 'nextCal', 'reopen', 'shop', 'buy1', 'buy2', 'buy3', 'buy3No', 'others', 'noBuyGoal', 'poor', 'adGold'].every(k => R[k]);
   return R;
 };
