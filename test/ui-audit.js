@@ -42,8 +42,9 @@
   // true se outra camada cobre o centro do elemento (que não seja ele, descendente ou ancestral)
   function covered(el) {
     const r = el.getBoundingClientRect();
-    const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
-    const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    if (x < 0 || x >= innerWidth || y < 0 || y >= innerHeight) return false; // fora da tela: não dá para dizer que está coberto
     const t = document.elementFromPoint(x, y);
     if (!t) return false;
     return !(t === el || el.contains(t) || t.contains(el));
@@ -61,7 +62,7 @@
         add('texto cortado: ' + sel(el));
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') {
         const r = el.getBoundingClientRect();
-        if ((r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) && !inVScroller(el)) add('fora da tela: ' + sel(el));
+        if (r.left < 0 || r.right > innerWidth || ((r.top < 0 || r.bottom > innerHeight) && !inVScroller(el))) add('fora da tela: ' + sel(el));
         if (r.width < 40 || r.height < 40) add('alvo pequeno: ' + sel(el));
       }
     });
