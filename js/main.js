@@ -272,8 +272,10 @@ function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/1
  const W=Math.min(app.clientWidth||innerWidth,480),H=app.clientHeight||innerHeight;
  document.body.classList.toggle('big',!!o.big);document.body.classList.toggle('lefty',!!o.left);
  const n=Math.max(5,(state&&state.shop?state.shop.length:5)||5),cols=bagDims().cols,rows=bagDims().rows;
- const top=48,vs=Math.max(VSH,($('#vs')&&$('#vs').offsetHeight)||0),intent=40,aff=22,act=60,gaps=6*4,arenaMin=96;
- let cs,card,baseH,arenaH,scroll;
+ const top=48,vs=Math.max(VSH,($('#vs')&&$('#vs').offsetHeight)||0),intent=40,act=60,gaps=6*4,arenaMin=96;
+ let cs,card,baseH,arenaH,scroll,aff=40;const ui0=ui;
+ /* #aff reserva 40px (alvo de toque) quando a casa da mochila ainda fica >=44; senão cai para 22 (atalho secundário: Mais > Afinidades) */
+ for(let pass=0;pass<2;pass++){aff=pass?22:40;ui=ui0;
  for(let tries=0;tries<8;tries++){
   card=Math.floor((W-16-(n-1)*6)/n);scroll=n>5&&card<58;if(scroll)card=Math.floor((W-16-4*6)/5.35);card=Math.min(Math.round(86*ui),card);
   baseH=Math.max(card+30,2*44+28);
@@ -282,12 +284,13 @@ function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/1
   const availBag=free-am;
   cs=Math.min(Math.round(64*ui),Math.floor((W-24)/cols),Math.floor(availBag/rows));
   if(cs>=44||ui<=.9)break;ui-=.05;}
+  if(cs>=44)break;}
  cs=Math.max(40,cs);CS=cs;CARD=card;
  CCS=Math.max(36,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24-76)/chestCols())));
  const bagH=rows*cs+8,battle=!!state&&state.phase==='battle',meterMin=150;app.classList.toggle('in-battle',battle);
  /* luta: sem mochila nem faixa da loja; a arena ocupa o espaço e o medidor fica na faixa de baixo */
  arenaH=battle?Math.max(arenaMin,Math.min(Math.round(W*.56),H-top-vs-intent-meterMin-act-gaps)):Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
- const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');
+ const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');R.setProperty('--affh',aff+'px');{const af=$('#aff');if(af){if(aff<40)af.dataset.tight='1';else delete af.dataset.tight;}}
  app.classList.toggle('roomy',arenaH>=170);$('#shop').classList.toggle('scroll',!!scroll);
  sizeCanvas();placeSellZone();}
 function stats(){const s=$('#stats');if(!state.cls){s.innerHTML='';$('#petsmini').hidden=true;return;}
@@ -351,10 +354,6 @@ function addFloat(side,cls,txt){const fl=$('#floats');if(fl.childElementCount>14
  let px=(CV.ox+lx*CV.K)/CV.dpr,py=(CV.oy+ly*CV.K)/CV.dpr;const w=CV.w/CV.dpr;if(cls==='banner')px=Math.min(w*.78,Math.max(w*.22,px));
  s.style.left=px+'px';s.style.top=Math.max(40,py)+'px';fl.appendChild(s);setTimeout(()=>s.remove(),cls==='banner'?1200:900);}
 function pulseItem(id,cls){const el=document.querySelector(`.item[data-id="${id}"]`);if(el){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);}}
-let beamBusy=0;
-function beam(fromId,toId){if(beamBusy>5)return;const svg=document.querySelector('#bag .teth');if(!svg)return;const a=state.items.find(i=>i.id===fromId),b=state.items.find(i=>i.id===toId);if(!a||!b)return;
- const l=document.createElementNS('http://www.w3.org/2000/svg','line');const ca=ctr(a),cb=ctr(b);l.setAttribute('x1',ca[0]);l.setAttribute('y1',ca[1]);l.setAttribute('x2',cb[0]);l.setAttribute('y2',cb[1]);l.setAttribute('class','flash');
- svg.appendChild(l);beamBusy++;setTimeout(()=>{l.remove();beamBusy--;},280);}
 function flushEvents(){let snd=0;
  for(const e of B.ev){
   if(e.k==='atk'){spawnAtk(e);if(e.s==='p'){const hk=e.id!=null?'i'+e.id:e.pet!=null?'p'+e.pet:null;if(hk)hitRow(hk);}
@@ -672,7 +671,7 @@ function eventChoose(a){const e=state.event;state.event=null;
   if(e==='altar'){const c=state.items.filter(i=>i.tier<4);state.maxHpMod=(state.maxHpMod||0)-8;if(c.length){const it=rpick(c);it.tier++;mergedId=it.id;toast(`${ITEMS[it.key].name} subiu para ${TIERS[it.tier-1]} · −8 de vida máxima`,1);}}
   if(e==='andarilho'){let w=-1;state.pets.forEach((p,i)=>{if(p&&(w<0||p.tier<state.pets[w].tier))w=i;});if(w>=0){toast(`${PETS[state.pets[w].key].name} seguiu com o andarilho · +10 de ouro`,1);state.pets[w]=null;state.gold+=10;}}}
  sfx('click');nextQueue();}
-function endScreen(won,report){const surv=state.surv;const canSurv=won&&!surv&&state.mode!=='duel';
+function endScreen(won,report){$('#app').classList.remove('in-battle');const surv=state.surv;const canSurv=won&&!surv&&state.mode!=='duel';
  const sc=score();
  overlay(`<h2 class="${won?'':'bad'}">${surv?(won?'O Norte foi vencido':'Fim da Sobrevivência'):won?'A viagem terminou':'Fim da jornada'}</h2>
  <p class="story">${surv?STORY.surv:won?STORY.win:STORY.lose}</p>

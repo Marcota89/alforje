@@ -101,8 +101,8 @@ body.cb :is(#bag,#chest,.ghost) .pips i{width:8px;height:8px;background:#fff;box
 body.cb :is(#bag,#chest,.ghost) .pips i:first-child{display:none}
 
 /* carga e afinidades em pílulas */
-/* o botão tem 40px de alto (alvo de toque) mas só 24px de layout: sobe 16px sob a base da mochila (#bag fica por cima, z-index 1) e as pílulas ficam coladas embaixo */
-#aff{position:relative;flex:none;min-width:44px;height:40px;margin-top:-16px;max-width:100%;display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;justify-content:center;align-items:flex-end;background:none;border:0;padding:0 4px 2px;cursor:pointer;font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff}
+/* altura = --affh (40 quando cabe, 22 no aperto, ver fit()); nunca passa do espaço reservado */
+#aff{position:relative;flex:none;min-width:44px;height:var(--affh,22px);max-width:100%;display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;justify-content:center;align-items:center;background:none;border:0;padding:0 4px;cursor:pointer;font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff}
 #aff .load,#aff .aftag,#aff .pkdot{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;border:2px solid var(--pill-edge);background:var(--pill-bg);font:900 11px/1 'Nunito',system-ui,sans-serif;color:#fff;white-space:nowrap}
 #aff .aftag{border-color:var(--c)}
 #aff .aftag.on{background:var(--c);color:var(--ink-brown)}

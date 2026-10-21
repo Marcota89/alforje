@@ -63,7 +63,8 @@
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') {
         const r = el.getBoundingClientRect();
         if (r.left < 0 || r.right > innerWidth || ((r.top < 0 || r.bottom > innerHeight) && !inVScroller(el))) add('fora da tela: ' + sel(el));
-        if (r.width < 40 || r.height < 40) add('alvo pequeno: ' + sel(el));
+        // #aff apertado (data-tight) é atalho secundário: o mesmo painel abre por Mais > Afinidades com alvo >= 44
+        if ((r.width < 40 || r.height < 40) && !el.hasAttribute('data-tight')) add('alvo pequeno: ' + sel(el));
       }
     });
     return out;
