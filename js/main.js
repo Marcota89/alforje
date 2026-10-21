@@ -283,7 +283,7 @@ function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/1
   cs=Math.min(Math.round(64*ui),Math.floor((W-24)/cols),Math.floor(availBag/rows));
   if(cs>=44||ui<=.9)break;ui-=.05;}
  cs=Math.max(40,cs);CS=cs;CARD=card;
- CCS=Math.max(40,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24-64)/chestCols())));
+ CCS=Math.max(36,Math.min(cs,Math.floor((baseH-28)/CHEST_ROWS),Math.floor((W-24-76)/chestCols())));
  const bagH=rows*cs+8;arenaH=Math.max(arenaMin,Math.min(Math.round(W/1.92),H-top-vs-intent-bagH-aff-baseH-act-gaps));
  const R=document.documentElement.style;R.setProperty('--cs',cs+'px');R.setProperty('--ccs',CCS+'px');R.setProperty('--card',card+'px');R.setProperty('--baseh',baseH+'px');R.setProperty('--arenah',arenaH+'px');R.setProperty('--bagh',bagH+'px');
  app.classList.toggle('roomy',arenaH>=170);$('#shop').classList.toggle('scroll',!!scroll);

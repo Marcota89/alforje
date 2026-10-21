@@ -149,9 +149,29 @@ body.is-dragging #chestwrap{position:relative;z-index:56;align-self:flex-end}
 body.lefty.is-dragging #chestwrap{align-self:flex-start}
 
 /* venda: a faixa da loja vira "Vender" durante o arrasto (posição em placeSellZone) */
-#sellzone{position:fixed;z-index:55;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:0 8px;background:linear-gradient(180deg,#ff6a4a,#d8282f);border:3px dashed #fff;border-radius:15px;box-shadow:0 4px 0 #8a1020;color:#fff;pointer-events:none}
+#sellzone{position:fixed;z-index:55;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:0 6px;background:linear-gradient(180deg,#ff6a4a,#d8282f);border:3px dashed #fff;border-radius:15px;box-shadow:0 4px 0 #8a1020;color:#fff;pointer-events:none}
 body.lefty #sellzone{align-items:flex-end}
 #sellzone b{font:400 16px/1 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;text-shadow:0 2px 0 #8a1020}
 #sellzone span{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;background:var(--pill-bg);border:2px solid var(--pill-edge);border-radius:11px;font:900 13px/1 'Nunito',system-ui,sans-serif;color:#fff}
 #sellzone span img{height:12px;width:auto;image-rendering:pixelated}
 #sellzone.hot{border-style:solid;filter:brightness(1.15);box-shadow:0 0 0 4px var(--pill-edge),0 4px 0 #8a1020}
+
+/* regras vivas migradas do legacy (Tarefa 4, ajuste 1) */
+body :is(#bag,#chest,.ghost) .face.t4::before{content:"";position:absolute;inset:0;border-radius:5px;padding:2px;background:conic-gradient(from var(--ang,0deg),#ffe27a,#ff6ad5,#6affd0,#94d0ff,#ffe27a);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 3s linear infinite;pointer-events:none}
+:is(#bag,#chest,.ghost) .face img.art{pointer-events:none;height:auto;filter:drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
+:is(#bag,#chest,.ghost) .face img.art.bowtint{filter:sepia(.9) saturate(1.8) hue-rotate(-12deg) brightness(.9) drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
+:is(#bag,#chest) .item.rcpready .face::after{content:"FORJA!";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-family:var(--f-title);font-weight:900;font-size:8px;letter-spacing:.05em;color:#2a1606;background:linear-gradient(#ffe08a,#d39a2e);padding:0 4px;border-radius:2px;box-shadow:0 1px 0 #000;z-index:4}
+:is(#bag,#chest) .item.dragging{opacity:.25}
+:is(#bag,#chest) .item.fire .face{animation:jump .22s ease-out}
+:is(#bag,#chest) .item.buff .face{animation:buff .25s steps(2)}
+:is(#bag,#chest) .item.merged .face{animation:merged .7s steps(4)}
+:is(#bag,#chest) .item.snap .face{animation:snapin .38s ease-out;box-shadow:0 0 0 2px var(--orange),0 0 14px rgba(240,138,28,.8)}
+#bag.shake,#chest.shake{animation:gshake .34s ease-out}
+:is(#bag,#chest,#shop) .tdots{position:absolute;right:4px;bottom:3px;display:flex;gap:2px;z-index:3}
+:is(#bag,#chest,#shop) .tdots i{width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px #000}
+:is(#bag,#chest) .item:focus-visible,#shop .card:focus-visible{outline:3px solid var(--ink-brown);outline-offset:2px}
+body.big #shop .card .price{font-size:15px;height:24px}
+body.big #chestHead{font-size:12.5px}
+body.big #chestHead b{font-size:13.5px}
+body.big #sellzone b{font-size:17px}
+body.big #sellzone span{font-size:14px}
