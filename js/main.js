@@ -91,7 +91,7 @@ let muted=false;try{muted=localStorage.getItem('alforje-mute')==='1';}catch(e){}
 /* ================= STATE ================= */
 let state=null,B=null,CS=56;
 /* toda troca do estado da partida passa por aqui, para o módulo de simulação enxergar o mesmo objeto */
-function setState(s){state=s;SIM.setState(s);return s;}
+function setState(s){state=s;SIM.setState(s);FORGEFX=[];for(const k in GLOW)delete GLOW[k];return s;}
 function save(){if(TAB_LOCK)return;try{if(state.phase!=='battle'){localStorage.setItem(RUNKEY,JSON.stringify(state));markDirty();}}catch(e){}}
 /* a luta grava a partida na entrada (fase 'battle', fila já aplicada): recarregar no meio resolve a mesma luta */
 function saveFight(s){if(TAB_LOCK)return false;try{localStorage.setItem(RUNKEY,JSON.stringify(Object.assign({},s,{undo:null,sel:null,selMore:false})));}catch(e){return false;}markDirty();return true;}
@@ -304,7 +304,7 @@ const OPT=()=>Object.assign({scale:100,big:0,left:0,tapMove:0,volFx:70,volMus:30
 const VSH=46;
 let CCS=44,CARD=64,BASEMODE='shop',DRAWER=null;
 const csOf=w=>w==='chest'?CCS:CS;
-function fit(){const app=$('#app');if(!app)return;const o=OPT();let ui=o.scale/100;
+function fit(){const app=$('#app');if(!app)return;MSIG='';const o=OPT();let ui=o.scale/100;
  const W=Math.min(app.clientWidth||innerWidth,480),H=app.clientHeight||innerHeight;
  document.body.classList.toggle('big',!!o.big);document.body.classList.toggle('lefty',!!o.left);
  const n=Math.max(5,(state&&state.shop?state.shop.length:5)||5),cols=bagDims().cols,rows=bagDims().rows;
@@ -373,10 +373,13 @@ function iconURL(icon,tier){if(!icon)return null;if(icon.startsWith('pet:'))retu
 function meterRows(src){return Object.entries(src).filter(([,s])=>s.dmg+s.blk+s.heal>0).map(([k,s])=>({k,...s})).sort((x,y)=>(y.dmg+y.blk+y.heal)-(x.dmg+x.blk+x.heal));}
 /* realce de 300 ms na linha do medidor quando o item (i12) ou companheiro (p0) ataca; guardado porque o medidor é redesenhado a cada 250 ms */
 const HIT={};
-function hitRow(key){const until=performance.now()+300;HIT[key]=until;const el=document.querySelector(`#meter .mrow[data-key="${key}"]`);if(el){el.classList.add('hit');setTimeout(()=>{if(HIT[key]<=performance.now())el.classList.remove('hit');},310);micPulse(el);}}
+function hitRow(key){const until=performance.now()+300;HIT[key]=until;const el=document.querySelector(`#meter .mrow[data-key="${key}"]`);if(el){el.classList.add('hit');micPulse(el);}setTimeout(()=>unHit(key),310);}
+/* tira o realce da linha atual com essa chave (a do momento do golpe pode ter sido trocada por um refazer do medidor) */
+function unHit(key){if(HIT[key]>performance.now())return;const r=document.querySelector(`#meter .mrow[data-key="${key}"]`);if(r)r.classList.remove('hit');}
 /* v1.3: relógio de recarga de cada linha (arma, companheiro ou cura) e anéis só das linhas visíveis */
 function timerOf(b,k){return b.p.weapons.find(w=>w.key===k&&!w.nodmg)||b.p.weapons.find(w=>w.key===k)||b.p.heals.find(h=>h.key===k)||null;}
 const RINGS=[];let MIC={},MSIG='',BEAMN=0,beamL=null;
+function meterReset(){MSIG='';RINGS.length=0;MIC={};}
 function updRings(){for(const r of RINGS){const p=Math.max(0,Math.min(1,1-r.t.t/r.t.cd));if(Math.abs(p-r.p)>=.01){r.p=p;r.el.style.setProperty('--p',p.toFixed(2));}}}
 function micPulse(row){if(calm())return;const m=row.querySelector('.mic');if(m&&m.animate)m.animate([{transform:'scale(1.25)'},{transform:'scale(1.25)',offset:.6},{transform:'scale(1)'}],{duration:160,easing:'ease-out'});}
 function fxLayer(){if(!beamL||!beamL.isConnected){beamL=document.createElement('div');beamL.id='fxl';beamL.setAttribute('aria-hidden','true');document.body.appendChild(beamL);}return beamL;}
@@ -397,6 +400,7 @@ function meterHTML(b,limit,title){const now=performance.now(),rows=meterRows(b.s
 function renderMeter(){const m=$('#meter');if(!B||state.phase!=='battle'){m.hidden=true;MSIG='';RINGS.length=0;return;}m.hidden=false;
  const rows=meterRows(B.stats).slice(0,12),sig=rows.map(r=>r.k).join(',')+'|'+CS+'|'+document.body.classList.contains('big');
  if(sig===MSIG&&meterPatch(m,rows))return;MSIG=sig;m.innerHTML=meterHTML(B,12,'MEDIDOR AO VIVO');fitMeter(m);
+ m.querySelectorAll('.mrow.hit').forEach(el=>{const k=el.dataset.key;setTimeout(()=>unHit(k),Math.max(0,HIT[k]-performance.now())+10);});
  RINGS.length=0;MIC={};m.querySelectorAll('.mrow').forEach(el=>{const g=el.querySelector('.cring'),t=g&&timerOf(B,el.dataset.key);if(t)RINGS.push({el:g,t,p:-1});const c=el.querySelector('.mic').getBoundingClientRect();MIC[el.dataset.key]=[c.left+c.width/2,c.top+c.height/2];});updRings();}
 /* mesma ordem de linhas: só barras e números mudam (o anel, o pulo e o realce seguem vivos) */
 function meterPatch(m,rows){const els=m.querySelectorAll('.mrow');if(!els.length)return false;const by={};for(const r of rows)by[r.k]=r;const mx=Math.max(...rows.map(s=>s.dmg+s.blk+s.heal));
@@ -705,13 +709,13 @@ function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque
  if(drag){cleanup();drag=null;}
  state.sel=null;state.undo=null;state.mood='';const q=state.gq,pq0=state.pq;state.gq=null;state.pq=null;
  if(pf)state.pfPending=pf;
- state.phase='battle';FORGEFX=[];qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
+ state.phase='battle';FORGEFX=[];meterReset();qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
  const f=foeDef();if(f.art)codexFoe(f.art,false);saveProf();closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
 let finishing=false;
 function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='lose';B.ev.length=0;}
 /* partida salva no meio de uma luta (recarregou, fechou o app ou veio da nuvem): a mesma montagem (newBattle) roda até o fim
    com o mesmo passo fixo da luta ao vivo e cai no resultado, como se o jogador tivesse assistido */
-function resumeFight(){showRun();B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];skip();render();finish();}
+function resumeFight(){showRun();meterReset();B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];skip();render();finish();}
 setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;setTimeout(()=>{finishing=false;finish();},700);}},100);
 function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier=r.tier;a.key=r.res;FORGEFX.push(a.id);state.items=state.items.filter(i=>i!==r.b);done.push(`${ITEMS[r.a.key].name} (${TIERS[a.tier-1]})`);
  if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');rgev('forge');}
