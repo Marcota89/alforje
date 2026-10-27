@@ -67,7 +67,8 @@ function loadProf(){let raw=null;try{raw=localStorage.getItem(PROFKEY);}catch(e)
 function releaseHold(){if(!PROF_HOLD)return;PROF_HOLD=false;try{localStorage.removeItem(HOLDKEY);}catch(e){}}
 function saveProf(){if(TAB_LOCK)return;try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));}catch(e){}markDirty();}
 loadProf();
-const counts=()=>!!state&&window.AlforjeMeta.progressCounts(state.mode);
+/* o Laboratório nunca conta (trava local, além da regra de js/meta.js) */
+const counts=()=>!!state&&state.mode!=='lab'&&window.AlforjeMeta.progressCounts(state.mode);
 /* evento das metas do dia (a meta soma sozinha; quem chama decide se vale) */
 function gev(ev,n){try{const m=META();if(!m)return;window.AlforjeMeta.goalEvent(m,Date.now(),ev,n);saveProf();}catch(e){}}
 /* compra e fusão podem ser desfeitas: ficam na fila do estado (o Desfazer a restaura) e só contam ao lutar */
@@ -541,16 +542,18 @@ function sayMerchant(force,ev){const b=$('#mline');ev=ev||MPEND;MPEND=null;if(!s
  b.dataset.face=face;b.hidden=false;placeBubble();typeLine(b.querySelector('.tw'),line);}
 /* máquina de escrever (≈30 letras/s); um toque completa; movimento reduzido ou modo econômico: texto inteiro. Some 4 s depois de completo. */
 function typeLine(el,txt){if(TW)clearInterval(TW.t);TW=null;clearTimeout(bubbleT);const b=$('#mline');
- const done=()=>{if(TW)clearInterval(TW.t);TW=null;el.textContent=txt;clearTimeout(bubbleT);bubbleT=setTimeout(()=>{b.hidden=true;},4000);};
+ const done=()=>{if(TW)clearInterval(TW.t);TW=null;el.textContent=txt;clearTimeout(bubbleT);bubbleT=setTimeout(()=>{b.hidden=true;},2500);};
  if(calm()){done();return;}
  let i=0;el.textContent='';TW={done,t:setInterval(()=>{i++;el.textContent=txt.slice(0,i);if(i>=txt.length)done();},33)};}
 function twFinish(){if(!TW)return false;TW.done();return true;}
+/* esconde o balão e para a máquina de escrever e o relógio de sumir (luta, Baú, menu, ficha, toque) */
+function twStop(){if(TW)clearInterval(TW.t);TW=null;clearTimeout(bubbleT);const b=$('#mline');if(b)b.hidden=true;}
 /* o balão fica acima da mochila (sobre a faixa do inimigo e a arena), nunca em cima dela */
 function placeBubble(){const b=$('#mline'),a=$('#app'),z=$('#bagzone');if(!b||b.hidden||!a||!z)return;const ar=a.getBoundingClientRect(),zr=z.getBoundingClientRect();if(!zr.height)return;b.style.bottom=Math.max(0,Math.round(ar.bottom-zr.top+4))+'px';}
 function renderShop(){const sh=$('#shop'),base=$('#base');
  const battle=state.phase==='battle',chest=!battle&&BASEMODE==='chest';
  base.dataset.mode=battle?'battle':chest?'chest':'shop';
- sh.hidden=battle||chest;$('#chestwrap').hidden=!chest;if(battle||chest)$('#mline').hidden=true;if(!battle)$('#meter').hidden=true;
+ sh.hidden=battle||chest;$('#chestwrap').hidden=!chest;if(battle||chest)twStop();if(!battle)$('#meter').hidden=true;
  sh.style.setProperty('--n',Math.max(5,state.shop.length));
  sh.innerHTML=state.shop.map((s,i)=>{if(!s)return `<div class="card sold" aria-hidden="true"></div>`;const p=offerPrice(s),sel=state.sel&&state.sel.shop===i;
   const name=s.pet?PETS[s.key].name:ITEMS[s.key].name;
@@ -660,7 +663,7 @@ function renderPop(){const p=$('#pop');const s=state.sel;
   sub=it.where==='chest'?' · no Baú':'';}
  const name=pet?PETS[key].name:ITEMS[key].name,lines=popLines(key,tier,it,pet,po);
  p.innerHTML=`<i class="arrow"></i><div class="ph"><b>${name}</b><span>${TIERS[tier-1]}${sub}${pet?'':' '+tagDots(key)}</span></div><ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul><div class="pb">${btns}<button class="k-btn v" id="moreInfo" aria-label="Mais detalhes">Mais</button></div>`;
- p.style.setProperty('--tier',tierVar(tier));p.hidden=false;placePop(p,anc);const mb=$('#mline');if(mb)mb.hidden=true;}
+ p.style.setProperty('--tier',tierVar(tier));p.hidden=false;placePop(p,anc);twStop();}
 function placePop(p,anc){const r=anc.getBoundingClientRect(),W=innerWidth,H=innerHeight,m=8;p.style.left='0px';p.style.top='0px';
  const pw=Math.min(300,W-2*m);p.style.width=pw+'px';const ph=p.offsetHeight;
  let x=Math.max(m,Math.min(W-pw-m,r.left+r.width/2-pw/2)),y=r.top-ph-12,below=false;
@@ -795,7 +798,7 @@ function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.
 /* v1.3: "quase lá" — o inimigo terminou com até 15% da vida. Uma dica verdadeira, tirada da mochila de agora e do medidor da luta. */
 const SUPOK=it=>{const d=ITEMS[it.key];return !!(d.pat||d.tagSup)&&SUPKEYS.some(k=>d[k]);};
 function nearHint(){const links=supportLinks(),bag=inWhere('bag'),dmg=w=>{const s=lastFight&&lastFight.stats&&lastFight.stats['i'+w.id];return s?Math.round(s.dmg):0;};
- const weps=fightingWeapons().slice().sort((a,b)=>dmg(a)-dmg(b)),weak=weps[0],nm=it=>`<b>${ITEMS[it.key].name}</b>`,least=weps.length>1?'a arma que menos bateu':'sua única arma';
+ const weps=fightingWeapons().slice().sort((a,b)=>dmg(a)-dmg(b)),weak=weps[0],nm=it=>`<b>${ITEMS[it.key].name}</b>`,least=state.chal==='onewep'?'a única arma que luta neste desafio':weps.length>1?'a arma que menos bateu':'sua única arma';
  /* 1. apoio na mochila que não reforça arma nenhuma (Flâmulas ficam de fora: valem em qualquer lugar, mudar de casa não ajuda) */
  const idle=weak&&bag.find(s=>SUPOK(s)&&!ITEMS[s.key].tagSup&&!links.some(L=>L.s===s));
  if(idle)return {k:'idle',h:`Nenhuma arma recebe o bônus de ${nm(idle)}. Mude de lugar para alcançar ${nm(weak)}, ${least} (veja o alcance na ficha).`};
@@ -965,7 +968,8 @@ const API=window.AlforjeCloud||null;
 function testOffline(){try{return localStorage.getItem('alforje-test-offline')==='1';}catch(e){return false;}}
 function markDirty(){if(TAB_LOCK||PROF_HOLD)return;if(testOffline()){CLOUD.ready=false;return;}try{localStorage.setItem('alforje-ts',String(Date.now()));}catch(e){}if(!CLOUD.ready)return;CLOUD.dirty=true;clearTimeout(CLOUD.timer);CLOUD.timer=setTimeout(cloudPush,4000);}
 function cloudFlush(){if(CLOUD.ready&&CLOUD.dirty){clearTimeout(CLOUD.timer);cloudPush();}}
-function runJSON(){try{return state&&state.phase!=='battle'?JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})):(localStorage.getItem(RUNKEY)||'');}catch(e){return '';}}
+/* a jornada do Laboratório não vai para a nuvem (fica só neste aparelho); a nuvem com jornada vazia mantém a local (cloudAdopt) */
+function runJSON(){try{if(state&&state.mode==='lab')return '';return state&&state.phase!=='battle'?JSON.stringify(Object.assign({},state,{undo:null,sel:null,selMore:false})):(localStorage.getItem(RUNKEY)||'');}catch(e){return '';}}
 async function cloudPush(){if(TAB_LOCK||PROF_HOLD)return;if(testOffline()){CLOUD.ready=false;return;}if(!CLOUD.ready||CLOUD.busy||!CLOUD.dirty)return;CLOUD.busy=true;CLOUD.dirty=false;
  try{let lt=0;try{lt=+localStorage.getItem('alforje-ts')||Date.now();}catch(e){lt=Date.now();}
   await API.pushSave({t:lt,v:VER,prof:JSON.stringify(PROF),run:runJSON()});}
@@ -1206,7 +1210,7 @@ function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}c
  const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.dataset.t!==a.t){x.innerHTML=a.h;x.dataset.t=a.t;x.setAttribute('aria-label',a.l);}if(x.disabled!==a.dis)x.disabled=a.dis;});}
 function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElement,was=mn.hidden;
  const o=$('#overlay');if(!o.hidden){o.hidden=true;overlayFrom=null;}confirmFn=null;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();
- if(state){state.sel=null;state.selMore=false;}['#pop','#sheet','#coach','#mline'].forEach(s=>{const e=$(s);if(e)e.hidden=true;});
+ if(state){state.sel=null;state.selMore=false;}['#pop','#sheet','#coach'].forEach(s=>{const e=$(s);if(e)e.hidden=true;});twStop();
  /* foco: o mesmo botão depois de redesenhar (mesmo id ou mesmo data-*) */
  let key=null;if(a&&pg.contains(a)){if(a.id)key='#'+a.id;else{const d=[...a.attributes].find(x=>x.name.startsWith('data-'));if(d)key=`[${d.name}="${CSS.escape(d.value)}"]`;}}
  const m=/^\s*<h2(?: class="([^"]*)")?>([^<]*)/.exec(html),prevT=pg.dataset.t,st=pg.scrollTop;
@@ -1461,7 +1465,7 @@ function labCatScreen(){if(!isLab()||!inShop())return;const keys=Object.keys(ITE
 function labPlace(key,tier){if(!isLab()||!inShop()||!knownItem(key))return false;tier=Math.max(1,Math.min(4,tier|0||1));const d=ITEMS[key],sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);
  if(!sp){toast('Sem espaço na mochila nem no Baú');buzz(40);return false;}
  snapshot();state.items.push({id:state.nid++,key,tier,...sp});sfx('drop');buzz(10);toast(`${d.name} ${TIERS[tier-1]} ${sp.where==='bag'?'na mochila':'no Baú'}`);save();render();return true;}
-function labExit(){if(!isLab())return;LABD=null;setState(fresh());save();closeOverlay();campScreen();}
+function labExit(){if(!isLab())return;LABD=null;MENU.mode='normal';setState(fresh());save();closeOverlay();campScreen();}
 /* ----- tutorial (INF-05) ----- */
 const TUT=[['Toque, segure e arraste','Toque num item ou card para ver a ficha curta acima dele, com Comprar, Girar e Vender. Para mover, segure um instante (ou já arraste): o item fica acima do dedo para você ver onde ele cai. Só o que está na Mochila luta.'],
  ['Gire, funda e venda','Itens compridos giram: toque duas vezes no item ou use o botão ⟳ enquanto arrasta. Dois iguais da mesma raridade se fundem. Para vender, arraste o item até a faixa da loja, que vira Vender durante o arrasto. O Baú fica no botão da barra de baixo e aparece sozinho quando você arrasta um item da mochila.'],
@@ -1668,7 +1672,8 @@ document.addEventListener('change',e=>{const id=e.target.id;if(id==='duelIn')cla
  if(id==='optAsk'){PROF.noAsk=e.target.checked?0:1;saveProf();}if(id==='optMute'){muted=!e.target.checked;try{localStorage.setItem('alforje-mute',muted?'1':'0');}catch(_){}applyAudio();}});
 document.addEventListener('click',e=>{
  const g=e.target.closest('#bag,#chest');if(g&&!e.target.closest('.item')&&gridTap(g,e))return;
- if(e.target.closest('#mline')){if(!twFinish())$('#mline').hidden=true;return;}
+ /* um toque fecha o balão; se ele estava sobre a faixa do inimigo, a faixa age (arsenal ou escolha do adversário) */
+ if(e.target.closest('#mline')){twStop();const fi=$('#foeinfo');if(fi&&inRect(fi,e.clientX,e.clientY))fi.click();return;}
  const t=e.target.closest('button');if(!t)return;
  if(t.dataset.pet!=null&&t.matches('.slot')){const i=+t.dataset.pet;if(state.pets[i]){state.sel=state.sel&&state.sel.pet===i?null:{pet:i};state.selMore=false;renderPets();renderPop();renderSheet();}return;}
  if(t.dataset.pane){DRAWER=t.dataset.pane;state.sel=null;renderPop();renderDrawer();return;}
@@ -1737,7 +1742,7 @@ window.addEventListener('resize',()=>{if(!drag)render();});
 STOPS.forEach(s=>s.v.forEach(v=>img('e_'+v.art)));for(const c in POSE)for(const p in POSE[c])if(p!=='_'&&p!=='s')img('hp_'+c+'_'+p);Object.values(BGS).forEach(b=>img(b.full||b.strip));
 window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set state(s){setState(s);},get PROF(){return PROF;},set PROF(p){PROF=p;},MENU,page,showRun,cloudAdopt,classScreen,buy,fight,skip,finish,render,newBattle,step,makePlayer,makeFoe,readyRecipes,forge,addItem,addPet,rollShop,
  expandScreen,doExpand,income,interest,pickClass,supportLinks,weaponStats,relations,weightInfo,foeDef,takeBless,takeSub,eventChoose,nextQueue,buildCode,parseCode,startSurvival,reroll,hammer,petAct,undo,affinity,score,boardPost,boardScreen,mission,missionWin,get CLOUD(){return CLOUD;},cloudInit,postJobs,sell,sellPet,rotate,skipShop,get TAB_LOCK(){return TAB_LOCK;},get PROF_HOLD(){return PROF_HOLD;},loadProf,META,journeyCost,campScreen,moreScreen,watchAd,noEnergy,adStop,closeOverlay,menuTick,menuTicking:()=>!!menuT,equipScreen,petsScreen,dailyScreen,shopScreen,
- setOpt,applyOpts,codexScreen,discClaim,discN,labOppScreen,labOppSet,labOppApply,labCatScreen,labPlace,labExit,nearHint,sayMerchant,merchReturn,resumeFight,resumeView,loadProf,
+ setOpt,applyOpts,twStop,runJSON,codexScreen,discClaim,discN,labOppScreen,labOppSet,labOppApply,labCatScreen,labPlace,labExit,nearHint,sayMerchant,merchReturn,resumeFight,resumeView,loadProf,
  get B(){return B;},set B(b){B=b;}};
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
 /* não deu para retomar: guarda a jornada em alforje-run6-bak, descarta e abre o acampamento */

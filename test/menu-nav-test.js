@@ -526,6 +526,13 @@ window.navLab = async () => {
     q('[data-lstop="6"]').click(); q('[data-lvar="1"]').click(); const mod = q('[data-lmod]').dataset.lmod; q(`[data-lmod="${mod}"]`).click();
     q('[data-lasc="1"]').click(); q('[data-lasc="1"]').click(); R.oppAudit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
     q('#labGo').click();
+    // o balão do Mascate sobre a faixa do inimigo: um toque fecha e a faixa age (aqui, abre a escolha do adversário)
+    A.sayMerchant(true, 'hammer'); const fr = q('#foeinfo').getBoundingClientRect(), mb = q('#mline').getBoundingClientRect(), cx = fr.left + fr.width / 2, cy = fr.top + fr.height / 2;
+    const over = !q('#mline').hidden && cy >= mb.top && cy <= mb.bottom;
+    q('#mline').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));
+    R.bubbleTapStrip = over && q('#mline').hidden && !!q('[data-lstop]'); q('#labNo').click();
+    // Laboratório não vai para a nuvem; a nuvem com jornada vazia mantém a local
+    R.noCloudRun = A.runJSON() === '';
     const f = A.foeDef(); R.oppSet = A.state.wins === 5 && f.stop === 5 && f.name === window.AlforjeData.STOPS[5].v[1].name && f.mods.includes(mod) && A.state.asc === 2 && /P6/.test(q('#stats').textContent);
     // perder: troca a mochila por uma adaga Comum contra o chefe na A10
     A.labOppApply({ stop: 10, v: 0, mods: ['furia'], asc: 10 });
@@ -552,8 +559,10 @@ window.navLab = async () => {
     if (q('#next')) q('#next').click();
     R.reloadKeepsLab = JSON.parse(localStorage.getItem(RK)).mode === 'lab' && JSON.parse(localStorage.getItem(RK)).gold === 99999;
     // sair: Mais -> Voltar ao acampamento
+    A.cloudAdopt({ t: Date.now() + 1e4, prof: JSON.stringify(A.PROF), run: '' }); await wait(50);
+    R.adoptEmptyKeepsLab = A.state.mode === 'lab' && A.state.phase === 'shop' && navVis('#app');
     q('#moreBtn').click(); R.drawerLab = !!q('#labOpp') && !!q('#labCat2') && !!q('#labExit'); q('#labExit').click();
-    R.exit = !!q('#campGo') && !A.state.cls;
+    R.exit = !!q('#campGo') && !A.state.cls && A.MENU.mode === 'normal';
     // nada mudou no perfil (só eAt, a hora da energia, e preferências de interface)
     const allowed = /^(meta\.eAt|opt(\..*)?|ver|speed|skinSeen|tut)$/;
     R.profDiff = navDiff(P0, JSON.parse(JSON.stringify(A.PROF))).filter(p => !allowed.test(p));
@@ -572,8 +581,8 @@ window.navLab = async () => {
     if (A.state.cls && A.state.phase !== 'class') { A.showRun(); A.render(); } else A.campScreen();
   }
   R.tsSame = localStorage.getItem(TK) === keep.ts;
-  R.pass = !R.error && R.tsSame && ['noEnergyLab', 'noEnergyGoesLab', 'start', 'goldInf', 'noCoach', 'buyFree', 'catKnownOnly', 'catRefusesUnknown', 'catPlace', 'oppOpen', 'oppSet', 'loseKeeps', 'backToShop',
-    'winNoCount', 'savedLab', 'resumeLab', 'adoptLab', 'reloadKeepsLab', 'drawerLab', 'exit', 'profSame', 'noPosts', 'noLeak'].every(k => R[k] === true) && !R.catAudit.length && !R.oppAudit.length;
+  R.pass = !R.error && R.tsSame && ['noEnergyLab', 'noEnergyGoesLab', 'start', 'goldInf', 'noCoach', 'buyFree', 'catKnownOnly', 'catRefusesUnknown', 'catPlace', 'oppOpen', 'bubbleTapStrip', 'noCloudRun', 'oppSet', 'loseKeeps', 'backToShop',
+    'winNoCount', 'savedLab', 'resumeLab', 'adoptLab', 'reloadKeepsLab', 'adoptEmptyKeepsLab', 'drawerLab', 'exit', 'profSame', 'noPosts', 'noLeak'].every(k => R[k] === true) && !R.catAudit.length && !R.oppAudit.length;
   return R;
 };
 //   await navCodexNew() -> descobertas do Codex: o Codex antigo (de antes da versão) não vira novidade; uma descoberta nova numa jornada normal

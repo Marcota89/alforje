@@ -19,11 +19,15 @@ const reset = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(sa
 
 // Folhas de estilo, em ordem de cascata. Cada tarefa acrescenta seus arquivos aqui.
 const STYLES = ['css/fonts.css', 'css/kit.css', 'css/run.css', 'css/windows.css', 'css/menu.css'];
-const links = STYLES.map(href => `<link rel="stylesheet" href="${href}">`).join('');
+// v1.3: ?v=<versão do jogo> nos arquivos locais, para um main.js novo nunca rodar com um meta.js (ou CSS) velho do cache
+const VER = (fs.readFileSync(path.join(root, 'js/main.js'), 'utf8').match(/\bVER='([^']+)'/) || [])[1];
+if (!VER) throw new Error('VER não encontrado em js/main.js');
+const bust = src => /^[a-z]+:|^\/\//i.test(src) ? src : `${src}?v=${VER}`;
+const links = STYLES.map(href => `<link rel="stylesheet" href="${bust(href)}">`).join('');
 
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
 const scripts = ['js/config.js', SUPABASE_JS, 'js/data.js', 'js/sim.js', 'js/meta.js', 'js/save.js', 'js/cloud.js', 'js/main.js']
-  .map(src => `<script src="${src}" charset="utf-8"></script>`).join('\n');
+  .map(src => `<script src="${bust(src)}" charset="utf-8"></script>`).join('\n');
 
 const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">${headTags}<style>${reset}</style>${links}</head><body>
