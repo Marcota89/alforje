@@ -5,8 +5,10 @@ let sb=null,uid=null;
 /* v1.4 (rodada 2): hora do servidor = "iat" do token da sessão (o servidor assina na hora em que emite; renova a cada ~1 h).
    O navegador não deixa ler o cabeçalho Date do Supabase (CORS), por isso o token. Um iat antigo só deixa o piso mais baixo, nunca trava ninguém. */
 let srvMs=null;
+/* v1.4 (rodada 3): hora fora de [2020-01-01, 8,64e15 ms] é ignorada (token adulterado ou absurdo) */
+const SRV_MIN=Date.UTC(2020,0,1),SRV_MAX=8.64e15;
 function noteToken(s){try{const p=JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))),t=p.iat*1000;
- if(Number.isFinite(t)&&(srvMs==null||t>srvMs))srvMs=t;}catch(e){}}
+ if(Number.isFinite(t)&&t>=SRV_MIN&&t<=SRV_MAX&&(srvMs==null||t>srvMs))srvMs=t;}catch(e){}}
 function serverTime(){return srvMs;}
 
 async function init(){const C=window.ALFORJE_CONFIG;

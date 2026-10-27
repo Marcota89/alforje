@@ -795,7 +795,7 @@ window.navLoteA = async () => {
     });
     await sect(async () => {
       A.closeOverlay(); A.state.phase = 'class'; A.state.cls = null; const m = A.META(), today = m.dayOpen, far = new Date(Date.parse(today) + 400 * 864e5).toISOString().slice(0, 10);
-      m.used = [[today, today], [far, far]]; m.dayMax = far; m.capOn = today; A.META(); A.dailyScreen();
+      m.used = [[today, today], [far, far]]; m.dayMax = far; m.capOn = new Date(Date.parse(today) - 5 * 864e5).toISOString().slice(0, 10);/* correção recente (outra âncora) recusa a nova */ A.META(); A.dailyScreen();
       const nx = new Date(Date.parse(far) + 864e5).toISOString().slice(0, 10), w = q('#clockWait'); R.m2 = !!w && w.textContent.includes(nx.split('-').reverse().join('/'));/* a data travada já foi aberta: o próximo prêmio é o dia seguinte */
       for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen();
       const cell = q('.dcell:nth-child(4)'), ch = q('[data-chest="1"]');
@@ -874,7 +874,7 @@ window.auditLoteA = async () => {
     codexLimite: () => { A.META().dscN = 10; A.codexScreen('items'); },
     petsMax: () => { const m = A.META(); for (const k of D.PETKEYS) m.pets[k] = 10; m.egg = 1; A.petsScreen(); },
     lojaRubis: () => { A.shopScreen(); },
-    premiosRelogio: () => { const m = A.META(), t = m.dayOpen, far = new Date(Date.parse(t) + 400 * 864e5).toISOString().slice(0, 10); m.used = [[t, t], [far, far]]; m.dayMax = far; m.capOn = t; for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen(); },
+    premiosRelogio: () => { const m = A.META(), t = m.dayOpen, far = new Date(Date.parse(t) + 400 * 864e5).toISOString().slice(0, 10); m.used = [[t, t], [far, far]]; m.dayMax = far; m.capOn = new Date(Date.parse(t) - 5 * 864e5).toISOString().slice(0, 10); for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen(); },
     equiparCaro: () => { const m = A.META(); for (const k in m.gear) m.gear[k] = 19; m.stone = 3; m.gold = 50; A.equipScreen(); },
     equiparPronto: () => { const m = A.META(); m.stone = 99999; m.gold = 99999; A.equipScreen(); },
     comoJogar: () => { A.moreScreen(); q('#howBtn').click(); },

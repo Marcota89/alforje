@@ -11,6 +11,7 @@ const D = ctx.window.AlforjeData, M = ctx.window.AlforjeMeta;
 let fails = 0;
 const check = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!cond) fails++; };
 // bloco que lança erro (função que não existe numa versão antiga) conta como falha e não derruba os outros
+const pending = []; /* checagens assíncronas (cloud.js) terminam antes do resumo */
 const tryBlock = fn => { try { fn(); } catch (e) { check(false, 'erro: ' + e.message); } };
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const DAY = 86400000, T0 = Date.UTC(2026, 9, 21, 12, 0, 0);
@@ -557,12 +558,54 @@ tryBlock(() => {
   // aparelho 1 dia atrás do servidor (fuso, virada do dia): abre normalmente
   { const p = newP(); check(visit(p, T0, T0 + DAY) === '2026-10-21' && visit(p, T0 + DAY, T0 + 2 * DAY) === '2026-10-22', 'R1-M-1: aparelho até 1 dia atrás do servidor abre normalmente'); }
   // o piso só sobe e fica no perfil: depois, mesmo sem nuvem, um relógio no passado não abre
-  { const p = newP(); visit(p, T0, T0); M.ensureMeta(p, T0, T0 - 50 * DAY); const sd = p.meta.srvDay;
-    const r = JSON.parse(JSON.stringify(p)); let n = 0; for (let i = 1; i <= 30; i++) if (visit(r, T0 - 40 * DAY + i * DAY)) n++;
-    check(sd === '2026-10-21' && n === 0, 'R1-M-1: o dia do servidor só sobe e vale depois de recarregar, mesmo sem nuvem (' + n + ')'); }
+  { const p = newP(); visit(p, T0 - 100 * DAY); visit(p, T0 - 100 * DAY, T0); M.ensureMeta(p, T0, T0 - DAY / 2); const sd = p.meta.srvDay;
+    const r = JSON.parse(JSON.stringify(p)); let n = 0; for (let i = 1; i <= 30; i++) if (visit(r, T0 - 100 * DAY + i * DAY)) n++;
+    check(sd === '2026-10-21' && n === 0, 'R1-M-1: o dia do servidor só sobe (hora do servidor até 1 dia mais baixa não muda) e vale depois de recarregar, mesmo sem nuvem (' + n + ')'); }
   // piso com defeito no perfil é descartado
   { const m = M.ensureMeta({ totalWins: 0, ach: {}, meta: { srvDay: 'ontem' } }, T0); check(m.srvDay === undefined, 'R1-M-1: srvDay com defeito é descartado'); }
 });
+// v1.4 (rodada de correção 3) — R2-M-1, R2-M-2 e R2-M-3
+tryBlock(() => {
+  const newP = () => ({ totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } });
+  const visit = (p, t, srv) => { const a0 = p.meta && p.meta.ad; const m = M.ensureMeta(p, t, srv); return m.ad !== a0 ? m.dayOpen : null; };
+  const opensFrom = (p, d0, n) => { let k = 0; for (let i = 0; i < n; i++) if (visit(p, T0 + (d0 + i) * DAY)) k++; return k; };
+  // R2-M-1: conserto do relógio em duas etapas (+300 → +200 → hora real): a 2ª correção reaplica a mesma âncora e o jogador segue
+  { const p = newP(); for (let i = 0; i < 5; i++) visit(p, T0 + i * DAY); for (let i = 0; i < 3; i++) visit(p, T0 + (300 + i) * DAY);
+    for (let i = 0; i < 3; i++) visit(p, T0 + (200 + i) * DAY); const cap1 = p.meta.capOn;
+    const fix = visit(p, T0 + 5 * DAY), more = opensFrom(p, 6, 30);
+    check(cap1 === M.dayKey(T0 + 4 * DAY) && fix === M.dayKey(T0 + 5 * DAY) && more === 30 && p.meta.capOn === cap1, 'R2-M-1: conserto em duas etapas (+300 → +200 → real): o dia real abre e os 30 seguintes também (' + more + ')');
+    let again = 0; for (const b of [200, 300]) for (let i = 0; i < 3; i++) if (visit(p, T0 + (b + i) * DAY)) again++;
+    check(again === 0, 'R2-M-1: as datas lá na frente continuam usadas'); }
+  // R2-M-1: com um dia real aberto no meio, a âncora muda e a espera de 30 dias volta a valer
+  { const p = newP(); visit(p, T0); visit(p, T0 + 400 * DAY); visit(p, T0 + DAY); visit(p, T0 + 2 * DAY); visit(p, T0 + 500 * DAY);
+    check(opensFrom(p, 3, 20) === 0 && p.meta.capOn === '2026-10-21', 'R2-M-1: 2º salto depois de abrir dias reais, dentro de 30 dias: a trava fica'); }
+  // R2-M-2: hora do servidor absurda é ignorada (sem exceção); piso gravado no futuro volta para o dia do servidor
+  { const p = newP(); let err = null; try { visit(p, T0, 1e17 * 1000); visit(p, T0, Date.UTC(2010, 0, 1)); visit(p, T0, NaN); } catch (e) { err = e.message; }
+    check(err === null && p.meta.srvDay === undefined, 'R2-M-2: hora do servidor fora de [2020-01-01, 8,64e15 ms] é ignorada, sem exceção (' + err + ')'); }
+  { const p = newP(); visit(p, T0); p.meta.srvDay = '2100-01-01'; const blocked = visit(p, T0 + DAY);
+    const back = visit(p, T0 + 2 * DAY, T0 + 2 * DAY);
+    check(blocked === null && back === '2026-10-23' && p.meta.srvDay === '2026-10-23', 'R2-M-2: piso gravado em 2100 trava só até a próxima hora do servidor, que o devolve ao dia do servidor'); }
+  { const p = newP(); visit(p, T0, T0); M.ensureMeta(p, T0, T0 - 30 * DAY);
+    check(p.meta.srvDay === M.dayKey(T0 - 30 * DAY), 'R2-M-2: piso mais de 1 dia à frente da hora do servidor recebida é limitado a ela'); }
+  // R2-M-3: piso do servidor barrando o dia do aparelho: clockWait diz quando abre (dia do servidor − 1)
+  { const p = newP(); visit(p, T0 - 10 * DAY); const m = M.ensureMeta(p, T0 - 5 * DAY, T0);
+    check(M.clockWait(m, T0 - 5 * DAY) === '2026-10-20' && M.clockWait(m, T0) === null, 'R2-M-3: aparelho 5 dias atrás do servidor: clockWait = dia do servidor − 1 (' + M.clockWait(m, T0 - 5 * DAY) + '); em dia, null'); }
+  // isDay: data impossível no perfil não trava nada nem lança
+  { const m = M.ensureMeta({ totalWins: 0, ach: {}, meta: { srvDay: '2026-13-45', capOn: '2026-02-31x' } }, T0);
+    check(m.srvDay === undefined && m.capOn === undefined && M.clockWait(m, T0) === null, 'rodada 3: srvDay/capOn com data impossível saem do perfil'); }
+});
+// v1.4 (rodada de correção 3, R2-M-2) — js/cloud.js ignora iat fora de [2020-01-01, 8,64e15 ms]
+tryBlock(() => {
+  const tok = iat => 'h.' + Buffer.from(JSON.stringify({ iat })).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+  const load = iat => { const c = { window: {}, Date, JSON, Number, Math, atob, console }; c.window.ALFORJE_CONFIG = { url: 'u', key: 'k' };
+    c.window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: { access_token: tok(iat), user: { id: 'x' } } } }), onAuthStateChange: () => {} } }) };
+    vm.createContext(c); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud.js'), 'utf8'), c, { filename: 'cloud.js' }); return c.window.AlforjeCloud; };
+  const ok = load(Math.floor(T0 / 1000)), huge = load(1e17), old = load(Date.UTC(2010, 0, 1) / 1000);
+  pending.push(Promise.all([ok.init(), huge.init(), old.init()]).then(() => {
+    check(ok.serverTime() === Math.floor(T0 / 1000) * 1000 && huge.serverTime() === null && old.serverTime() === null, 'R2-M-2: cloud.js aceita iat bom e ignora iat absurdo (1e17 s) ou antigo (2010)');
+  }).catch(e => check(false, 'cloud.js: ' + e.message)));
+});
+
 // v1.4 (ID 8) — pedras crescentes e ração sem uso vira ouro
 tryBlock(() => {
   const m = mk(); for (const k of D.PETKEYS.slice(0, 2)) m.pets[k] = M.PET_MAX; m.cal.idx = 3;
@@ -604,5 +647,4 @@ tryBlock(() => {
   check(eq(M.journeyRewards(-3, false, NaN, 'normal'), { gold: 0, stone: 0, xp: 0 }), 'ID 16: prêmio de jornada com vitórias negativas não tira nada');
 });
 
-console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');
-process.exit(fails ? 1 : 0);
+Promise.all(pending).then(() => { console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok'); process.exit(fails ? 1 : 0); });

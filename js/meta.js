@@ -47,7 +47,7 @@ function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&g.ids.e
    dela, diga o relógio o que disser) e m.capOn = âncora. Sem âncora, ou com a âncora a menos de 30 dias de m.capOn (uma data do histórico,
    não do relógio: mexer no relógio não zera a espera), não há correção e a trava fica. As datas do bloco do topo continuam em m.used. */
 const USED_MAX=64,CAP_EVERY=30,FAR_DAYS=14;
-const isDay=d=>typeof d==='string'&&/^\d{4}-\d\d-\d\d$/.test(d);
+const isDay=d=>typeof d==='string'&&/^\d{4}-\d\d-\d\d$/.test(d)&&Number.isFinite(Date.parse(d));/* v1.4 (rodada 3): '2026-13-45' não é data */
 const dN=d=>Math.round(Date.parse(d)/DAY_MS),dS=n=>new Date(n*DAY_MS).toISOString().slice(0,10);
 const usedN=m=>(Array.isArray(m.used)?m.used:[]).map(r=>[dN(r[0]),dN(r[1])]);
 /* grava as faixas (números de dia) ordenadas e juntas, no máximo USED_MAX */
@@ -60,18 +60,26 @@ const inUsed=(m,dk)=>(Array.isArray(m.used)?m.used:[]).some(r=>dk>=r[0]&&dk<=r[1
    nenhuma data antes de (dia do servidor − 1) abre prêmio. Sem nuvem (só neste aparelho), nada muda. */
 const srvFloorOk=(m,dk)=>!isDay(m.srvDay)||dN(dk)>=dN(m.srvDay)-1;
 const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk)&&srvFloorOk(m,dk);
-function noteServer(m,srv){if(!isNum(srv))return;const d=dayKey(srv);if(!isDay(m.srvDay)||d>m.srvDay)m.srvDay=d;}
+/* v1.4 (rodada 3): hora do servidor só vale entre 2020-01-01 e o limite de Date (8,64e15 ms); fora disso é ignorada.
+   O piso só sobe, mas um piso gravado mais de 1 dia à frente do servidor (perfil adulterado, hora absurda) volta para o dia do servidor. */
+const SRV_MIN=Date.UTC(2020,0,1),SRV_MAX=8.64e15;
+const srvOk=t=>isNum(t)&&t>=SRV_MIN&&t<=SRV_MAX;
+function noteServer(m,srv){if(!srvOk(srv))return;const d=dayKey(srv);
+ if(!isDay(m.srvDay)||d>m.srvDay||dN(m.srvDay)>dN(d)+1)m.srvDay=d;}
 /* v1.4 (rodada 2): desce bloco por bloco enquanto a âncora ainda estiver mais de 14 dias à frente do relógio (um período com o relógio
    errado pode ter pausas de mais de 14 dias dentro dele); a checagem dos 30 dias vale só para a âncora final */
 function capFar(m,dk){const d=dN(dk);if(!isDay(m.dayMax)||dN(m.dayMax)-d<=FAR_DAYS)return;
  const u=usedN(m);let i=u.length-1,anchor=null;if(i<1)return;
  for(;;){while(i>0&&u[i][0]-u[i-1][1]-1<=FAR_DAYS)i--;/* sobe o bloco: buracos de até 14 datas não abertas */
   if(i===0)return;anchor=u[i-1][1];if(anchor-d<=FAR_DAYS)break;i--;}
- if(anchor>=dN(m.dayMax)||isDay(m.capOn)&&anchor<dN(m.capOn)+CAP_EVERY)return;
+ /* v1.4 (rodada 3): a mesma âncora da última correção pode ser reaplicada (conserto do relógio em duas etapas); a espera de 30 dias vale para âncoras novas */
+ if(anchor>=dN(m.dayMax)||isDay(m.capOn)&&anchor!==dN(m.capOn)&&anchor<dN(m.capOn)+CAP_EVERY)return;
  m.dayMax=dS(anchor);m.capOn=dS(anchor);}
-/* trava segurando por relógio mudado (sem correção possível agora): a próxima data que pode abrir; senão null */
-function clockWait(m,now){const dk=dayKey(now);if(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS)return null;
- let n=Math.max(dN(m.dayMax)+1,isDay(m.srvDay)?dN(m.srvDay)-1:-Infinity);while(inUsed(m,dS(n)))n++;return dS(n);}
+/* trava segurando por relógio mudado (sem correção possível agora), ou (rodada 3) o piso do servidor barrando o dia do aparelho:
+   a próxima data que pode abrir; senão null */
+function clockWait(m,now){const dk=dayKey(now),floor=isDay(m.srvDay)&&dN(dk)<dN(m.srvDay)-1;
+ if(!floor&&(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS))return null;
+ let n=Math.max(isDay(m.dayMax)?dN(m.dayMax)+1:-Infinity,isDay(m.srvDay)?dN(m.srvDay)-1:-Infinity);while(inUsed(m,dS(n)))n++;return dS(n);}
 /* meta impossível: "Melhore uma peça ou alimente um companheiro" vira a próxima meta do sorteio do dia, só para este jogador, quando
    tudo está no máximo ou (v1.4) quando, na hora do sorteio do dia, não há recursos para nenhuma melhoria nem alimentação */
 const canUpgradeAny=m=>Object.keys(GEAR).some(k=>(m.gear&&m.gear[k]||1)<GEAR_MAX)||Object.keys(m.pets||{}).some(k=>m.pets[k]>=1&&m.pets[k]<PET_MAX);

@@ -112,6 +112,15 @@ function startRun(dayIx, mode) {
   check(ok.meta.srvDay === '2026-10-21' && !('srvDay' in bad.meta) && bad.meta.gold === 5 && !('srvDay' in bad2.meta), 'rodada 2: srvDay válido fica no perfil; com defeito sai (o resto do perfil fica)');
 }
 
+// ===== 2d. v1.4 (rodada 3, R2-M-2): srvDay no futuro distante ou antes de 2020 sai do perfil ao carregar =====
+{
+  const T = Date.UTC(2026, 9, 21, 12), pb = { ver: '', best: 0, history: [], ach: {}, asc: {}, codex: { items: {}, foes: {}, recipes: {} }, miss: null, seals: 0, skin: 'couro' };
+  const mk = meta => SV.fixProf({ history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} }, meta }, clone(pb), T).meta;
+  check(!('srvDay' in mk({ srvDay: '2100-01-01' })) && mk({ srvDay: '2026-10-22' }).srvDay === '2026-10-22' && !('srvDay' in mk({ srvDay: '2026-10-23' })),
+    'rodada 3: srvDay mais de 1 dia à frente de hoje sai; até 1 dia fica');
+  check(mk({ srvDay: '2026-11-01', dayMax: '2026-10-31' }).srvDay === '2026-11-01' && !('srvDay' in mk({ srvDay: '2019-12-31' })), 'rodada 3: a trava do perfil também conta como "hoje"; antes de 2020 sai');
+}
+
 // ===== 3. retomada da luta =====
 // ao vivo: newBattle + passos fixos de 0,05 s acumulados por quadros de tamanho variável (como loop() da página)
 function live(s) {

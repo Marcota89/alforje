@@ -64,7 +64,7 @@ function limitRun(s){s.asc=clamp(Math.floor(isNum(s.asc)?s.asc:0),0,10);
 function fillRun(s,base){for(const k in base)if(s[k]===undefined)s[k]=base[k];return limitRun(s);}
 
 /* perfil: campos nulos ou de tipo errado voltam ao padrão (codex, conquistas, histórico...) */
-function fixProf(p,base){
+function fixProf(p,base,now){
  for(const k in base){const d=base[k];
   if(Array.isArray(d)){if(!Array.isArray(p[k]))p[k]=d.slice();}
   else if(isObj(d)){if(!isObj(p[k]))p[k]=JSON.parse(JSON.stringify(d));}
@@ -75,8 +75,11 @@ function fixProf(p,base){
  for(const k in c.foes)if(!isObj(c.foes[k]))delete c.foes[k];
  if(p.miss!=null&&!(isObj(p.miss)&&Array.isArray(p.miss.ids)&&isObj(p.miss.p)&&isObj(p.miss.done)))p.miss=null;
  if(p.meta!=null&&!isObj(p.meta))delete p.meta;
- /* v1.4 (rodada 2): o piso do servidor (meta.srvDay) só fica se for uma data AAAA-MM-DD válida */
- if(isObj(p.meta)&&'srvDay' in p.meta&&!(typeof p.meta.srvDay==='string'&&/^\d{4}-\d\d-\d\d$/.test(p.meta.srvDay)&&Number.isFinite(Date.parse(p.meta.srvDay))))delete p.meta.srvDay;
+ /* v1.4 (rodadas 2 e 3): o piso do servidor (meta.srvDay) só fica se for uma data AAAA-MM-DD válida, de 2020 em diante e no máximo 1 dia
+    à frente do maior entre a trava do perfil (meta.dayMax) e hoje no aparelho; senão sai (a próxima sessão online grava de novo) */
+ if(isObj(p.meta)&&'srvDay' in p.meta){const v=p.meta.srvDay,t=typeof v==='string'&&/^\d{4}-\d\d-\d\d$/.test(v)?Date.parse(v):NaN,
+  dm=typeof p.meta.dayMax==='string'?Date.parse(p.meta.dayMax):NaN,top=Math.max(Number.isFinite(dm)?dm:0,Date.parse(new Date(now==null?Date.now():now).toISOString().slice(0,10)));
+  if(!(Number.isFinite(t)&&t>=Date.UTC(2020,0,1)&&t<=top+86400000))delete p.meta.srvDay;}
  /* v1.4: Ascensão por classe 0–10 (inteira), vitórias na Ascensão 0–1; contadores do perfil não negativos */
  for(const f of ['asc','ascW','classWins'])if(p[f]!=null&&!isObj(p[f]))p[f]={};
  for(const k of Object.keys(p.asc||{})){const v=p.asc[k];if(!isNum(v)||!has(D.CLASSES,k))delete p.asc[k];else p.asc[k]=clamp(Math.floor(v),0,10);}
