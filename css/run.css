@@ -91,18 +91,25 @@ body[data-skin=noite],[data-sk=noite]{--bagbg1:#f1edff;--bagbg2:#c4b8f2;--bagedg
 :is(#bag,#chest,.ghost) .face.t3{border-color:var(--t3)}
 :is(#bag,#chest,.ghost) .face.t4{border-color:var(--t4);box-shadow:0 0 8px rgba(255,176,32,.7)}
 :is(#bag,#chest) .item.sel .face{outline:3px solid var(--orange);outline-offset:1px}
-:is(#bag,#chest) .item.syn .face{box-shadow:0 0 0 2px #25a845,0 0 12px rgba(37,168,69,.85);animation:glow .7s steps(2) infinite}
-:is(#bag,#chest) .item.rgl .face{box-shadow:0 0 0 3px var(--orange),0 0 14px rgba(240,138,28,.9);animation:glow .5s steps(2) infinite}
+:is(#bag,#chest) .item.syn .face{box-shadow:0 0 0 2px #2fb4ff,0 0 12px rgba(47,180,255,.9);animation:glow .7s steps(2) infinite}
+:is(#bag,#chest) .item.rgl .face{box-shadow:0 0 0 3px #a24bff,0 0 14px rgba(255,122,26,.9);animation:glow .5s steps(2) infinite}
+:is(#bag,#chest) .item.mrg .face{box-shadow:0 0 0 3px #ffd23a,0 0 16px rgba(255,176,32,.95);animation:glow .8s ease-in-out infinite}
 :is(#bag,#chest,.ghost) .pips{position:absolute;left:5px;top:5px;display:flex;gap:2px;z-index:3}
 :is(#bag,#chest,.ghost) .pips i{width:6px;height:6px;border-radius:50%;background:var(--tier);box-shadow:0 0 0 1.5px var(--ink-brown)}
 :is(#bag,#chest) .awk{position:absolute;right:4px;top:1px;font-size:11px;color:var(--orange-d);text-shadow:0 0 2px #fff;z-index:3}
-:is(#bag,#chest) .cdr{position:absolute;inset:0;pointer-events:none;border-radius:6px;background:conic-gradient(rgba(240,138,28,.32) calc(var(--cdp,0)*1turn),transparent 0);z-index:1}
 :is(#bag,#chest) .zoneoff{border-radius:6px}
 #bag .teth{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7;overflow:visible}
 #bag .teth line{stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 2px currentColor)}
-#bag .teth line.syn{stroke:#25a845;color:#25a845;stroke-dasharray:7 5;animation:dash .6s linear infinite}
-#bag .teth line.rcp{stroke:var(--orange);color:var(--orange);stroke-dasharray:7 5;animation:dash .6s linear infinite}
+/* v1.3: azul tracejada = bônus de posição; roxa pontilhada com brilho de fogo e bigorna = receita; dourada cheia e pulsante = fusão */
+#bag .teth line.syn{stroke:#2fb4ff;color:#7fd4ff;stroke-dasharray:7 5;animation:dash .6s linear infinite}
+#bag .teth line.rcp{stroke:#a24bff;color:#ff7a1a;stroke-width:4;stroke-dasharray:1 7;animation:dash .9s linear infinite}
+#bag .teth line.mrg{stroke:#ffd23a;color:#ffb020;stroke-width:5;animation:tpulse .8s ease-in-out infinite}
 #bag .teth circle{fill:#fff;stroke-width:2}
+#bag .teth circle.syn{stroke:#2fb4ff}
+#bag .teth circle.rcp{stroke:#a24bff}
+#bag .teth circle.mrg{stroke:#ffb020;fill:#fff6c8}
+#bag .teth .anv circle{fill:#2a1240;stroke:#ff8a2a;stroke-width:2}
+#bag .teth .anv path{fill:#ffd9a8}
 /* modo daltônico: marca de forma no canto do item (Comum nenhuma; Raro 1, Épico 2, Lendário 3 pontos) */
 body.cb :is(#bag,#chest,.ghost) .pips i{width:8px;height:8px;background:#fff;box-shadow:0 0 0 2px var(--ink-brown)}
 body.cb :is(#bag,#chest,.ghost) .pips i:first-child{display:none}
@@ -166,6 +173,9 @@ body.lefty #sellzone{align-items:flex-end}
 
 /* regras vivas migradas do legacy (Tarefa 4, ajuste 1) */
 body :is(#bag,#chest,.ghost) .face.t4::before{content:"";position:absolute;inset:0;border-radius:5px;padding:2px;background:conic-gradient(from var(--ang,0deg),#ffe27a,#ff6ad5,#6affd0,#94d0ff,#ffe27a);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 3s linear infinite;pointer-events:none}
+:is(#bag,#chest) .face.t3::before{content:"";position:absolute;inset:-3px;border-radius:11px;box-shadow:0 0 9px 2px rgba(180,98,255,.85),inset 0 0 6px rgba(180,98,255,.55);opacity:.3;animation:epic 2.2s ease-in-out infinite alternate;pointer-events:none}
+:is(#bag,#chest) .mote{position:absolute;bottom:10%;width:3px;height:3px;border-radius:50%;background:#fff3b0;box-shadow:0 0 4px 1px #ffc640;opacity:0;animation:mote 2.4s ease-out infinite;pointer-events:none;z-index:3}
+body.eco :is(#bag,#chest) .face.t3::before,body.eco :is(#bag,#chest) .mote{display:none}
 :is(#bag,#chest,.ghost) .face img.art{pointer-events:none;height:auto;filter:drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
 :is(#bag,#chest,.ghost) .face img.art.bowtint{filter:sepia(.9) saturate(1.8) hue-rotate(-12deg) brightness(.9) drop-shadow(1px 2px 0 rgba(90,42,0,.35))}
 :is(#bag,#chest) .item.rcpready .face::after{content:"FORJA!";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-family:var(--f-title);font-weight:900;font-size:8px;letter-spacing:.05em;color:#2a1606;background:linear-gradient(#ffe08a,#d39a2e);padding:0 4px;border-radius:2px;box-shadow:0 1px 0 #000;z-index:4}
@@ -213,6 +223,11 @@ body.big #actions .abtn small{font-size:11px;letter-spacing:-.3px}
 #meter .mrow .ri{width:26px;height:22px;box-sizing:border-box;border-radius:6px;justify-self:center}
 #meter .mrow .ri img{width:18px;height:16px}
 #meter .mrow img.px{image-rendering:pixelated}
+#meter .mrow .mic{position:relative;display:grid;place-items:center;width:26px;height:22px;overflow:visible}
+#meter .mrow .mic>*{grid-area:1/1}
+#meter .mrow .mic .ri{width:22px;height:22px;border-radius:50%}
+#meter .mrow .mic .ri img{width:15px;height:14px}
+#meter .mrow .cring{position:absolute;left:50%;top:50%;width:29px;height:29px;margin:-14.5px 0 0 -14.5px;border-radius:50%;background:conic-gradient(#f08a1c calc(var(--p,0)*1turn),rgba(90,42,0,.2) 0);-webkit-mask:radial-gradient(circle,transparent 11px,#000 11.5px);mask:radial-gradient(circle,transparent 11px,#000 11.5px);pointer-events:none}
 #meter .mrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #meter .mbar{display:flex;height:10px;border-radius:6px;background:#f3e2c0;overflow:hidden}
 #meter .mbar i{display:block;height:100%;background:none}
@@ -227,13 +242,21 @@ body.big #meter .mrow,body.big #meter .mrow b,body.big #meter h5{font-size:14px}
 /* números de dano: grandes, com contorno (crítico dourado, cura verde, escudo azul) */
 #floats{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 #floats .float{position:absolute;font:400 22px/1 'Lilita One',system-ui,sans-serif;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:0 2px 0 #000;transform:translateX(-50%);animation:up .9s ease-out forwards;white-space:nowrap}
-#floats .float.crit{font-size:30px;color:#ffd34d}
+#floats .float.dmg{color:#fff}
+#floats .float.dmg.me{color:#ffe27a}
+#floats .float.crit{z-index:2;font-size:35px;color:#ff5a1f;-webkit-text-stroke:4px #2a0800;animation:critup 1s ease-out forwards}
+#floats .float.frz{color:#bfefff}
+#floats .float .fi{display:inline-block;width:.62em;height:.62em;margin-right:2px;vertical-align:.04em;image-rendering:pixelated}
 #floats .float.burn{color:#ff9a3a}
 #floats .float.psn{color:#a6e84a}
 #floats .float.heal{color:#8ff09a}
 #floats .float.blk{color:#8cc8ff}
 #floats .float.banner{font-size:24px;color:#ffd34d;animation:banner 1.2s ease-out forwards}
-@media (prefers-reduced-motion:reduce){#floats .float,#floats .float.banner{animation:fade .9s linear forwards}#meter .mrow.hit{background:none}}
+@media (prefers-reduced-motion:reduce){#floats .float,#floats .float.banner,#floats .float.crit{animation:fade .9s linear forwards}#meter .mrow.hit{background:none}}
+/* camada fixa de efeitos: feixes do medidor até o inimigo e faíscas de fusão/forja (sobrevivem ao refazer da grade) */
+#fxl{position:fixed;inset:0;z-index:50;pointer-events:none;overflow:hidden}
+#fxl .beam{position:absolute;left:0;top:0;width:26px;height:4px;margin:-2px 0 0 -26px;transform-origin:100% 50%;border-radius:2px;background:linear-gradient(90deg,rgba(255,211,77,0),#ffd34d 55%,#fff);box-shadow:0 0 6px #ffb020}
+#fxl .beam.crit{height:6px;margin-top:-3px;background:linear-gradient(90deg,rgba(255,90,31,0),#ff5a1f 55%,#fff3c0);box-shadow:0 0 8px #ff5a1f}
 
 /* ===== arrasto, efeitos e balão do mascate (Tarefa 9, vindos do legacy.css) ===== */
 /* brilho de raridade e estrelinhas na arte dos itens */
@@ -250,14 +273,19 @@ body.big #meter .mrow,body.big #meter .mrow b,body.big #meter h5{font-size:14px}
 #bag .preview.bad,#chest .preview.bad{border-color:#d8282f;background:rgba(216,40,47,.22)}
 #bag .preview.merge,#chest .preview.merge{border-color:var(--orange);background:rgba(255,211,77,.35)}
 .ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:60;padding:2px}
+.ghost .face{transform:scale(1.12) rotate(var(--tilt,0deg));transition:transform .12s ease-out;animation:lift .14s ease-out;box-shadow:0 14px 22px rgba(20,8,0,.5),0 4px 8px rgba(20,8,0,.35)}
+.ghost .face.t4{box-shadow:0 14px 22px rgba(20,8,0,.5),0 0 10px rgba(255,176,32,.8)}
 body.sell-hot .ghost{opacity:.5}
 .tip{position:fixed;left:0;top:0;z-index:61;pointer-events:none;max-width:250px;display:grid;gap:2px;padding:6px 10px;border-radius:12px;background:var(--pill-bg);border:2px solid var(--pill-edge);box-shadow:0 3px 0 rgba(0,0,0,.35);color:#fff;font:700 13px/1.3 var(--f-body)}
 .tip b{font:400 14px/1.2 var(--f-title);letter-spacing:.02em;color:var(--pill-edge)}
 .tip .g{color:#8ff09a} .tip .r{color:#ff8a7a} .tip .o{color:var(--pill-edge)}
 body.big .tip{font-size:14.5px}
 /* faíscas da fusão */
-.spark{position:absolute;width:6px;height:6px;background:var(--pill-edge);pointer-events:none;z-index:6;animation:spark .6s ease-out forwards}
-body.eco .spark{display:none}
+.spark{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:1px;background:var(--sc,var(--pill-edge));box-shadow:0 0 0 1px rgba(60,20,0,.55),0 0 5px var(--sc,var(--pill-edge));pointer-events:none;z-index:8;animation:spark .7s ease-out forwards}
+.burstring{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:3px solid var(--sc);box-shadow:0 0 10px var(--sc);pointer-events:none;z-index:8;animation:bring .5s ease-out forwards}
+:is(#bag,#chest) .item.merged{z-index:4}
+:is(#bag,#chest) .item.merged .face{animation:merged .7s steps(4),mglow .9s ease-out}
+body.eco :is(.spark,.burstring){display:none}
 /* botão "Girar" durante o arrasto */
 .rotfab{position:fixed;right:12px;top:calc(118px + env(safe-area-inset-top,0px));z-index:65;min-height:52px;padding:0 18px;border-radius:26px;border:3px solid #fff;background:linear-gradient(180deg,#ffd04a,#f08a1c);box-shadow:0 4px 0 var(--orange-d);color:#fff;text-shadow:0 2px 0 var(--orange-d);font:400 17px/1 var(--f-title);letter-spacing:.02em;touch-action:none;cursor:pointer}
 body.lefty .rotfab{right:auto;left:12px}
@@ -284,7 +312,17 @@ body.is-dragging .bubble{display:none!important}
 @keyframes fade{to{opacity:0}}
 @keyframes spark{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
 @keyframes snapin{0%{transform:scale(1.16)}55%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes tpulse{50%{opacity:.6;stroke-width:3.5}}
+@keyframes epic{to{opacity:1}}
+@keyframes mote{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-26px);opacity:0}}
+@keyframes lift{from{transform:scale(1)}}
+@keyframes bring{to{transform:scale(7);opacity:0}}
+@keyframes mglow{0%{box-shadow:0 0 0 4px var(--tier),0 0 24px var(--tier)}100%{box-shadow:none}}
+@keyframes critup{0%{transform:translate(-50%,0) scale(.6);opacity:1}15%{transform:translate(-50%,-4px) scale(1.15)}30%{transform:translate(-50%,-8px) scale(1)}100%{transform:translate(-50%,-46px);opacity:0}}
 @keyframes gshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
 @media (prefers-reduced-motion:reduce){
-  :is(#bag,#chest) .item:is(.fire,.merged,.syn,.rgl,.snap) .face,.foil,.twinkle,#bag .teth line,:is(#bag,#chest,.ghost) .face.t4::before,#bag.shake,#chest.shake{animation:none!important}
+  :is(#bag,#chest) .item:is(.fire,.merged,.syn,.rgl,.mrg,.snap) .face,.foil,.twinkle,#bag .teth line,:is(#bag,#chest,.ghost) .face.t4::before,#bag.shake,#chest.shake{animation:none!important}
+  :is(#bag,#chest) .face.t3::before{animation:none;opacity:.8}
+  :is(#bag,#chest) .mote{display:none}
+  .ghost .face{transition:none;animation:none}
 }
