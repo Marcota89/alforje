@@ -24,10 +24,10 @@ const ITEMS={
  firedagger:{name:'Adaga Ígnea',w:1,h:1,price:3,type:'weapon',dmg:1,cd:.9,crit:.1,burn:1,wt:1,fx:'stab',tags:['fogo','metal']},
  pestspear:{name:'Lança Pestilenta',w:1,h:3,price:5,type:'weapon',dmg:3,cd:1.9,crit:.05,pierce:1,poison:2,wt:2,fx:'thrust',tags:['veneno','metal']},
  flail:{name:'Mangual Bento',w:1,h:2,price:5,type:'weapon',dmg:5,cd:2.0,crit:.05,purge:1,wt:2,fx:'smash',tags:['metal','sagrado']},
- shield:{name:'Escudo de Carvalho',w:2,h:2,price:4,type:'armor',block:14,tags:['metal']},
- helm:{name:'Elmo de Ferro',w:2,h:1,price:3,type:'armor',hp:20,zone:'top',tags:['metal']},
- thorns:{name:'Cota de Espinhos',w:2,h:2,price:5,type:'armor',hp:10,reflect:2,tags:['natureza']},
- frostmail:{name:'Couraça de Gelo',w:2,h:2,price:5,type:'armor',block:8,chill:1,tags:['gelo','metal']},
+ shield:{name:'Escudo de Carvalho',w:2,h:2,price:4,type:'armor',block:16,tags:['metal']},
+ helm:{name:'Elmo de Ferro',w:2,h:1,price:4,type:'armor',hp:15,zone:'top',tags:['metal']},
+ thorns:{name:'Cota de Espinhos',w:2,h:2,price:5,type:'armor',hp:14,reflect:2,tags:['natureza']},
+ frostmail:{name:'Couraça de Gelo',w:2,h:2,price:5,type:'armor',block:12,chill:1,tags:['gelo','metal']},
  holyshield:{name:'Escudo Bento',w:2,h:2,price:5,type:'armor',block:10,hp:10,tags:['sagrado','metal']},
  potion:{name:'Frasco de Cura',w:1,h:1,price:3,type:'support',heal:5,healCd:4,tags:['sagrado']},
  whet:{name:'Pedra de Amolar',w:1,h:1,price:3,type:'support',pat:'orto',adjDmg:2,tags:['metal']},
@@ -45,9 +45,9 @@ const ITEMS={
  idolnature:{name:'Flâmula Silvestre',w:1,h:2,price:4,type:'support',tagSup:'natureza',adjHaste:.06,tags:['natureza']},
  greatsword:{name:'Espadão',w:2,h:3,price:7,type:'weapon',dmg:15,cd:3.0,crit:.08,wt:3,fx:'slash',tags:['metal']},
  warhammer:{name:'Martelo Pesado',w:2,h:2,price:7,type:'weapon',dmg:11,cd:3.0,crit:0,stun:.3,wt:3,fx:'smash',tags:['metal']},
- buckler:{name:'Broquel',w:1,h:1,price:2,type:'armor',block:6,tags:['metal']},
- plate:{name:'Armadura de Placas',w:2,h:2,price:7,type:'armor',block:16,hp:12,tags:['metal']},
- spikemirror:{name:'Espelho de Espinhos',w:2,h:2,price:7,type:'armor',block:6,reflect:3,tags:['metal','natureza']},
+ buckler:{name:'Broquel',w:1,h:1,price:2,type:'armor',block:7,tags:['metal']},
+ plate:{name:'Armadura de Placas',w:2,h:2,price:7,type:'armor',block:18,hp:14,tags:['metal']},
+ spikemirror:{name:'Espelho de Espinhos',w:2,h:2,price:7,type:'armor',block:10,reflect:3,tags:['metal','natureza']},
  scarab:{name:'Escaravelho de Ouro',w:1,h:1,price:8,type:'support',gold:2,pat:'orto',adjCrit:.06,tags:['sagrado']},
  rebelelixir:{name:'Elixir Rebelde',w:1,h:2,price:6,type:'support',pat:'orto',heal:4,healCd:4,adjHaste:.06,tags:['natureza']},
  bomb:{name:'Bomba de Fogo',w:1,h:1,price:4,type:'weapon',dmg:6,cd:3.0,crit:0,burn:2,wt:1,fx:'fire',tags:['fogo']},
@@ -110,12 +110,12 @@ const CLASSES={
  pyro:{name:'Piromante',hp:45,burnBonus:1,crit:0,critMult:2,cap:5,flip:false,bag:[4,5],skill:'Combustão',fireFree:1,
   kits:[{name:'Cajado e tocha',items:[['staff',0,0],['torch',1,0]]},{name:'Adaga e pergaminho',items:[['firedagger',0,0],['torch',1,0],['scroll',0,1]]}],
   desc:'45 de vida, +1 em toda queimadura, carga 5 (armas de Fogo não pesam), mochila alta 4×5. Com 10 de queimadura, o inimigo explode (16 + rodada).'},
- paladin:{name:'Paladino',hp:64,crit:0,critMult:2,cap:7,flip:true,bag:[5,4],skill:'Luz Sagrada',unlock:1,
+ paladin:{name:'Paladino',hp:68,crit:0,critMult:2,cap:7,flip:true,bag:[5,4],skill:'Luz Sagrada',unlock:1,
   kits:[{name:'Martelo e frasco',items:[['hammer',0,0],['potion',1,0]]},{name:'Mangual e água benta',items:[['flail',0,0],['holywater',1,0]]}],
-  desc:'64 de vida, curas +50%, carga 7. A cada 8s, +10 de vida e +10 de escudo. Desbloqueia com 5 vitórias numa jornada ou 10 vitórias no total.'},
- alchemist:{name:'Alquimista',hp:76,crit:0,critMult:2,cap:6,flip:false,bag:[5,4],skill:'Mistura Volátil',unlock:2,
+  desc:'68 de vida, curas +50%, carga 7. A cada 8s, +10 de vida e +10 de escudo. Desbloqueia com 5 vitórias numa jornada ou 10 vitórias no total.'},
+ alchemist:{name:'Alquimista',hp:80,crit:0,critMult:2,cap:6,flip:false,bag:[5,4],skill:'Mistura Volátil',unlock:2,
   kits:[{name:'Bomba e frasco',items:[['bomb',0,0],['potion',1,0],['mortar',1,1]]},{name:'Ácido e almofariz',items:[['acidflask',0,0],['mortar',1,0],['frostflask',0,1]]}],
-  desc:'76 de vida, carga 6. Mistura Volátil: cada cura de item também atinge o inimigo com 90% do valor, ignorando escudo, e aplica 1 de veneno. Desbloqueia ao completar uma jornada ou com 20 vitórias no total.'}
+  desc:'80 de vida, carga 6. Mistura Volátil: cada cura de item também atinge o inimigo com 90% do valor, ignorando escudo, e aplica 1 de veneno. Desbloqueia ao completar uma jornada ou com 20 vitórias no total.'}
 };
 const CLASSKEYS=Object.keys(CLASSES);
 const SUBS={
@@ -199,12 +199,13 @@ const STOPS=[
   {name:'Lich Menor',art:'lich',h:56,arch:'espinhos',line:'Mais um herói. Tenho uma prateleira só para mochilas.'},
   {name:'Ceifador',art:'reaper',h:58,arch:'veneno',line:'Não vim por você. Vim pelo que está na sua mochila.'},
   {name:'Gárgula de Obsidiana',art:'obsidian',h:50,claw:1,arch:'espinhos',line:'(a pedra dela ainda está quente do vulcão)'}]},
- {biome:'volcano',hp:460,dps:20,boss:1,v:[
+ {biome:'volcano',hp:490,dps:20,boss:1,v:[
   {name:'Wyrm Rubro',art:'wyrm',h:70,claw:1,arch:'chefe',line:'O velho também chegou até aqui. Quer ver o que sobrou dele?'}]}
 ];
 const BAGCOST=[5,8,11], MAXEXP=3, MAXCOLS=7, MAXROWS=6, CHEST_ROWS=2, GOAL=10, SURV_GOAL=14, LIVES=5, SILVER_WIN=6;
-/* v1.2: força extra dos inimigos por nível de Ascensão, cumulativa: [por nível da A1 à A5, por nível da A6 à A10] */
-const ASC_FOE={hp:[.6,.15],dmg:[.06,.02],early:.4,elite:.4,boss:.22};
+/* v1.2: força extra dos inimigos por nível de Ascensão, cumulativa: [por nível da A1 à A5, por nível da A6 à A10].
+   elite = peso nas elites; elite3 = peso só na elite da parada 3 (v1.4, ID 9); boss = peso no chefe */
+const ASC_FOE={hp:[.65,0],dmg:[.06,0],early:.4,elite:.4,elite3:.2,boss:.22,a10:1.05};
 /* A6+: elites com 2 modificadores a partir desta parada (índice; 7 = parada 8). As elites das paradas 3 e 6 ficam com 1. */
 const ASC_MOD2=7;
 /* Bênçãos (EVE-01): b = bronze (elites 3, 8 e 9), p = prata (elite 6, depois da 6ª vitória: SILVER_WIN) */
@@ -222,7 +223,7 @@ const BLESS={
  pedra:{t:'p',name:'Pele de Pedra',desc:'+12 de escudo inicial.'},
  primeiro:{t:'p',name:'Primeiro Sangue',desc:'O primeiro golpe de cada arma causa o dobro de dano.'},
  pena:{t:'p',name:'Leve como Pena',desc:'Todas as armas pesam 1 a menos.',ok:s=>s.chal!=='carga3'},
- compostos:{t:'p',name:'Juros Compostos',desc:'Juros de 1 a cada 4 de ouro (em vez de 5).'},
+ compostos:{t:'p',name:'Juros Compostos',gold:20,hp:10,desc:'+20 de ouro agora e +10 de vida máxima. Juros de 1 a cada 4 de ouro (em vez de 5) e teto de juros +1.'},
  tesouro:{t:'p',name:'Tesouro do Figurão',desc:'Ganhe agora um item Épico aleatório.'},
  dupla:{t:'p',name:'Afinidade Dupla',desc:'Cada item conta 2× para as Afinidades.'}
 };
@@ -234,7 +235,7 @@ const ETIQKEYS=Object.keys(ETIQ);
 /* Encruzilhada (EVE-03) */
 const EVENTS={
  aposta:{title:'A aposta do Mascate',text:'"Cinco moedas na mesa. Cara, você leva um item Raro. Coroa, eu levo as moedas. Topa?"',a:'Apostar 5 de ouro',b:'Seguir viagem'},
- altar:{title:'Altar na beira da estrada',text:'Uma pedra coberta de runas pede sangue. Dizem que quem oferece sai mais forte.',a:'Oferecer 8 de vida máxima: +1 raridade num item aleatório',b:'Seguir viagem'},
+ altar:{title:'Altar na beira da estrada',text:'Uma pedra coberta de runas pede sangue. Dizem que quem oferece sai mais forte.',a:'Oferecer 5 de vida máxima: +1 raridade no seu melhor item',b:'Seguir viagem'},
  andarilho:{title:'O andarilho cansado',text:'"Esse bicho aí parece bom de briga. Pago dez moedas e cuido bem dele."',a:'Vender o companheiro mais fraco por 10',b:'Seguir viagem'}};
 const CHALLENGES=[
  {id:'nofuse',name:'Sem Fusão',desc:'Itens iguais não se fundem.'},

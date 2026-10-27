@@ -43,29 +43,29 @@ function playDaily(dayIx) {
   return { s, entry: { v: 2, d: S.dayStr(dayIx), s: sc, cls: s.cls, w: s.wins, t: 1, pf: proof } };
 }
 
-// 0. "diário inalterado": golden regravado com o sim da v1.2 rodada 2 (teto de veneno/queimadura, Tocha, elites e chefe, Couraça Viva 12%, classes, Adaga 3).
-//    Antes: gravado do sim da v8 (sem bônus permanentes). Dias 0..19, mesma política de melhoria de playDaily. Mudar o sim muda este golden: regrave e publique a função do servidor junto.
+// 0. "diário inalterado": golden regravado com o sim da v1.4 Lote B (Elmo e armaduras, Mistura Volátil no teto, Paladino 68 e Alquimista 80,
+//    chefe 490, DIFF.hp 2,1). Antes: v1.2 rodada 2. Dias 0..19, mesma política de melhoria de playDaily. Mudar o sim muda este golden: regrave e publique a função do servidor junto.
 const DAILY_GOLDEN = [
-  "1:W12.6,L18.5,L18.5,L18.5,L18.5,L18.5",
-  "5:W7.2,W6.3,W5.4,W3.6,W4.5,L3.4,L2.7,L2.7,L3.1,L2.7",
-  "2:W6.6,W6,L4.7,L4.7,L5.7,L4.7,L4.7",
-  "2:W26,W19,L11.1,L13.7,L12.1,L11.9,L13.7",
-  "9:W9,W11.9,W10,W5,W5.8,L6.4,W5.8,W8,L8,W6,L10.3,W10,L3,L3",
-  "0:L14,L14,L14,L12.7,L14",
-  "2:W6.3,W6.3,L4,L4.7,L4,L4,L4.7",
-  "2:W6.6,W6,L5.2,L6,L5,L5.7,L6",
-  "7:W21.4,L14,W14.2,L12,L11.7,W11.8,W4.8,W9.4,L6.8,W4.6,W14.2,L7.8",
-  "5:W11.9,W8.8,W12,W5.8,W5.8,L8.5,L8.8,L8.8,L8.8,L8.8",
-  "1:L23.3,L23.3,W22.2,L18.7,L18.7,L18.7",
-  "2:W5.4,W7.2,L3.6,L3.1,L3.1,L3.1,L3.6",
-  "5:W6.6,W6.6,L5.9,L5.9,L5.7,L5.7,W6,W3.2,W4.9,L3.1",
-  "5:W26,W14.2,L13.9,W19,W7.5,W7,L7.3,L10.5,L10.5,L7.3",
-  "5:W9,W8.8,W11.9,W6.2,W5.8,L6.7,L6,L6,L6.7,L6",
-  "1:L23.3,L23.3,W20.6,L12.7,L12.7,L12.7",
-  "5:W8.1,W8.1,L4.1,L5.3,L4.8,L4.1,W5.4,W3.6,W3.6,L1.7",
-  "2:W6.6,W6.6,L4.7,L5.7,L5.7,L4.7,L5.7",
-  "2:W26,W14.2,L11.9,L11.9,L11.8,L13.7,L13.7",
-  "5:W9,W8.8,W8,W6.2,W6,L8.8,L8.5,L8.8,L8.5,L8.8"
+  "0:L14,L14,L14,L14,L14",
+  "2:W8.1,W7.2,L5.5,L6,L5.8,L5.1,L4.8",
+  "2:W6.6,W7,L4.7,L4.7,L5.7,L4.7,L4.7",
+  "2:W27,W21.4,L11.8,L14.2,L13.9,L13.7,L14.2",
+  "7:W11.9,W12,W11.9,W6,W5.8,L7.2,W5.8,W8.8,L8,L8,L8,L8",
+  "0:L14,L14,L14,L13.7,L14",
+  "2:W7.2,W6.3,L4,L4.7,L4,L4,L4.7",
+  "2:W7,W7,L5.5,L6.2,L5,L6,L6",
+  "5:W23.8,L14.7,L16,W16.6,W11.8,W10.5,W4.6,L7.5,L8,L7.3",
+  "5:W13,W10,L13.9,L13.9,L13.9,L13.9,W12.1,W5.8,W7,L10.3",
+  "0:L23.3,L23.3,L23.3,L23.3,L23.3",
+  "2:W6.3,W8.1,L3.6,L3.1,L3.1,L3.1,L3.6",
+  "2:W6.6,W8,L6.2,L6.2,L6,L6,L6",
+  "5:W27,W16.6,L20.9,W21.4,W7.5,W7,L7.3,L10.5,L10.5,L7.3",
+  "5:W11.9,W10,W12.1,W6.2,W6,L6.7,L6,L6,L6.7,L6",
+  "1:L23.3,L23.3,L23.3,L23.3,W20.6,L14",
+  "1:W9,L8.9,L8.9,L8.9,L8.9,L8.9",
+  "2:W7,W8,L4.7,L5.7,L5.7,L4.7,L5.7",
+  "2:W27,W16.6,L13.7,L13.7,L12.9,L14.2,L14.2",
+  "2:W11.9,W10,L8,L8,L8,L8,L8"
 ];
 {
   let okAll = 0;
@@ -244,6 +244,69 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
   let y = 0, x = 0; while (S.buildPlausible(k).ok) { k.i.push(['dagger', 4, x, y, 1, 1]); if (++x >= 7) { x = 0; y++; } if (y >= 5) break; }
   const why = S.buildPlausible(k).why; k.i.pop();
   check(why === 'mochila cara demais para a rodada' && S.buildPlausible(k).cost <= S.goldCap(10), `v1.2 goldCap recusa a 1ª mochila acima do teto da rodada 10 (${S.goldCap(10)})`);
+}
+
+// ===== v1.4 Lote B =====
+// ID 9: toda loja garante 1 oferta que funde com um item seu (mochila ou baú), menos no "Sem Fusão" ou sem item elegível
+{
+  const mk = (items, chal) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.seed = 'lb9'; s.rng = 99; s.chal = chal || null; s.bag = { cols: 5, rows: 4, pockets: {} };
+    items.forEach(([key, tier, where], i) => s.items.push({ id: s.nid++, key, tier, x: i, y: 0, w: 1, h: 1, where: where || 'bag' })); return s; };
+  const shop0 = () => [{ key: 'axe', tier: 1 }, { key: 'bow', tier: 1 }, { key: 'raven', tier: 1, pet: 1 }, { key: 'spear', tier: 1, locked: true }, { key: 'bomb', tier: 1 }];
+  let sh = shop0(); mk([['dagger', 1], ['whet', 2, 'chest']]); let ix = S.shopMerge(sh, () => 1, [4]);
+  check((ix === 0 || ix === 1) && sh[ix].key === 'dagger' && sh[ix].tier === 1 && !sh[ix].sale, `v1.4 ID 9: loja sem fusão ganha uma cópia (raridade sorteada Comum -> Adaga Comum, vaga ${ix})`);
+  check(sh[2].pet && sh[3].locked && sh[3].key === 'spear' && sh[4].key === 'bomb', 'v1.4 ID 9: não troca companheiro, reserva nem a vaga garantida pela Etiqueta');
+  sh = shop0(); mk([['dagger', 1], ['whet', 2, 'chest']]); ix = S.shopMerge(sh, () => 2, []);
+  check(ix >= 0 && sh[ix].key === 'whet' && sh[ix].tier === 2, 'v1.4 ID 9: item do baú também conta, na raridade sorteada (Rara -> Pedra de Amolar Rara)');
+  sh = shop0(); mk([['dagger', 2], ['sword', 3]]); ix = S.shopMerge(sh, () => 4, []);
+  check(ix >= 0 && sh[ix].key === 'sword' && sh[ix].tier === 3, 'v1.4 ID 9: sem item na raridade sorteada, vale a sua mais próxima (Lendária -> Espada Épica)');
+  sh = shop0(); mk([['dagger', 2], ['sword', 4]]); ix = S.shopMerge(sh, () => 1, []);
+  check(ix >= 0 && sh[ix].key === 'dagger' && sh[ix].tier === 2, 'v1.4 ID 9: Lendário não conta (só a Adaga Rara serve)');
+  sh = shop0(); mk([['sword', 4], ['dagger', 4, 'chest']]); check(S.shopMerge(sh, () => 1, []) === -1 && JSON.stringify(sh) === JSON.stringify(shop0()), 'v1.4 ID 9: só Lendários -> loja intacta');
+  sh = shop0(); mk([]); check(S.shopMerge(sh, () => 1, []) === -1, 'v1.4 ID 9: sem itens -> loja intacta');
+  sh = shop0(); mk([['dagger', 1]], 'nofuse'); check(S.shopMerge(sh, () => 1, []) === -1 && JSON.stringify(sh) === JSON.stringify(shop0()), 'v1.4 ID 9: Sem Fusão -> nenhuma garantia');
+  sh = shop0(); mk([['bow', 1]]); check(S.shopMerge(sh, () => 1, []) === -1 && sh[1].key === 'bow', 'v1.4 ID 9: já há oferta que funde -> nada muda');
+  sh = shop0(); mk([['heroblade', 1]]); check(S.shopMerge(sh, () => 1, []) === -1, 'v1.4 ID 9: item forjado (fora da loja) não é copiado');
+  sh = [{ key: 'raven', tier: 1, pet: 1 }, { key: 'axe', tier: 1, locked: true }]; mk([['dagger', 1]]); check(S.shopMerge(sh, () => 1, []) === -1, 'v1.4 ID 9: sem vaga livre -> nada muda');
+  // 400 lojas sorteadas: sempre sai pelo menos 1 oferta que funde quando há item elegível
+  let all = true, acted = 0; const s = mk([['dagger', 1], ['sword', 2], ['shield', 1, 'chest'], ['bow', 4]]);
+  for (let n = 0; n < 400; n++) { const shop = []; for (let i = 0; i < 5; i++) shop.push({ key: S.rpick(D.SHOPKEYS), tier: 1 + Math.floor(S.R() * 3) }); if (S.shopMerge(shop, () => 1 + Math.floor(S.R() * 4), []) >= 0) acted++;
+    if (!shop.some(o => S.mergesWith(o, s.items.filter(i => i.tier < 4)))) all = false; }
+  check(all && acted > 300, `v1.4 ID 9: 400 lojas sorteadas, todas com oferta que funde (${acted} precisaram da garantia)`);
+}
+// ID 4: Elmo de Ferro mais caro e com menos vida; a melhor vida efetiva (vida + escudo) por ouro de qualquer armadura da loja
+// fica a no máximo 1,5× a segunda, em cada raridade (cada armadura sozinha na melhor fileira, custo = keyCost)
+{
+  const h = D.ITEMS.helm;
+  check(h.price === 4 && h.hp === 15 && h.zone === 'top', `v1.4 ID 4: Elmo de Ferro custa ${h.price} e dá ${h.hp} de vida (antes 3 e 20; ×1,5 no topo)`);
+  const ehp = (key, t) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.bag = { cols: 7, rows: 5, pockets: {} }; const p0 = S.makePlayer(), d = D.ITEMS[key];
+    s.items.push({ id: 1, key, tier: t, x: 0, y: d.zone === 'bottom' ? 5 - d.h : 0, w: d.w, h: d.h, where: 'bag' }); const p = S.makePlayer(); return (p.hp + p.block - p0.hp - p0.block) / S.keyCost(key, t); };
+  const arm = D.SHOPKEYS.filter(k => D.ITEMS[k].type === 'armor'); const out = [];
+  for (let t = 1; t <= 4; t++) { const v = arm.map(k => [ehp(k, t), k]).sort((a, b) => b[0] - a[0]); out.push([t, v[0][1], v[0][0] / v[1][0]]); }
+  check(out.every(o => o[2] <= 1.5), 'v1.4 ID 4: melhor vida efetiva/ouro ≤ 1,5× a segunda: ' + out.map(o => `T${o[0]} ${o[1]} ${o[2].toFixed(2)}×`).join(', '));
+  check(ehp('helm', 1) === 23 / 4, `v1.4 ID 4: Elmo Comum no topo = 23 de vida por 4 de ouro (${(ehp('helm', 1) * 4).toFixed(0)}; antes 30 por 3)`);
+}
+// ID 14: Juros Compostos ganhou efeito direto: ouro na hora (main.js takeBless, teste navLoteA id14gold) e vida máxima na luta (makePlayer)
+{
+  const B = D.BLESS.compostos, s = rig([['sword', 1, 0, 0]]); const hp0 = S.withState(s, () => S.makePlayer().max); s.bless = ['compostos']; const hp1 = S.withState(s, () => S.makePlayer().max);
+  check(B.gold === 20 && B.hp === 10 && hp1 === hp0 + B.hp, `v1.4 ID 14: Juros Compostos = +${B.gold} de ouro ao escolher e +${B.hp} de vida máxima (${hp0} -> ${hp1})`);
+  check(B.desc.includes(`+${B.gold} de ouro agora`) && B.desc.includes(`+${B.hp} de vida máxima`) && B.desc.includes('teto de juros +1'), 'v1.4 ID 14: o texto da bênção mora em data.js e diz os números');
+  check(D.EVENTS.altar.a === 'Oferecer 5 de vida máxima: +1 raridade no seu melhor item', 'v1.4 ID 14: texto do Altar em data.js (sem ajuste na carga do main.js)');
+}
+// ID 9 (elite 3): a elite da parada 3 recebe menos força de Ascensão que as outras elites
+{
+  const hpAt = (asc, wins) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.route = D.STOPS.map(() => 0); s.elites = {}; return S.foeStats().hp; };
+  const r3 = hpAt(10, 2) / hpAt(0, 2), r6 = hpAt(10, 5) / hpAt(0, 5);
+  check(D.ASC_FOE.elite3 < D.ASC_FOE.elite && r3 < 1.5 && r3 < r6, `v1.4 ID 9: elite 3 na A10 com ×${r3.toFixed(2)} de vida (antes ×2,02; elite 6: ×${r6.toFixed(2)})`);
+}
+// ID 18: o veneno da Mistura Volátil passa pelo teto das armas (antes acumulava sem limite e sem decair)
+{
+  const heals = []; for (let x = 0; x < 7; x++) for (let y = 1; y < 6; y++) heals.push(['potion', 1, x, y]);
+  const r = dummy(rig([['bomb', 1, 0, 0], ...heals], { cls: 'alchemist' }), 40);
+  check(r.maxPoison <= Math.round(S.DOT_K.poison * 1) && r.maxPoison > 0, `v1.4 ID 18: Alquimista com 35 Frascos e nenhuma arma de veneno: veneno no alvo ≤ ${Math.round(S.DOT_K.poison)} (${r.maxPoison}; antes passava de 100)`);
+  const pa = rig([['acidflask', 2, 0, 0], ...heals.slice(0, 6)], { cls: 'alchemist' }); const pv = S.withState(pa, () => S.weaponStats(pa.items[0]).poison); const ra = dummy(pa, 40);
+  check(ra.maxPoison <= Math.round(S.DOT_K.poison * (pv + 1)) && ra.maxPoison > Math.round(S.DOT_K.poison * pv), `v1.4 ID 18: com Frasco Ácido o teto é o da arma + 1 da Mistura (${ra.maxPoison} <= ${S.DOT_K.poison}×${pv + 1})`);
+  const mix = dummy(rig([['bomb', 1, 0, 0], ...heals.slice(0, 6)], { cls: 'alchemist' }), 20).b.stats.skill;
+  check(mix && mix.dmg > 0, 'v1.4 ID 18: a Mistura continua ferindo (dano direto da cura)');
 }
 
 console.log(fails ? `\n${fails} falha(s)` : '\ntudo certo');

@@ -46,14 +46,12 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 
 
 /* ================= PROFILE (codex, ascension, history, achievements) ================= */
-const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.5';
+const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.6';
 /* v1.4 (ID 13): o Laboratório grava numa chave própria e nunca sobrescreve a jornada em andamento */
 const LABKEY='alforje-lab6',keyOf=s=>s&&s.mode==='lab'?LABKEY:RUNKEY;
 /* v1.4 (ID 14): Juros Compostos também sobe o teto de juros; o Altar melhora o melhor item e custa 5 de vida máxima.
-   As regras moram aqui (interestCap, eventChoose); os textos de data.js são ajustados na carga (data.js fica para o Lote B). */
+   As regras moram aqui (interestCap, eventChoose); os textos estão em data.js (BLESS.compostos, EVENTS.altar). */
 const ALTAR_HP=5;
-BLESS.compostos.desc='Juros de 1 a cada 4 de ouro (em vez de 5) e teto de juros +1.';
-EVENTS.altar.a=`Oferecer ${ALTAR_HP} de vida máxima: +1 raridade no seu melhor item`;
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},ascW:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
@@ -169,11 +167,13 @@ const shopSize=()=>state.chal==='shop3'?3:5+(has('mascate')?1:0);
 const lockLimit=()=>2+(has('olho')?1:0)+(state.extraLock||0);
 function shopPool(){return SHOPKEYS;}
 function petPool(){return PETKEYS.filter(k=>!PETS[k].unlock||PROF.ach[PETS[k].unlock]);}
-function rollShop(){const old=state.shop||[];state.shop=[];let petDone=state.chal==='nopets';const N=shopSize();let minT=[];
+function rollShop(){const old=state.shop||[];state.shop=[];let petDone=state.chal==='nopets';const N=shopSize();let minT=[];const fixed=[];
  if(state.pendingEtiq==='raros')minT=[2,2];if(state.pendingEtiq==='epico')minT=[3];state.pendingEtiq=null;
  for(let i=0;i<N;i++){if(old[i]&&old[i].locked){state.shop.push(old[i]);continue;}
   if(!petDone&&state.round>=2&&R()<.32){petDone=true;state.shop.push({key:rpick(petPool()),tier:rollTier()>2?2:1,pet:1});continue;}
-  const o={key:rpick(shopPool()),tier:rollTier(minT.shift())};if(R()<.1)o.sale=1;state.shop.push(o);}
+  const mt=minT.shift();if(mt)fixed.push(i);const o={key:rpick(shopPool()),tier:rollTier(mt)};if(R()<.1)o.sale=1;state.shop.push(o);}
+ /* v1.4 (ID 9): pelo menos 1 oferta que funde com um item seu (regras em SIM.shopMerge; nada no "Sem Fusão") */
+ SIM.shopMerge(state.shop,()=>rollTier(),fixed);
  for(const o of state.shop)if(o&&!o.pet)codexSee(o.key);}
 function rerollCost(){if(state.freeReroll||state.etiq.trocas&&state.rerollN===0||has('maoleve')&&state.rerollN===0)return 0;return [1,1,2,2,3][Math.min(state.rerollN,4)]+(state.asc>=4?1:0);}
 
@@ -868,6 +868,8 @@ function takeBless(k){state.bless.push(k);state.reward=null;sfx('merge');
  if(k==='alforje')state.queue.unshift('expandfree');
  if(k==='tesouro'){const key=rpick(SHOPKEYS);if(!addItem(key,3)){state.gold+=basePrice(key,3);toast('Sem espaço: virou ouro');}else toast(`Tesouro: ${ITEMS[key].name} Épico`);}
  if(k==='mascate')while(state.shop.length<shopSize()){const o={key:rpick(shopPool()),tier:rollTier()};state.shop.push(o);}
+ /* v1.4 (ID 14): Juros Compostos também paga ouro na hora (BLESS.compostos.gold) */
+ if(k==='compostos'&&BLESS.compostos.gold){state.gold+=BLESS.compostos.gold;toast(`Juros Compostos: +${BLESS.compostos.gold} de ouro`);}
  if(state.bless.length>=3)ach('bless3');nextQueue();}
 function subScreen(){const S=SUBS[state.cls];overlay(`<h2>Subclasse</h2><p class="muted center">Meio do caminho. ${CLASSES[state.cls].name} escolhe um rumo, e o Mascate adianta 6 de ouro para a viagem.</p><div class="rewards">
  ${S.map(s=>`<button class="k-card choice" data-sub="${s.id}"><i class="ico"><img src="a/h_${state.cls}.webp" alt="" style="${CLASSES[state.cls].flip?'transform:scaleX(-1)':''}"></i><div><b>${s.name}</b><span>${s.desc}</span></div></button>`).join('')}</div>`);}
@@ -1426,7 +1428,7 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  ${M.mode==='normal'&&ascMax('warrior')+ascMax('rogue')+ascMax('pyro')+ascMax('paladin')>0?`<details class="k-card fold"><summary>O que cada Ascensão muda</summary>${ASCTXT}</details>`:''}
  <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
  <div class="gorow"><button class="k-btn v" id="back">Voltar</button><button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}${cost>0?` aria-label="Começar: custa ${cost} de energia"`:''}>${goLbl}</button></div>`,'jogar');}
-const ASCTXT=`<p class="muted small">Cada nível deixa os inimigos mais fortes: +60% de vida e +6% de dano por nível até a Ascensão 5, +15% e +2% por nível depois. O reforço é menor nas primeiras paradas e menor ainda nas elites e no chefe. Além disso:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites das paradas 8 e 9 com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,13).</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
+const ASCTXT=`<p class="muted small">Da Ascensão 1 à 5, cada nível deixa os inimigos mais fortes: +65% de vida e +6% de dano. O reforço é menor nas primeiras paradas e menor ainda nas elites (a da parada 3 recebe só a metade) e no chefe. Além disso:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites das paradas 8 e 9 com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,05).</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
 /* energia: a jornada custa ao ser criada (Normal, Desafios e Seed); Diário e Duelo são grátis */
 function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}/* Diário, Duelo e Laboratório: grátis */
 /* sem energia para a jornada: quanto falta, propaganda (se sobrar no dia), Loja e Metas */
@@ -1531,6 +1533,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
+ <li><b>v8.6</b>: balanceamento. O Elmo de Ferro custa 4 e dá 15 de vida (ainda ×1,5 no topo); Escudo de Carvalho, Broquel, Cota de Espinhos, Couraça de Gelo, Armadura de Placas e Espelho de Espinhos ficaram mais resistentes. Toda loja traz pelo menos uma oferta que funde com um item seu (menos no desafio Sem Fusão). A elite da parada 3 cresce menos com a Ascensão, e da Ascensão 6 em diante só as regras extras pesam. Paladino (68 de vida) e Alquimista (80) ficaram mais firmes, e o veneno da Mistura Volátil passou a seguir o mesmo teto das armas. Juros Compostos agora também dá 20 de ouro na hora e +10 de vida máxima.</li>
  <li><b>v8.5</b>: correções do playtest. Tocar na tela logo depois de uma luta não faz mais você perder a luta seguinte, e arrastar um item com um dedo enquanto toca em Desfazer, Trocar ou Pular loja com outro não trava nem compra o item errado. Mexer no relógio do aparelho não reabre o bônus diário, as propagandas nem as compras. O Codex paga as novidades pelo que você conquista (comprar ou fundir um item, forjar uma receita, vencer um inimigo), até 10 por dia, e ganhou o botão <b>Coletar todos</b>. As melhorias do equipamento pedem mais pedras nos níveis altos (a jornada rende 1 pedra a cada 4 vitórias) e, com todos os seus companheiros no nível máximo, a ração dos prêmios vira ouro. Juros Compostos também sobe o teto de juros, e o Altar melhora o seu melhor item por 5 de vida máxima. O Laboratório usa os bônus da sua conta e guarda o teste à parte, sem tocar na jornada. O aviso mostra o nome inteiro e fica abaixo do placar, a JORNADA avisa quando falta energia e os heróis bloqueados dizem como liberar.</li>
  <li><b>v8.4</b>: o Mascate Brás ganhou rosto e humor. Ele fala com a máquina de escrever (toque para ver a frase inteira) e muda de expressão: fica empolgado com fusões Épicas e Lendárias, forjas e sequências, preocupado na última vida e ganancioso com o Martelo, as apostas e as boas vendas. Perdeu por pouco? A janela da derrota traz um “quase lá” com uma dica tirada da sua mochila. Cada item, receita ou inimigo descoberto a partir de agora ganha o selo <b>NOVO!</b> no Codex: toque nele para ganhar 2 rubis. E chegou o <b>Laboratório do Mascate</b>: grátis, com ouro infinito, Catálogo de tudo que você já descobriu e o adversário que você escolher, para testar montagens sem gastar nada (e sem ganhar nada).</li>
  <li><b>v8.3</b>: a mochila ficou mais viva. O item arrastado cresce e balança com o dedo; as linhas mostram fusão (dourada, pulsando), bônus de posição (azul) e receita da forja (roxa, com bigorna); fundir e forjar estouram faíscas na cor da raridade; Épicos brilham e Lendários soltam faíscas. Na luta, cada linha do medidor tem um anel de recarga e dispara um feixe no inimigo, e os números mostram o tipo do dano, com críticos maiores.</li>

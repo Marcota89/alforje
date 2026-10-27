@@ -3,7 +3,7 @@
 'use strict';
 const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
 let state=null;
-let DIFF={hp:1.84,dmg:1.5};
+let DIFF={hp:2.1,dmg:1.5};
 /* ================= SEEDED RNG (MOD-01) ================= */
 function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return (h^h>>>16)>>>0;}
 function R(){let t=(state.rng=(state.rng+0x6D2B79F5)>>>0);t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
@@ -112,6 +112,17 @@ function salamanderHeat(s){if(s.salamUsed)return false;s.salamUsed=true;s.freeHa
 /* virada de parada: Martelo, Salamandra e troca grátis voltam; a vaga extra da Tartaruga acaba e as reservas acima do limite são soltas */
 function newStop(s,limit){s.rerollN=0;s.hammerUsed=false;s.freeHammer=false;s.salamUsed=false;s.extraLock=0;s.freeReroll=false;
  let n=0;for(const o of s.shop||[])if(o&&o.locked&&++n>limit)o.locked=false;return s;}
+/* v1.4 (ID 9): toda loja garante 1 oferta que funde com um item seu (mochila ou baú): a cópia de um item não Lendário da loja comum.
+   A raridade vem do sorteio normal (roll); se nada seu tem essa raridade, vale a sua mais próxima (empate: a menor), para fundir de fato.
+   Só age quando nenhuma oferta já funde e nunca no desafio "Sem Fusão". Troca uma vaga livre: sem companheiro, sem reserva e fora das
+   garantidas pela Etiqueta (fixed). Usa o gerador da partida. Devolve o índice trocado, ou -1. */
+const mergesWith=(o,own)=>!!o&&!o.pet&&o.tier<4&&own.some(i=>i.key===o.key&&i.tier===o.tier);
+function shopMerge(shop,roll,fixed){if(state.chal==='nofuse')return -1;
+ const own=state.items.filter(i=>i.tier<4&&SHOPKEYS.includes(i.key));if(!own.length||shop.some(o=>mergesWith(o,own)))return -1;
+ const free=[];shop.forEach((o,i)=>{if(o&&!o.pet&&!o.locked&&!(fixed||[]).includes(i))free.push(i);});if(!free.length)return -1;
+ const t=roll(),dist=Math.min(...own.map(i=>Math.abs(i.tier-t))),near=own.filter(i=>Math.abs(i.tier-t)===dist),tier=Math.min(...near.map(i=>i.tier));
+ const keys=[...new Set(near.filter(i=>i.tier===tier).map(i=>i.key))].sort(),ix=free[Math.floor(R()*free.length)];
+ shop[ix]={key:keys[Math.floor(R()*keys.length)],tier};return ix;}
 /* ================= FOES ================= */
 const stopIx=()=>Math.min(state.wins,STOPS.length-1);
 function isEliteStop(s){return !!STOPS[s].elite||(state.asc>=1&&s===7);}
@@ -125,12 +136,13 @@ function foeDef(){
  const mods=(state.elites[s]&&state.elites[s][vi])||[];
  return Object.assign({stop:s,biome:st.biome,elite:isEliteStop(s)&&!st.boss,boss:st.boss,mods},v);}
 /* força extra por Ascensão: [por nível até a A5, por nível depois] (o peso vem logo no começo), menor nas primeiras paradas
-   (ASC_FOE.early na parada 1, subindo até 100% na parada 10) para a dificuldade crescer até o fim da jornada; elites recebem ASC_FOE.elite dela e o chefe ASC_FOE.boss */
-const ascFoe=(k,s,el)=>{const a=state.asc||0,w=(ASC_FOE.early+(1-ASC_FOE.early)*Math.min(s,9)/9)*(el==='boss'?ASC_FOE.boss:el?ASC_FOE.elite:1);return 1+(k[0]*Math.min(a,5)+k[1]*Math.max(0,a-5))*w;};
+   (ASC_FOE.early na parada 1, subindo até 100% na parada 10) para a dificuldade crescer até o fim da jornada; elites recebem ASC_FOE.elite dela
+   (v1.4: a elite da parada 3 só ASC_FOE.elite3, para não virar parede logo no começo) e o chefe ASC_FOE.boss */
+const ascFoe=(k,s,el)=>{const a=state.asc||0,w=(ASC_FOE.early+(1-ASC_FOE.early)*Math.min(s,9)/9)*(el==='boss'?ASC_FOE.boss:el?(s===2?ASC_FOE.elite3:ASC_FOE.elite):1);return 1+(k[0]*Math.min(a,5)+k[1]*Math.max(0,a-5))*w;};
 function foeStats(){const f=foeDef(),st=STOPS[f.stop],A=ARCH[f.arch],el=f.elite?1.15:1,s=f.stop;
  let hpS=1,dS=1;if(f.surv){hpS=STOPS[9].hp/st.hp*Math.pow(1.15,f.surv);dS=STOPS[9].dps/st.dps*Math.pow(1.15,f.surv);}
  /* v1.2: a Ascensão deixa os inimigos mais fortes (vida e dano, ASC_FOE); a A10 ainda soma ×1,13 de vida */
- const ascHp=state.asc>=10?2.2/1.95:1,big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
+ const ascHp=state.asc>=10?ASC_FOE.a10:1,big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
  const HP=Math.round(st.hp*A.hp*el*DIFF.hp*hpS*ascHp*aH),D=st.dps*(f.elite?1.1:1)*DIFF.dmg*dS*aD;
  let atk=[],block=0,reflect=0,heal=null;
  if(f.arch==='bruto')atk=[{dmg:Math.round(D*2.4),cd:2.4,label:'Pancada'}];
@@ -166,7 +178,7 @@ function makePlayer(){const C=CLASSES[state.cls]||CLASSES.warrior,A=affinity();c
   if(P.frost)weapons.push({pet:i,key:k,label:P.name,icon:ic,dmg:0,cd:P.cd,t:P.cd,crit:0,burn:0,poison:0,frost:Math.round(P.frost*m),life:0,fx:'ice',first:false,nodmg:1,supports:[]});
   if(P.block){const b=Math.round(P.block*m);block+=b;initBlk.push([k,P.name,ic,b]);heals.push({pet:i,key:k,label:P.name,icon:ic,amt:Math.round(P.tick*m),cd:P.cd,t:P.cd,shield:1});}
   if(P.heal)heals.push({pet:i,key:k,label:P.name,icon:ic,amt:Math.round(P.heal*m*healMul),cd:P.cd,t:P.cd});});
- if(A.lv.metal)block+=A.lv.metal===2?20:8;if(A.lv.sagrado===2)hp+=15;if(has('sangue'))hp+=15;if(has('pedra'))block+=12;
+ if(A.lv.metal)block+=A.lv.metal===2?20:8;if(A.lv.sagrado===2)hp+=15;if(has('sangue'))hp+=15;if(has('compostos'))hp+=BLESS.compostos.hp||0;if(has('pedra'))block+=12;
  if(state.sub==='guardiao'){block=Math.round(block*1.25);reflect+=2;}
  if(PM){if(PM.block>0){block+=PM.block;initBlk.push(['perm','Armadura','shield',PM.block,1]);}if(dm!==1){reflect=Math.round(reflect*dm);for(const t of trig.start)t.amt=Math.round(t.amt*dm);for(const t of trig.crit5)t.amt=Math.round(t.amt*dm);}}
  const sub=state.sub;
@@ -203,7 +215,8 @@ function lg(b,txt){if(b.log.length<700)b.log.push(b.t.toFixed(1).padStart(5,' ')
 function hurt(b,F,n,useBlock){let bl=0;if(useBlock&&F.block>0){bl=Math.min(F.block,n);F.block-=bl;n-=bl;}F.hp-=n;if(F.side==='p'&&b)b.blocked+=bl;return n+bl;}
 /* teto de pilhas: a queimadura e o veneno que um herói (ou fantasma) põe no alvo não passam de DOT_K× a soma, entre as armas,
    do maior golpe de cada uma nesta luta; o Piromante sempre alcança o limiar da Combustão. Inimigos comuns não têm teto.
-   Pergaminho e habilidades (Mistura Volátil) somam por fora. Devolve o que entrou. */
+   O Pergaminho e a queimadura do Demolidor somam por fora; o veneno da Mistura Volátil (v1.4, ID 18) passa pelo teto como
+   uma arma a mais que aplica 1 (chave 'mix'). Devolve o que entrou. */
 const DOT_K={burn:1,poison:1.5};
 function addDot(A,D,kind,n,key){if(!A.dotCap){D[kind]+=n;return n;}const mx=(A.dmx||(A.dmx={burn:{},poison:{}}))[kind];mx[key]=Math.max(mx[key]||0,n);
  let sum=0;for(const k in mx)sum+=mx[k];
@@ -242,7 +255,7 @@ function step(b,dt){const P=b.p,E=b.e;b.t+=dt;
   for(const h of A.heals){h.t-=dt;if(h.t>0)continue;h.t+=h.cd;rec(b,a,h.key||'regen',h.label,h.icon,'act',1,h.tier);
    if(h.shield){A.block+=h.amt;rec(b,a,h.key,h.label,h.icon,'blk',h.amt,h.tier);b.ev.push({k:'num',s:a,c:'blk',v:'+'+h.amt+' escudo'});}
    else{let amt=h.amt;if(A.mods.includes('regen2')&&A.hp<A.max/2)amt*=2;if(A.purged>0)amt=Math.round(amt/2);const g=Math.min(amt,A.max-A.hp);A.hp+=g;rec(b,a,h.key||'regen',h.label,h.icon,'heal',g,h.tier);if(g>0){b.ev.push({k:'num',s:a,c:'heal',v:'+'+g});lg(b,`${a==='p'?'':'⟵ '}${h.label}: cura ${g}`);}
-    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.9)*(A.pdm||1)));hurt(b,D,n,false);if(dm){D.burn+=2;}else D.poison+=1;stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
+    if(a==='p'&&A.cls==='alchemist'&&h.id!=null){const dm=A.sub==='demolidor';const n=Math.max(1,Math.round(amt*(dm?1:.9)*(A.pdm||1)));hurt(b,D,n,false);if(dm){D.burn+=2;}else addDot(A,D,'poison',1,'mix');stat(b,'skill','Mistura Volátil','drop','dmg',n);stat(b,'skill','Mistura Volátil','drop','act',1);b.ev.push({k:'num',s:d,c:'psn',v:'-'+n+' mistura'});b.ev.push({k:'mix'});}}
    b.ev.push({k:'fire',id:h.id,pet:h.pet,s:a});}
   A.bt-=dt;if(A.bt<=0){A.bt+=1;if(A.burn>0){const n=A.mods.includes('escamas')?Math.ceil(A.burn/2):A.burn;hurt(b,A,n,false);rec(b,d,'burn','Queimadura','flame','dmg',n);b.ev.push({k:'num',s:a,c:'burn',v:'-'+n});lg(b,`Queimadura em ${A.name}: ${n}`);
     if(!A.noDecay){A.bd=(A.bd||0)+1;if(A.bd>=(A.bdi||1)){A.bd=0;A.burn-=1;}}}}
@@ -339,6 +352,6 @@ function verifyDaily(e,dayIx){const bad=m=>({ok:false,why:m});
 function ghostPlausible(o,asc){if(!o)return {ok:false,why:'código'};
  return buildPlausible({c:o.c,sub:o.s||null,bl:o.bl||[],b:o.b,lv:o.lv||0,i:o.i,p:o.p||[],w:GOAL,r:SURV_GOAL+LIVES+1,a:asc||0,ch:null});}
 window.AlforjeSim={setState(s){state=s;return s;},getState(){return state;},setDiff(h,d){DIFF={hp:h,dmg:d};},
- forgeTier,blessTier,keyCost,salamanderHeat,newStop,DOT_K,addDot,
+ forgeTier,blessTier,keyCost,salamanderHeat,newStop,shopMerge,mergesWith,DOT_K,addDot,
  dayStr,dailyClass,battleSeed,BR,snapOf,seedRoute,stateFromSnap,simulate,goldCap,buildPlausible,verifyDaily,ghostPlausible,MAXFIGHTS,hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step};
 })();

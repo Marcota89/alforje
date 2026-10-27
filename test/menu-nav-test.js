@@ -725,6 +725,9 @@ window.navLoteA = async () => {
     await sect(async () => {
       start('normal'); A.state.asc = 0; A.state.gold = 100; A.state.bless = []; const base = A.interest(); A.state.bless = ['compostos'];
       R.id14juros = A.interest() === base + 1 && /teto de juros \+1/.test(D.BLESS.compostos.desc);
+      // v1.4 Lote B (ID 14): Juros Compostos também paga ouro na hora (BLESS.compostos.gold), e o texto diz quanto
+      A.state.bless = []; A.state.queue = []; const g0 = A.state.gold, cg = D.BLESS.compostos.gold; A.takeBless('compostos'); A.closeOverlay();
+      R.id14gold = cg > 0 && A.state.gold === g0 + cg && A.state.bless.includes('compostos') && D.BLESS.compostos.desc.includes('+' + cg + ' de ouro agora') && D.EVENTS.altar.a.includes('5 de vida máxima');
       const id = A.state.nid; A.state.items = [{ id: id, key: 'dagger', tier: 1, x: 0, y: 0, w: 1, h: 1, where: 'bag' }, { id: id + 1, key: 'sword', tier: 2, x: 1, y: 0, w: 1, h: 2, where: 'bag' }, { id: id + 2, key: 'whet', tier: 1, x: 2, y: 0, w: 1, h: 1, where: 'bag' }];
       A.state.nid = id + 3; A.state.maxHpMod = 0; A.state.event = 'altar'; A.eventChoose(true); A.closeOverlay();
       R.id14altar = A.state.items.find(i => i.id === id + 1).tier === 3 && A.state.items.find(i => i.id === id).tier === 1 && A.state.items.find(i => i.id === id + 2).tier === 1 && A.state.maxHpMod === -5;
@@ -806,7 +809,7 @@ window.navLoteA = async () => {
     if (lab0 == null) localStorage.removeItem(LK); else localStorage.setItem(LK, lab0);
     navPut(K, true);
   }
-  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3'];
+  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14gold', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3'];
   R.fail = keys.filter(k => R[k] !== true);
   R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length && !(R.m23audit || []).length;
   return R;
