@@ -204,10 +204,14 @@ const STOPS=[
 ];
 const BAGCOST=[5,8,11], MAXEXP=3, MAXCOLS=7, MAXROWS=6, CHEST_ROWS=2, GOAL=10, SURV_GOAL=14, LIVES=5, SILVER_WIN=6;
 /* v1.2: força extra dos inimigos por nível de Ascensão, cumulativa: [por nível da A1 à A5, por nível da A6 à A10].
-   elite = peso nas elites; elite3 = peso só na elite da parada 3 (v1.4, ID 9); boss = peso no chefe */
-const ASC_FOE={hp:[.65,0],dmg:[.06,0],early:.4,elite:.4,elite3:.2,boss:.22,a10:1.05};
-/* A6+: elites com 2 modificadores a partir desta parada (índice; 7 = parada 8). As elites das paradas 3 e 6 ficam com 1. */
-const ASC_MOD2=7;
+   elite = peso nas elites; elite3 = peso só na elite da parada 3 (v1.4, ID 9); boss = peso no chefe.
+   v1.4 (revisão I1): da A6 à A10 cada nível tem uma regra própria (ASCTXT); a8 e a10 multiplicam a vida de todos os inimigos
+   a partir da A8 e da A10 (cumulativos), para essas duas também pesarem. */
+const ASC_FOE={hp:[.62,0],dmg:[.06,0],early:.4,elite:.4,elite3:.2,boss:.22,a8:1.08,a10:1.12};
+/* A7+: preços da loja ×ASC_PRICE (v1.4: 1,05; antes 1,1) */
+const ASC_PRICE=1.05;
+/* A6+: elites com 2 modificadores a partir desta parada (índice; 8 = parada 9; v1.4: antes 7). As elites das paradas 3, 6 e 8 ficam com 1. */
+const ASC_MOD2=8;
 /* Bênçãos (EVE-01): b = bronze (elites 3, 8 e 9), p = prata (elite 6, depois da 6ª vitória: SILVER_WIN) */
 const BLESS={
  mascate:{t:'b',name:'Mascate Generoso',desc:'+1 vaga na loja.'},
@@ -232,10 +236,11 @@ const ETIQ={raros:{name:'Etiqueta dos Raros',desc:'a próxima loja garante 2 ite
  ouro:{name:'Etiqueta da Bolsa',desc:'+8 de ouro agora'},trocas:{name:'Etiqueta do Freguês',desc:'a 1ª troca de itens de cada parada sai de graça até o fim'},
  epico:{name:'Etiqueta Épica',desc:'a próxima loja garante 1 item Épico'}};
 const ETIQKEYS=Object.keys(ETIQ);
-/* Encruzilhada (EVE-03) */
+/* Encruzilhada (EVE-03). ALTAR_HP: vida máxima que o Altar cobra (regra em main.js eventChoose; texto abaixo) */
+const ALTAR_HP=5;
 const EVENTS={
  aposta:{title:'A aposta do Mascate',text:'"Cinco moedas na mesa. Cara, você leva um item Raro. Coroa, eu levo as moedas. Topa?"',a:'Apostar 5 de ouro',b:'Seguir viagem'},
- altar:{title:'Altar na beira da estrada',text:'Uma pedra coberta de runas pede sangue. Dizem que quem oferece sai mais forte.',a:'Oferecer 5 de vida máxima: +1 raridade no seu melhor item',b:'Seguir viagem'},
+ altar:{title:'Altar na beira da estrada',text:'Uma pedra coberta de runas pede sangue. Dizem que quem oferece sai mais forte.',a:`Oferecer ${ALTAR_HP} de vida máxima: +1 raridade no seu melhor item`,b:'Seguir viagem'},
  andarilho:{title:'O andarilho cansado',text:'"Esse bicho aí parece bom de briga. Pago dez moedas e cuido bem dele."',a:'Vender o companheiro mais fraco por 10',b:'Seguir viagem'}};
 const CHALLENGES=[
  {id:'nofuse',name:'Sem Fusão',desc:'Itens iguais não se fundem.'},
@@ -278,6 +283,6 @@ const MERCH={
  over:['Mochila pesada demais! Armas demais deixam todas lentas.'],
  surv:['Daqui para o norte eu não vendo fiado. Nem para você.']
 };
-Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH});
+Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,ASC_PRICE,BLESS,ETIQ,ETIQKEYS,EVENTS,ALTAR_HP,CHALLENGES,ACH,STORY,MERCH});
 window.AlforjeData=Object.freeze(D);
 })();

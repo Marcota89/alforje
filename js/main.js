@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
+const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH,ALTAR_HP,ASC_FOE,ASC_PRICE}=window.AlforjeData;
 const SIM=window.AlforjeSim;
 const {hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step,dayStr,dailyClass,snapOf,verifyDaily,ghostPlausible,MAXFIGHTS}=SIM;
 const DIM={"bomb":[137, 160],"acidflask":[96, 160],"frostflask":[112, 160],"alembic":[160, 160],"philostone":[127, 160],"mortar":[151, 160],"smoke":[107, 160],"mandrake":[104, 160],"acidflask":[111, 132],"frostflask":[111, 132],"bomb":[128, 128],"philostone":[128, 128],"mortar":[128, 128],"greatsword":[120, 114],"warhammer":[120, 114],"buckler":[83, 81],"plate":[117, 114],"spikemirror":[122, 114],"scarab":[76, 87],"rebelelixir":[76, 85],"spear_1":[38,160],"spear_2":[62,160],"spear_3":[98,160],"spear_4":[140,147],"hammer_1":[105,160],"hammer_2":[150,160],"hammer_3":[150,145],"hammer_4":[144,158],"whet_1":[157,140],"whet_2":[160,136],"whet_3":[160,122],"whet_4":[160,101],"clover_1":[116,131],"clover_2":[160,140],"clover_3":[160,133],"clover_4":[160,55],"torch_1":[127,154],"torch_2":[128,154],"torch_3":[160,132],"torch_4":[128,127],"venom_1":[111,132],"venom_2":[140,147],"venom_3":[160,138],"venom_4":[160,102],"ring_1":[115,110],"ring_2":[149,151],"ring_3":[160,78],"ring_4":[160,70],"sword":[56,160],"dagger":[133,140],"axe":[157,160],"bow":[90,160],"staff":[45,160],"shield":[125,140],"helm":[126,160],"thorns":[97,110],"potion":[126,140],"feather":[160,160],"purse":[147,152],"mirror":[94,160],"chain":[160,160],"boots":[160,153],"banner":[120,160],"scroll":[152,160],"stoneheart":[160,151],"eye":[130,160],"phoenix":[75,160],"heroblade":[112,160],"infernal":[50,160],"elixir":[86,114],"bastion":[140,160],"viper":[152,160],"galebow":[90,160],"h_warrior":[241,177],"h_rogue":[136,153],"h_paladin":[247,225],"h_pyro":[238,209],"p_salamander":[140,59],"p_raven":[81,76],"p_turtle":[102,70],"p_pixie":[79,65],"e_werewolf":[247,260],"e_merc":[202,260],"e_lavasal":[251,260],"e_skarcher":[224,260],"e_witch":[235,260],"e_troll":[211,260],"e_spider":[260,193],"e_reaper":[161,260],"e_ashmage":[211,260],"e_wyrm":[340,197],"e_gargoyle":[203,260],"e_goblin":[237,260],"e_rat":[260,221],"e_bandit":[216,260],"e_fknight":[250,260],"e_frog":[260,240],"e_boar":[260,205],"e_wolf":[260,190],"e_lich":[212,260],"merchant":[220,147],"shopscene":[900,172],"strip_cellar":[1296,56],"strip_forest":[1296,56],"strip_swamp":[1296,56],"strip_crypt":[1296,56],"strip_volcano":[1296,56],"bg_road":[960,407],"bg_night":[960,407],"bg_castle":[960,407],"iceaxe":[157,160],"icestaff":[45,160],"firedagger":[133,140],"pestspear":[38,160],"flail":[105,160],"frostmail":[97,110],"holyshield":[125,140],"frostgem":[115,110],"holywater":[126,140],"idolfire":[120,160],"idolfrost":[120,160],"idolmetal":[120,160],"idolnature":[120,160],"belt":[160,160],"piggy":[147,152],"ledger":[130,160],"vetring":[149,151],"acorn":[116,131],"soulgem":[160,151],"glacier":[112,160],"judgehammer":[144,158],"p_owl":[81,76],"e_icewolf":[260,190],"e_shaman":[237,260],"e_darkknight":[250,260],"e_icetroll":[211,260],"e_plaguewitch":[235,260],"e_obsidian":[203,260],"dualgrip":[160,140]};
@@ -49,9 +49,8 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.6';
 /* v1.4 (ID 13): o Laboratório grava numa chave própria e nunca sobrescreve a jornada em andamento */
 const LABKEY='alforje-lab6',keyOf=s=>s&&s.mode==='lab'?LABKEY:RUNKEY;
-/* v1.4 (ID 14): Juros Compostos também sobe o teto de juros; o Altar melhora o melhor item e custa 5 de vida máxima.
-   As regras moram aqui (interestCap, eventChoose); os textos estão em data.js (BLESS.compostos, EVENTS.altar). */
-const ALTAR_HP=5;
+/* v1.4 (ID 14): Juros Compostos também sobe o teto de juros; o Altar melhora o melhor item e custa ALTAR_HP (data.js) de vida máxima.
+   As regras moram aqui (interestCap, eventChoose); os textos e o custo do Altar estão em data.js (BLESS.compostos, EVENTS.altar, ALTAR_HP). */
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},ascW:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
@@ -125,7 +124,7 @@ const $=s=>document.querySelector(s);
 function maxCols(s){s=s||state;const narrow=typeof window!=='undefined'&&window.innerWidth<400;return narrow?Math.max(6,Math.min(MAXCOLS,s.bag.cols)):MAXCOLS;}/* plano mobile: até 6 colunas em telas estreitas */
 function canExpand(s){s=s||state;return s.chal!=='small'&&s.bagLvl<MAXEXP&&(s.bag.cols<maxCols(s)||s.bag.rows<MAXROWS);}
 window.AlforjeData.hooks.canExpand=canExpand;
-const priceMul=()=>state&&state.asc>=7?1.1:1;
+const priceMul=()=>state&&state.asc>=7?ASC_PRICE:1;
 const basePrice=(key,tier,pet)=>Math.round((pet?PETS[key].price:ITEMS[key].price)*TP[tier-1]*priceMul());
 const sellPrice=(key,tier,pet)=>Math.max(1,Math.floor(basePrice(key,tier,pet)/2));
 const offerPrice=o=>o.sale?sellPrice(o.key,o.tier,o.pet):basePrice(o.key,o.tier,o.pet);
@@ -163,6 +162,8 @@ function odds(stop){stop=stop||curStop();let o;
  if(stop<=2)o=[100,0,0,0];else if(stop<=4)o=[80,20,0,0];else if(stop===5)o=[60,32,8,0];else if(stop===6)o=[50,33,15,2];else if(stop<=8)o=[42,34,20,4];else o=[35,35,24,6];
  if(state&&state.asc>=8&&stop<9&&o[3]){o=o.slice();o[2]+=o[3];o[3]=0;}
  if(state&&state.surv)o=[30,35,27,8];return o;}
+/* v1.4 (M3): a garantia de fusão só oferece raridades com chance > 0 nesta parada */
+const tierOk=t=>odds()[t-1]>0;
 function rollTier(min){const o=odds(),x=R()*100;let t=x<o[0]?1:x<o[0]+o[1]?2:x<o[0]+o[1]+o[2]?3:4;return Math.max(min||1,t);}
 const shopSize=()=>state.chal==='shop3'?3:5+(has('mascate')?1:0);
 const lockLimit=()=>2+(has('olho')?1:0)+(state.extraLock||0);
@@ -174,7 +175,7 @@ function rollShop(){const old=state.shop||[];state.shop=[];let petDone=state.cha
   if(!petDone&&state.round>=2&&R()<.32){petDone=true;state.shop.push({key:rpick(petPool()),tier:rollTier()>2?2:1,pet:1});continue;}
   const mt=minT.shift();if(mt)fixed.push(i);const o={key:rpick(shopPool()),tier:rollTier(mt)};if(R()<.1)o.sale=1;state.shop.push(o);}
  /* v1.4 (ID 9): pelo menos 1 oferta que funde com um item seu (regras em SIM.shopMerge; nada no "Sem Fusão") */
- SIM.shopMerge(state.shop,()=>rollTier(),fixed);
+ SIM.shopMerge(state.shop,()=>rollTier(),fixed,tierOk);
  for(const o of state.shop)if(o&&!o.pet)codexSee(o.key);}
 function rerollCost(){if(state.freeReroll||state.etiq.trocas&&state.rerollN===0||has('maoleve')&&state.rerollN===0)return 0;return [1,1,2,2,3][Math.min(state.rerollN,4)]+(state.asc>=4?1:0);}
 
@@ -753,7 +754,7 @@ function petAct(i){if(!inShop())return;const p=state.pets[i];if(!p||!(p.ch>0))re
  else if(k==='turtle'){state.extraLock=(state.extraLock||0)+1;toast('Tartaruga: pode reservar mais 1 item nesta parada');}
  else if(k==='salamander'){if(!SIM.salamanderHeat(state)){toast('A Salamandra já esquentou o Martelo nesta parada');return;}toast('Salamandra: o Martelo está quente e de graça');}
  else if(k==='pixie'){state.gold+=3;toast('Fada: +3 de ouro');}
- else if(k==='owl'){const ix=state.shop.map((o,j)=>o&&!o.locked&&!o.pet?j:-1).filter(j=>j>=0);if(!ix.length){toast('Nada para trocar na loja');return;}const j=rpick(ix);state.shop[j]={key:rpick(shopPool()),tier:rollTier(2)};codexSee(state.shop[j].key);toast('Coruja: achou algo melhor na loja');}
+ else if(k==='owl'){const ix=state.shop.map((o,j)=>o&&!o.locked&&!o.pet?j:-1).filter(j=>j>=0);if(!ix.length){toast('Nada para trocar na loja');return;}const j=rpick(ix);state.shop[j]={key:rpick(shopPool()),tier:rollTier(2)};SIM.shopMerge(state.shop,()=>rollTier(),[j],tierOk);state.shop.forEach(o=>{if(o&&!o.pet)codexSee(o.key);});toast('Coruja: achou algo melhor na loja');}
  p.ch--;state.undo=null;sfx('trig');save();render();}
 function skipShop(){if(!inShop())return;const e=state.skipOffer;if(!e)return;dragAbort();confirmBox('Pular a loja desta parada?',`Os itens à venda somem e você ganha a ${ETIQ[e].name}: ${ETIQ[e].desc}.`,'Pular loja',()=>{
  if(!inShop()||state.skipOffer!==e)return;dragAbort();state.shop=state.shop.map(()=>null);if(e==='ouro')state.gold+=8;else if(e==='trocas')state.etiq.trocas=true;else state.pendingEtiq=e;state.skipOffer=null;state.undo=null;sfx('trig');toast(ETIQ[e].name+' guardada');save();render();});}
@@ -1019,7 +1020,7 @@ function postQueue(job){if(testOffline())return;if(CLOUD.ready&&!TAB_LOCK){postS
  const a=postJobs();a.push(job);try{localStorage.setItem(POSTKEY,JSON.stringify(a.slice(-20)));}catch(e){}}
 function postFlush(){if(!CLOUD.ready||TAB_LOCK||testOffline())return;const a=postJobs();if(!a.length)return;try{localStorage.removeItem(POSTKEY);}catch(e){}a.forEach(postSend);}
 async function postSend(j){try{
- if(j.k==='board'){const r=await API.submit('daily',{entry:j.entry});if(r&&r.ok&&!r.kept)toast('🏆 Marca registrada no placar de hoje',1);else if(r&&!r.ok)toast('O placar recusou esta marca: '+r.why,1);}
+ if(j.k==='board'){const r=await API.submit('daily',{entry:j.entry});if(r&&r.ok&&!r.kept)toast('🏆 Marca registrada no placar de hoje',1);else if(r&&!r.ok)toast(r.code==='versao'?DAILY_OLD:'O placar recusou esta marca: '+r.why,1);}
  else if(j.k==='ghost')await API.submit('ghost',{code:j.code,asc:j.asc});
  else if(j.k==='run')await API.postRun(j.rec);}catch(e){}}
 /* outra aba gravou a jornada ou o perfil: esta aba trava (sem gravar por cima) e oferece recarregar */
@@ -1048,10 +1049,12 @@ function resumeView(){if(!state.cls||state.phase==='class'){campScreen();return;
  else{render();if(state.cur)showCur();else if(state.queue&&state.queue.length)nextQueue();}}
 /* ----- placar do Desafio Diário (compartilhado) ----- */
 const dayIxOf=d=>Math.round(Date.parse(d+'T00:00:00Z')/864e5);
+const DAILY_OLD='Este Diário começou na versão anterior do jogo e não vale para o placar.';
 const OFFLINE_MSG='Sem conexão com o servidor agora. Seu progresso continua salvo neste aparelho.';
 /* o registro leva a prova (a mochila de cada luta); o servidor refaz as lutas e só grava o que confere */
 function boardPost(sc){if(!sc||!state||state.mode!=='daily')return;
- const d=runDay(),entry={v:2,d,s:sc,cls:state.cls||'',w:state.wins||0,t:Date.now(),pf:state.proof||[]};
+ if(state.simv!==SIM.SIM_VER){toast(DAILY_OLD,1);return;}/* v1.4 (I2): começou noutra versão do combate: o servidor recusaria */
+ const d=runDay(),entry={v:2,sv:state.simv,d,s:sc,cls:state.cls||'',w:state.wins||0,t:Date.now(),pf:state.proof||[]};
  if(!verifyDaily(entry,dayIxOf(d)).ok)return;/* partida sem prova completa (por exemplo, começada antes desta versão): não vai ao placar */
  postQueue({k:'board',entry});}
 async function boardScreen(){page(`<h2>Placar de hoje</h2><div class="k-card pc"><p class="muted center small">${todayStr()} (UTC) · mesma seed e mesma classe para todos · cada marca é conferida no servidor</p><div id="boardList" class="board"><p class="muted center">Carregando…</p></div><div id="nameBox" class="namebox"></div></div><button class="k-btn v" id="backRet">Voltar</button>`,'jogar');
@@ -1191,7 +1194,7 @@ const HOWTO=`<ol class="howto">
 function recipeBook(nw){return `<div class="recipes">${RECIPES.map(r=>{const known=PROF.codex.recipes[r[2]],isN=nw&&nw('r',r[2]);return `<${isN?`button class="rnw" data-disc="r:${r[2]}" aria-label="Receita nova: ${ITEMS[r[2]].name}. Toque para ganhar ${window.AlforjeMeta.DISC_RUBY} rubis"`:'div'}>${isN?NOVO:''}<img src="${artURL(r[0])}" alt="">${ITEMS[r[0]].name} + <img src="${artURL(r[1])}" alt="">${ITEMS[r[1]].name}${r[3]?` <span class="cat">(+ <img src="${artURL(r[3])}" alt="">${ITEMS[r[3]].name} encostado)</span>`:''} → <img src="${artURL(r[2])}" alt="" class="${known?'':'sil'}"><b>${known?ITEMS[r[2]].name:'???'}</b></${isN?'button':'div'}>`;}).join('')}</div><p class="muted small">Raridade do forjado = média dos dois ingredientes, arredondada para cima. Receitas forjadas ficam reveladas para sempre.</p>`;}
 function oddsTable(){const rows=[];for(let s=1;s<=10;s++){const o=odds(s);rows.push(`<tr${s===curStop()?' class="cur"':''}><td>${s}</td>${o.map(v=>`<td>${v?v+'%':'–'}</td>`).join('')}</tr>`);}
  return `<table class="st odds"><thead><tr><th>Parada</th><th style="color:var(--t1)">Comum</th><th style="color:var(--t2)">Raro</th><th style="color:var(--t3)">Épico</th><th style="color:var(--t4)">Lendário</th></tr></thead><tbody>${rows.join('')}</tbody></table>
- <p class="muted small"><b>Loja neutra:</b> nenhuma classe muda as ofertas; o que aparece é sorte, do mesmo jeito para todos. 10% das ofertas vêm em promoção (preço = valor de venda). Trocar custa 1, 1, 2, 2 e depois 3 por parada. Você pode reservar até ${state&&state.cls?lockLimit():2} itens. ${state&&state.asc>=8?'Ascensão 8: Lendários só a partir da parada 9.':''}</p>`;}
+ <p class="muted small"><b>Loja neutra:</b> nenhuma classe muda as ofertas; o que aparece é sorte, do mesmo jeito para todos. Toda loja traz pelo menos uma cópia de um item seu (não Lendário) para fundir, menos no desafio Sem Fusão; a raridade é a sorteada ou a sua mais próxima que a parada oferece. 10% das ofertas vêm em promoção (preço = valor de venda). Trocar custa 1, 1, 2, 2 e depois 3 por parada. Você pode reservar até ${state&&state.cls?lockLimit():2} itens. ${state&&state.asc>=8?'Ascensão 8: Lendários só a partir da parada 9.':''}</p>`;}
 const backBtn=()=>`<button class="k-btn v" id="back">Voltar</button>`;
 /* páginas que moram em ☰ Mais: Voltar leva de volta a Mais (ou à jornada, se ela estiver em andamento) */
 const backMoreBtn=()=>`<button class="k-btn v" id="backMore">Voltar</button>`;
@@ -1429,7 +1432,7 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  ${M.mode==='normal'&&ascMax('warrior')+ascMax('rogue')+ascMax('pyro')+ascMax('paladin')>0?`<details class="k-card fold"><summary>O que cada Ascensão muda</summary>${ASCTXT}</details>`:''}
  <p class="muted small foot">Melhor resultado: ${PROF.best} vitórias${PROF.bestSurv?` · Sobrevivência até a parada ${PROF.bestSurv}`:''} · ${PROF.totalWins} lutas vencidas no total.${paladinOpen()?'':' '+LOCKTXT.paladin}${alchOpen()?'':' '+LOCKTXT.alchemist}</p>
  <div class="gorow"><button class="k-btn v" id="back">Voltar</button><button class="k-btn g go" id="goBtn" ${dis(sel)?'disabled':''}${cost>0?` aria-label="Começar: custa ${cost} de energia"`:''}>${goLbl}</button></div>`,'jogar');}
-const ASCTXT=`<p class="muted small">Da Ascensão 1 à 5, cada nível deixa os inimigos mais fortes: +65% de vida e +6% de dano. O reforço é menor nas primeiras paradas e menor ainda nas elites (a da parada 3 recebe só a metade) e no chefe. Além disso:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elites das paradas 8 e 9 com 2 modificadores.</li><li>Preços +10%.</li><li>Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com mais vida (×1,05).</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
+const ASCTXT=`<p class="muted small">Da Ascensão 1 à 5, cada nível deixa os inimigos mais fortes: +${Math.round((ASC_FOE.hp[0])*100)}% de vida e +${Math.round((ASC_FOE.dmg[0])*100)}% de dano. O reforço é menor nas primeiras paradas e menor ainda nas elites (a da parada 3 recebe só a metade) e no chefe. Além disso, cada nível traz:</p><ol class="howto"><li>Elite extra na parada 8.</li><li>Consolo de derrota −1.</li><li>Teto de juros −1.</li><li>Trocar itens custa +1.</li><li>4 vidas em vez de 5.</li><li>Elite da parada 9 com 2 modificadores.</li><li>Preços +${Math.round((ASC_PRICE-1)*100)}%.</li><li>Inimigos com +${Math.round((ASC_FOE.a8-1)*100)}% de vida; Lendários só a partir da parada 9.</li><li>Chefe com 2 modificadores.</li><li>Inimigos com +${Math.round((ASC_FOE.a10-1)*100)}% de vida, além dos da Ascensão 8.</li></ol><p class="muted small">Cumulativo. Duas vitórias na Ascensão N liberam a N+1, só para aquela classe.</p>`;
 /* energia: a jornada custa ao ser criada (Normal, Desafios e Seed); Diário e Duelo são grátis */
 function journeyCost(mode){return mode==='normal'||mode==='challenge'||mode==='seed'?window.AlforjeMeta.JOURNEY_COST:0;}/* Diário, Duelo e Laboratório: grátis */
 /* sem energia para a jornada: quanto falta, propaganda (se sobrar no dia), Loja e Metas */
@@ -1449,7 +1452,7 @@ function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  setState(fresh());state.cls=k;state.mode=M.mode;
  if(M.mode==='normal')state.asc=Math.max(0,Math.min(M.asc[k]||0,opts&&opts.asc!=null?10:ascMax(k)));if(opts&&opts.asc!=null)state.asc=opts.asc;
  const seed=M.mode==='daily'?'D'+todayStr():M.mode==='seed'&&M.seed?String(M.seed).trim():Math.random().toString(36).slice(2,10);
- state.seed=seed;state.rng=hashStr(seed)||1;
+ state.seed=seed;state.rng=hashStr(seed)||1;if(M.mode==='daily')state.simv=SIM.SIM_VER;/* v1.4 (I2): versão do combate em que este Diário começou */
  if(M.mode==='challenge')state.chal=M.chal;if(M.mode==='duel')state.duel=parseCode(M.duel);
  state.maxLives=state.chal==='glass'?1:state.asc>=5?4:LIVES;state.lives=state.maxLives;
  const C=CLASSES[k];state.bag={cols:state.chal==='small'?4:C.bag[0],rows:state.chal==='small'?4:C.bag[1],pockets:{}};
@@ -1534,7 +1537,7 @@ function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
- <li><b>v8.6</b>: balanceamento. O Elmo de Ferro custa 4 e dá 15 de vida (ainda ×1,5 no topo); Escudo de Carvalho, Broquel, Cota de Espinhos, Couraça de Gelo, Armadura de Placas e Espelho de Espinhos ficaram mais resistentes. Toda loja traz pelo menos uma oferta que funde com um item seu (menos no desafio Sem Fusão). A elite da parada 3 cresce menos com a Ascensão, e da Ascensão 6 em diante só as regras extras pesam. Paladino (68 de vida) e Alquimista (80) ficaram mais firmes, e o veneno da Mistura Volátil passou a seguir o mesmo teto das armas. Juros Compostos agora também dá 20 de ouro na hora e +10 de vida máxima.</li>
+ <li><b>v8.6</b>: balanceamento. O Elmo de Ferro custa 4 e dá 15 de vida (ainda ×1,5 no topo); Escudo de Carvalho, Broquel, Cota de Espinhos, Couraça de Gelo, Armadura de Placas e Espelho de Espinhos ficaram mais resistentes. Toda loja traz pelo menos uma oferta que funde com um item seu (menos no desafio Sem Fusão). Os inimigos têm um pouco mais de vida, o Wyrm também. A elite da parada 3 cresce menos com a Ascensão; da 6 à 10 cada nível tem a sua regra (a 8 e a 10 dão mais vida aos inimigos, e os preços da 7 sobem 5%). Paladino (68 de vida) e Alquimista (80) ficaram mais firmes, e o veneno da Mistura Volátil passou a seguir o mesmo teto das armas. Juros Compostos agora também dá 20 de ouro na hora e +10 de vida máxima.</li>
  <li><b>v8.5</b>: correções do playtest. Tocar na tela logo depois de uma luta não faz mais você perder a luta seguinte, e arrastar um item com um dedo enquanto toca em Desfazer, Trocar ou Pular loja com outro não trava nem compra o item errado. Mexer no relógio do aparelho não reabre o bônus diário, as propagandas nem as compras. O Codex paga as novidades pelo que você conquista (comprar ou fundir um item, forjar uma receita, vencer um inimigo), até 10 por dia, e ganhou o botão <b>Coletar todos</b>. As melhorias do equipamento pedem mais pedras nos níveis altos (a jornada rende 1 pedra a cada 4 vitórias) e, com todos os seus companheiros no nível máximo, a ração dos prêmios vira ouro. Juros Compostos também sobe o teto de juros, e o Altar melhora o seu melhor item por 5 de vida máxima. O Laboratório usa os bônus da sua conta e guarda o teste à parte, sem tocar na jornada. O aviso mostra o nome inteiro e fica abaixo do placar, a JORNADA avisa quando falta energia e os heróis bloqueados dizem como liberar.</li>
  <li><b>v8.4</b>: o Mascate Brás ganhou rosto e humor. Ele fala com a máquina de escrever (toque para ver a frase inteira) e muda de expressão: fica empolgado com fusões Épicas e Lendárias, forjas e sequências, preocupado na última vida e ganancioso com o Martelo, as apostas e as boas vendas. Perdeu por pouco? A janela da derrota traz um “quase lá” com uma dica tirada da sua mochila. Cada item, receita ou inimigo descoberto a partir de agora ganha o selo <b>NOVO!</b> no Codex: toque nele para ganhar 2 rubis. E chegou o <b>Laboratório do Mascate</b>: grátis, com ouro infinito, Catálogo de tudo que você já descobriu e o adversário que você escolher, para testar montagens sem gastar nada (e sem ganhar nada).</li>
  <li><b>v8.3</b>: a mochila ficou mais viva. O item arrastado cresce e balança com o dedo; as linhas mostram fusão (dourada, pulsando), bônus de posição (azul) e receita da forja (roxa, com bigorna); fundir e forjar estouram faíscas na cor da raridade; Épicos brilham e Lendários soltam faíscas. Na luta, cada linha do medidor tem um anel de recarga e dispara um feixe no inimigo, e os números mostram o tipo do dano, com críticos maiores.</li>

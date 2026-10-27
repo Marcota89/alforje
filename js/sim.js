@@ -4,6 +4,9 @@
 const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
 let state=null;
 let DIFF={hp:2.1,dmg:1.5};
+/* v1.4 (I2): versão do combate. O Diário guarda a versão em que começou (state.simv) e manda no registro (e.sv); o servidor
+   recusa com o código 'versao' quando ela falta ou difere da dele, antes de refazer as lutas. Suba sempre que uma luta puder mudar. */
+const SIM_VER='8.6';
 /* ================= SEEDED RNG (MOD-01) ================= */
 function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return (h^h>>>16)>>>0;}
 function R(){let t=(state.rng=(state.rng+0x6D2B79F5)>>>0);t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}
@@ -22,7 +25,7 @@ function BR(b){let t=(b.rng=(b.rng+0x6D2B79F5)>>>0);t=Math.imul(t^t>>>15,t|1);t^
 function fresh(){return {phase:'class',cls:null,kit:0,asc:0,mode:'normal',chal:null,seed:'',rng:1,round:1,wins:0,lives:LIVES,maxLives:LIVES,gold:10,rerollN:0,
  bag:{cols:5,rows:4,pockets:{}},bagLvl:0,items:[],pets:[null,null,null],shop:[],nid:1,sel:null,reward:null,queue:[],route:[],elites:{},lossStreak:0,winStreak:0,stopLosses:0,mood:'first',
  sub:null,bless:[],etiq:{},pendingEtiq:null,skipOffer:null,hammerUsed:false,freeHammer:false,salamUsed:false,extraLock:0,freeReroll:false,undo:null,noAsk:false,
- surv:false,survLives:0,survRoute:[],duel:null,event:null,maxHpMod:0,merges:0,intMax:0,stats:{forged:[],legend:0},perm:null};}
+ surv:false,survLives:0,survRoute:[],duel:null,event:null,maxHpMod:0,simv:null,merges:0,intMax:0,stats:{forged:[],legend:0},perm:null};}
 const has=b=>state.bless.includes(b);
 const bagDims=()=>({cols:state.bag.cols,rows:state.bag.rows});
 const chestCols=()=>Math.max(5,state.bag.cols);
@@ -113,12 +116,14 @@ function salamanderHeat(s){if(s.salamUsed)return false;s.salamUsed=true;s.freeHa
 function newStop(s,limit){s.rerollN=0;s.hammerUsed=false;s.freeHammer=false;s.salamUsed=false;s.extraLock=0;s.freeReroll=false;
  let n=0;for(const o of s.shop||[])if(o&&o.locked&&++n>limit)o.locked=false;return s;}
 /* v1.4 (ID 9): toda loja garante 1 oferta que funde com um item seu (mochila ou baú): a cópia de um item não Lendário da loja comum.
-   A raridade vem do sorteio normal (roll); se nada seu tem essa raridade, vale a sua mais próxima (empate: a menor), para fundir de fato.
+   A raridade vem do sorteio normal (roll); se nada seu tem essa raridade, vale a sua mais próxima (empate: a menor), para fundir de fato,
+   mas só entre as raridades que a parada oferece (ok(t): chance > 0; sem nenhuma, não age).
    Só age quando nenhuma oferta já funde e nunca no desafio "Sem Fusão". Troca uma vaga livre: sem companheiro, sem reserva e fora das
    garantidas pela Etiqueta (fixed). Usa o gerador da partida. Devolve o índice trocado, ou -1. */
 const mergesWith=(o,own)=>!!o&&!o.pet&&o.tier<4&&own.some(i=>i.key===o.key&&i.tier===o.tier);
-function shopMerge(shop,roll,fixed){if(state.chal==='nofuse')return -1;
- const own=state.items.filter(i=>i.tier<4&&SHOPKEYS.includes(i.key));if(!own.length||shop.some(o=>mergesWith(o,own)))return -1;
+function shopMerge(shop,roll,fixed,ok){if(state.chal==='nofuse')return -1;
+ const all=state.items.filter(i=>i.tier<4&&SHOPKEYS.includes(i.key));if(shop.some(o=>mergesWith(o,all)))return -1;
+ const own=ok?all.filter(i=>ok(i.tier)):all;if(!own.length)return -1;
  const free=[];shop.forEach((o,i)=>{if(o&&!o.pet&&!o.locked&&!(fixed||[]).includes(i))free.push(i);});if(!free.length)return -1;
  const t=roll(),dist=Math.min(...own.map(i=>Math.abs(i.tier-t))),near=own.filter(i=>Math.abs(i.tier-t)===dist),tier=Math.min(...near.map(i=>i.tier));
  const keys=[...new Set(near.filter(i=>i.tier===tier).map(i=>i.key))].sort(),ix=free[Math.floor(R()*free.length)];
@@ -142,7 +147,7 @@ const ascFoe=(k,s,el)=>{const a=state.asc||0,w=(ASC_FOE.early+(1-ASC_FOE.early)*
 function foeStats(){const f=foeDef(),st=STOPS[f.stop],A=ARCH[f.arch],el=f.elite?1.15:1,s=f.stop;
  let hpS=1,dS=1;if(f.surv){hpS=STOPS[9].hp/st.hp*Math.pow(1.15,f.surv);dS=STOPS[9].dps/st.dps*Math.pow(1.15,f.surv);}
  /* v1.2: a Ascensão deixa os inimigos mais fortes (vida e dano, ASC_FOE); a A10 ainda soma ×1,13 de vida */
- const ascHp=state.asc>=10?ASC_FOE.a10:1,big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
+ const ascHp=(state.asc>=8?ASC_FOE.a8:1)*(state.asc>=10?ASC_FOE.a10:1),big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
  const HP=Math.round(st.hp*A.hp*el*DIFF.hp*hpS*ascHp*aH),D=st.dps*(f.elite?1.1:1)*DIFF.dmg*dS*aD;
  let atk=[],block=0,reflect=0,heal=null;
  if(f.arch==='bruto')atk=[{dmg:Math.round(D*2.4),cd:2.4,label:'Pancada'}];
@@ -352,6 +357,6 @@ function verifyDaily(e,dayIx){const bad=m=>({ok:false,why:m});
 function ghostPlausible(o,asc){if(!o)return {ok:false,why:'código'};
  return buildPlausible({c:o.c,sub:o.s||null,bl:o.bl||[],b:o.b,lv:o.lv||0,i:o.i,p:o.p||[],w:GOAL,r:SURV_GOAL+LIVES+1,a:asc||0,ch:null});}
 window.AlforjeSim={setState(s){state=s;return s;},getState(){return state;},setDiff(h,d){DIFF={hp:h,dmg:d};},
- forgeTier,blessTier,keyCost,salamanderHeat,newStop,shopMerge,mergesWith,DOT_K,addDot,
+ SIM_VER,forgeTier,blessTier,keyCost,salamanderHeat,newStop,shopMerge,mergesWith,DOT_K,addDot,
  dayStr,dailyClass,battleSeed,BR,snapOf,seedRoute,stateFromSnap,simulate,goldCap,buildPlausible,verifyDaily,ghostPlausible,MAXFIGHTS,hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step};
 })();

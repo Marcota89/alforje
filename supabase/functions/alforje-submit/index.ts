@@ -63,6 +63,9 @@ Deno.serve(async (req) => {
     // aceita o Diário de hoje e o de ontem (a partida pode terminar depois da meia-noite UTC)
     const today = Math.floor(Date.now() / 864e5), ix = dayIxOf(e.d);
     if (ix !== today && ix !== today - 1) return reply(422, { ok: false, why: "Diário fora do prazo" });
+    // v1.4: o Diário leva a versão do combate em que começou (e.sv). Sem ela, ou com outra, as lutas não conferem com este
+    // sim.js: responde 'versao' antes de refazer qualquer luta (o jogo mostra "começou na versão anterior", não "não confere").
+    if (e.sv !== S.SIM_VER) return reply(422, { ok: false, why: "versão antiga do jogo", code: "versao" });
     const v = S.verifyDaily(e, ix);
     if (!v.ok) return reply(422, { ok: false, why: v.why });
     const { data: old } = await admin.from("board").select("score").eq("user_id", user.id).eq("day", e.d).maybeSingle();

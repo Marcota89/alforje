@@ -727,10 +727,10 @@ window.navLoteA = async () => {
       R.id14juros = A.interest() === base + 1 && /teto de juros \+1/.test(D.BLESS.compostos.desc);
       // v1.4 Lote B (ID 14): Juros Compostos também paga ouro na hora (BLESS.compostos.gold), e o texto diz quanto
       A.state.bless = []; A.state.queue = []; const g0 = A.state.gold, cg = D.BLESS.compostos.gold; A.takeBless('compostos'); A.closeOverlay();
-      R.id14gold = cg > 0 && A.state.gold === g0 + cg && A.state.bless.includes('compostos') && D.BLESS.compostos.desc.includes('+' + cg + ' de ouro agora') && D.EVENTS.altar.a.includes('5 de vida máxima');
+      R.id14gold = cg > 0 && A.state.gold === g0 + cg && A.state.bless.includes('compostos') && D.BLESS.compostos.desc.includes('+' + cg + ' de ouro agora') && D.EVENTS.altar.a.includes(D.ALTAR_HP + ' de vida máxima');
       const id = A.state.nid; A.state.items = [{ id: id, key: 'dagger', tier: 1, x: 0, y: 0, w: 1, h: 1, where: 'bag' }, { id: id + 1, key: 'sword', tier: 2, x: 1, y: 0, w: 1, h: 2, where: 'bag' }, { id: id + 2, key: 'whet', tier: 1, x: 2, y: 0, w: 1, h: 1, where: 'bag' }];
       A.state.nid = id + 3; A.state.maxHpMod = 0; A.state.event = 'altar'; A.eventChoose(true); A.closeOverlay();
-      R.id14altar = A.state.items.find(i => i.id === id + 1).tier === 3 && A.state.items.find(i => i.id === id).tier === 1 && A.state.items.find(i => i.id === id + 2).tier === 1 && A.state.maxHpMod === -5;
+      R.id14altar = A.state.items.find(i => i.id === id + 1).tier === 3 && A.state.items.find(i => i.id === id).tier === 1 && A.state.items.find(i => i.id === id + 2).tier === 1 && A.state.maxHpMod === -D.ALTAR_HP && D.ALTAR_HP === 5;
     });
     // ===== ID 13: Laboratório com os bônus da conta, numa chave própria que não sobrescreve a jornada =====
     await sect(async () => {
@@ -812,6 +812,47 @@ window.navLoteA = async () => {
   const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14gold', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3'];
   R.fail = keys.filter(k => R[k] !== true);
   R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length && !(R.m23audit || []).length;
+  return R;
+};
+//   await navLoteB()  -> v1.4 Lote B, o que depende da página: rollShop aplica a garantia de fusão (com Etiqueta e companheiro), a Coruja
+//                        reaplica a garantia, a garantia nunca oferece raridade com chance 0% na parada, o Diário de outra versão não vai
+//                        ao placar (aviso amigável) e o Altar cobra ALTAR_HP de data.js. Sem nuvem; no fim devolve perfil, jornada e chaves.
+window.navLoteB = async () => {
+  const A = window.__alforje, D = window.AlforjeData, S = window.AlforjeSim, R = {}, q = s => document.querySelector(s);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const K = navKeep(); navOffline(true);
+  const start = (mode, cls) => { A.closeOverlay(); A.MENU.mode = mode; A.state.phase = 'class'; A.state.cls = null; A.pickClass(cls || 'warrior', {}); A.MENU.mode = 'normal'; };
+  const merges = () => A.state.shop.some(o => o && !o.pet && o.tier < 4 && A.state.items.some(i => i.key === o.key && i.tier === o.tier));
+  try {
+    // M4: rollShop aplica SIM.shopMerge — 80 lojas na parada 4 com Etiqueta dos Raros: sempre funde, as 2 vagas da Etiqueta ficam Raras+, no máximo 1 companheiro
+    start('normal'); A.state.wins = 3; A.state.round = 5; A.state.items = A.state.items.filter(i => i.key === 'sword'); let okM = true, okT = true, okP = true;
+    for (let n = 0; n < 80; n++) { A.state.shop = []; A.state.pendingEtiq = 'raros'; A.rollShop();
+      if (!merges()) okM = false; if (A.state.shop.filter(o => o && !o.pet && o.tier >= 2).length < 2) okT = false; if (A.state.shop.filter(o => o && o.pet).length > 1) okP = false; }
+    R.m4merge = okM; R.m4etiq = okT; R.m4pet = okP;
+    // sem a garantia (Sem Fusão) a mesma loja quase nunca funde por acaso: prova que é o rollShop que garante
+    A.state.chal = 'nofuse'; let nat = 0; for (let n = 0; n < 80; n++) { A.state.shop = []; A.rollShop(); if (merges()) nat++; } A.state.chal = null;
+    R.m4nofuse = nat < 40; R.m4natural = nat;
+    // M3: parada 1 com só uma Espada Rara: a parada 1 não oferece Raras (0%), então a garantia não age e nenhuma oferta é Rara
+    A.state.wins = 0; A.state.round = 1; A.state.items.forEach(i => { i.tier = 2; }); let rare = 0;
+    for (let n = 0; n < 60; n++) { A.state.shop = []; A.rollShop(); rare += A.state.shop.filter(o => o && !o.pet && o.tier >= 2).length; }
+    R.m3noZero = rare === 0;
+    // M2: a Coruja troca uma oferta (talvez a da garantia) e a garantia volta
+    A.state.items.forEach(i => { i.tier = 1; }); A.state.wins = 3; A.state.round = 5; let okO = true;
+    for (let n = 0; n < 40; n++) { A.state.phase = 'shop'; A.state.shop = [{ key: 'sword', tier: 1 }, { key: 'axe', tier: 1 }, { key: 'bow', tier: 1 }, { key: 'bomb', tier: 1 }, { key: 'spear', tier: 1 }];
+      A.state.shop.forEach((o, j) => { if (j) o.key = ['axe', 'bow', 'bomb', 'spear'][j - 1]; }); A.state.pets = [{ key: 'owl', tier: 1, ch: 3 }, null, null]; A.petAct(0); if (!merges()) okO = false; }
+    R.m2owl = okO;
+    // I2: Diário começado noutra versão do combate: não vai ao placar e o aviso é o amigável
+    start('daily', D.CLASSKEYS.find(c => c === S.dailyClass())); R.i2start = A.state.simv === S.SIM_VER;
+    A.state.simv = '8.5'; A.boardPost(100); let seen = '';
+    for (let n = 0; n < 40 && !/versão anterior/.test(seen); n++) { await wait(100); const t = q('#toast'); if (t && !t.hidden) seen = t.textContent; }
+    R.i2msg = /versão anterior/.test(seen) && !/não confere/.test(seen); R.i2toast = seen;
+    // M5: o Altar cobra o ALTAR_HP de data.js
+    start('normal'); A.state.maxHpMod = 0; A.state.event = 'altar'; A.eventChoose(true); A.closeOverlay(); R.m5altar = A.state.maxHpMod === -D.ALTAR_HP;
+  } catch (e) { R.error = String(e && e.stack || e); }
+  finally { try { if (A.state.phase === 'battle') { A.skip(); A.finish(); } } catch (e) {} navPut(K, true); }
+  R.fail = ['m4merge', 'm4etiq', 'm4pet', 'm4nofuse', 'm3noZero', 'm2owl', 'i2start', 'i2msg', 'm5altar'].filter(k => R[k] !== true);
+  R.pass = !R.error && !R.fail.length;
   return R;
 };
 //   await auditLoteA() -> alforjeAudit() nas telas que o Lote A mexeu (Acampamento com e sem energia, escolha de herói com bloqueios e no Laboratório,

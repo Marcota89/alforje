@@ -229,8 +229,8 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
 // rodada 2 (decisões 6/7): elites das paradas 3 e 6 com 1 modificador mesmo na A10; reforço da Ascensão menor no começo e nas elites
 {
   const st = S.setState(S.fresh()); st.asc = 10; st.rng = 77; st.route = D.STOPS.map(() => 0); S.rollElites();
-  check(st.elites[2].every(m => m.length === 1) && st.elites[5].every(m => m.length === 1) && st.elites[7].every(m => m.length === 2) && st.elites[8].every(m => m.length === 2) && st.elites[9].every(m => m.length === 2),
-    'v1.2 A10: elites das paradas 3 e 6 com 1 modificador; 8, 9 e o chefe com 2');
+  check(st.elites[2].every(m => m.length === 1) && st.elites[5].every(m => m.length === 1) && st.elites[7].every(m => m.length === 1) && st.elites[8].every(m => m.length === 2) && st.elites[9].every(m => m.length === 2),
+    'v1.2/v1.4 A10: elites das paradas 3, 6 e 8 com 1 modificador; 9 e o chefe com 2 (v1.4: a 8 deixou de ter 2)');
   const ratio = wins => { const hp = asc => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.route = D.STOPS.map(() => 0); s.elites = {}; return S.foeStats().hp; }; return hp(10) / hp(0); };
   check(ratio(0) < ratio(6) && ratio(8) < ratio(6), `v1.2 A10: reforço de vida menor na parada 1 (×${ratio(0).toFixed(2)}) que na 7 (×${ratio(6).toFixed(2)}), e menor na elite da parada 9 (×${ratio(8).toFixed(2)})`);
 }
@@ -290,13 +290,34 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
   const B = D.BLESS.compostos, s = rig([['sword', 1, 0, 0]]); const hp0 = S.withState(s, () => S.makePlayer().max); s.bless = ['compostos']; const hp1 = S.withState(s, () => S.makePlayer().max);
   check(B.gold === 20 && B.hp === 10 && hp1 === hp0 + B.hp, `v1.4 ID 14: Juros Compostos = +${B.gold} de ouro ao escolher e +${B.hp} de vida máxima (${hp0} -> ${hp1})`);
   check(B.desc.includes(`+${B.gold} de ouro agora`) && B.desc.includes(`+${B.hp} de vida máxima`) && B.desc.includes('teto de juros +1'), 'v1.4 ID 14: o texto da bênção mora em data.js e diz os números');
-  check(D.EVENTS.altar.a === 'Oferecer 5 de vida máxima: +1 raridade no seu melhor item', 'v1.4 ID 14: texto do Altar em data.js (sem ajuste na carga do main.js)');
+  check(D.ALTAR_HP === 5 && D.EVENTS.altar.a === `Oferecer ${D.ALTAR_HP} de vida máxima: +1 raridade no seu melhor item`, `v1.4 ID 14/M5: custo do Altar numa fonte só (data.js ALTAR_HP = ${D.ALTAR_HP}), usado no texto`);
 }
 // ID 9 (elite 3): a elite da parada 3 recebe menos força de Ascensão que as outras elites
 {
   const hpAt = (asc, wins) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.route = D.STOPS.map(() => 0); s.elites = {}; return S.foeStats().hp; };
   const r3 = hpAt(10, 2) / hpAt(0, 2), r6 = hpAt(10, 5) / hpAt(0, 5);
-  check(D.ASC_FOE.elite3 < D.ASC_FOE.elite && r3 < 1.5 && r3 < r6, `v1.4 ID 9: elite 3 na A10 com ×${r3.toFixed(2)} de vida (antes ×2,02; elite 6: ×${r6.toFixed(2)})`);
+  check(D.ASC_FOE.elite3 < D.ASC_FOE.elite && r3 < 1.7 && r3 < r6 * .75, `v1.4 ID 9: elite 3 na A10 com ×${r3.toFixed(2)} de vida (antes ×2,02; elite 6: ×${r6.toFixed(2)})`);
+}
+// I1 (revisão do Lote B): da A6 à A10 cada nível tem um degrau próprio, e a A8 e a A10 deixam os inimigos mais fortes
+{
+  const foe = (asc, wins) => { const s = S.setState(S.fresh()); s.cls = 'warrior'; s.asc = asc; s.wins = wins; s.rng = 77; s.route = D.STOPS.map(() => 0); S.rollElites(); return { hp: S.foeStats().hp, mods: (s.elites[wins] || [[]])[0].length }; };
+  check(D.ASC_FOE.hp[1] === 0 && D.ASC_FOE.dmg[1] === 0, 'I1: da A6 à A10 não há reforço por nível; cada nível tem a sua regra');
+  check(foe(5, 8).mods === 1 && foe(6, 8).mods === 2 && foe(6, 7).mods === 1, `I1: A6 = elite da parada 9 com 2 modificadores (A5: ${foe(5, 8).mods}, A6: ${foe(6, 8).mods}; parada 8 na A6: ${foe(6, 7).mods})`);
+  check(D.ASC_PRICE === 1.05, `I1: A7 = preços ×${D.ASC_PRICE} (regra em main.js priceMul)`);
+  const r8 = foe(8, 6).hp / foe(7, 6).hp, r10 = foe(10, 6).hp / foe(9, 6).hp, r9 = foe(9, 6).hp / foe(8, 6).hp, r7 = foe(7, 6).hp / foe(6, 6).hp;
+  check(D.ASC_FOE.a8 === 1.08 && Math.abs(r8 - 1.08) < .01, `I1: A8 = inimigos com +8% de vida (parada 7: ×${r8.toFixed(3)})`);
+  check(D.ASC_FOE.a10 === 1.12 && Math.abs(r10 - 1.12) < .01, `I1: A10 = inimigos com mais +12% de vida (parada 7: ×${r10.toFixed(3)})`);
+  check(r7 === 1 && r9 === 1, 'I1: A7 e A9 não mexem na vida (preços e chefe com 2 modificadores)');
+  check(foe(8, 9).mods === 1 && foe(9, 9).mods === 2, 'I1: A9 = chefe com 2 modificadores');
+}
+// I2 (revisão do Lote B): o Diário leva a versão do combate; o servidor recusa versão faltando ou diferente com o código 'versao', antes de refazer as lutas
+{
+  check(typeof S.SIM_VER === 'string' && S.SIM_VER.length > 0 && S.fresh().simv === null, `I2: SIM_VER = '${S.SIM_VER}' e uma partida nova começa sem versão (o Diário grava a dele ao começar)`);
+  const { entry } = playDaily(3); entry.sv = S.SIM_VER;
+  check(S.verifyDaily(entry, 3).ok, 'I2: verifyDaily mantém o formato (registro com sv continua válido)');
+  const ts = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'functions', 'alforje-submit', 'index.ts'), 'utf8');
+  const iv = ts.indexOf('e.sv !== S.SIM_VER'), ir = ts.indexOf('S.verifyDaily(');
+  check(iv > 0 && ir > iv && /code: "versao"/.test(ts.slice(iv, ir)), 'I2: alforje-submit responde code "versao" para versão faltando/diferente antes de refazer as lutas');
 }
 // ID 18: o veneno da Mistura Volátil passa pelo teto das armas (antes acumulava sem limite e sem decair)
 {
