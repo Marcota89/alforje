@@ -689,7 +689,9 @@ function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;co
 let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
 function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,sel:null}));}
 const inShop=()=>!!state&&state.phase==='shop';
-function undo(){if(!inShop()||!state.undo)return;const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
+/* v1.4 (IDs 5 e 6): todo comando que muda a loja ou a mochila cancela antes o arrasto em andamento (2º dedo) */
+function dragAbort(){if(typeof drag==='undefined'||!drag)return;try{cleanup();}catch(e){}drag=null;}
+function undo(){if(!inShop()||!state.undo)return;dragAbort();const u=JSON.parse(state.undo);setState(u);state.undo=null;sfx('click');toast('Ação desfeita');save();render();}
 function mergeInto(target){target.tier++;mergedId=target.id;sfx('merge');state.merges=(state.merges||0)+1;pq(['cx',target.key,'merged']);pq(['m','merge']);gq('merge');
  if(target.tier>=3)MPEND=target.tier===4?'legend':'epic';
  if(target.tier===4){state.mood='legend';pq(['a','legend']);pq(['m','legend']);}toast(fuseMsg(target));}
@@ -700,42 +702,42 @@ function addItem(key,tier){const twin=canMerge()&&(state.items.find(it=>it.key==
  state.items.push({id:state.nid++,key,tier,...sp});return true;}
 function addPet(key,tier){const twin=state.pets.find(p=>p&&p.key===key&&p.tier===tier&&p.tier<4);if(twin){twin.tier++;sfx('merge');toast(`${PETS[key].name} evoluiu para ${TIERS[twin.tier-1]}!`);return true;}
  const i=state.pets.indexOf(null);if(i<0)return false;state.pets[i]={key,tier,ch:PET_CHARGES};return true;}
-function buy(i){if(!inShop())return;const o=state.shop[i];if(!o)return;const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
+function buy(i){if(!inShop())return;const o=state.shop[i];if(!o)return;dragAbort();const p=offerPrice(o);if(p>state.gold){toast('Ouro insuficiente');return;}
  snapshot();const mg0=state.merges||0,ok=o.pet?addPet(o.key,o.tier):addItem(o.key,o.tier),fused=!o.pet&&(state.merges||0)>mg0&&state.items.find(i=>i.id===mergedId);if(!ok){state.undo=null;toast(o.pet?'Sem espaço para companheiros. Venda um.':'Sem espaço na mochila nem no baú');return;}
  state.gold-=p;state.shop[i]=null;if(!o.pet)pq(['cx',o.key,'bought']);gq('buy');if(!fused)sfx('buy');buzz(10);state.sel=null;save();render();sayMerchant(false,MPEND||(o.tier>=3?'buyrare':null));toastUndo(fused?fuseMsg(fused):`Comprado: ${o.pet?PETS[o.key].name:ITEMS[o.key].name}`);if(!fused)snapNew();}
-function sell(id,ok){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;
+function sell(id,ok){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;dragAbort();
  if(it.tier>=3&&!ok){confirmBox(`Vender ${ITEMS[it.key].name} ${TIERS[it.tier-1]}?`,`Itens Épicos e Lendários não voltam. Você recebe ${sellPrice(it.key,it.tier)} de ouro.`,'Vender',()=>sell(id,true));return;}
  snapshot();const v=sellPrice(it.key,it.tier);state.gold+=v;state.items=state.items.filter(i=>i!==it);sfx('coin');buzz(10);state.sel=null;save();render();sayMerchant(false,v>=10?'sell':null);toastUndo(`Vendido por ${v} de ouro`);}
-function sellPet(i,ok){if(!inShop())return;const p=state.pets[i];if(!p)return;if(p.tier>=3&&!ok){confirmBox(`Vender ${PETS[p.key].name}?`,`Você recebe ${sellPrice(p.key,p.tier,true)} de ouro.`,'Vender',()=>sellPet(i,true));return;}
+function sellPet(i,ok){if(!inShop())return;const p=state.pets[i];if(!p)return;dragAbort();if(p.tier>=3&&!ok){confirmBox(`Vender ${PETS[p.key].name}?`,`Você recebe ${sellPrice(p.key,p.tier,true)} de ouro.`,'Vender',()=>sellPet(i,true));return;}
  snapshot();const v=sellPrice(p.key,p.tier,true);state.gold+=v;state.pets[i]=null;toast(`Vendido por ${v} de ouro`);state.sel=null;save();render();if(v>=10)sayMerchant(true,'sell');}
-function rotate(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;if(canPlace(it.where,it.x,it.y,it.h,it.w,it.id)){[it.w,it.h]=[it.h,it.w];sfx('click');save();render();}else toast('Sem espaço para girar aqui');}
-function reroll(){if(!inShop())return;const c=rerollCost();if(state.gold<c)return;state.gold-=c;if(state.freeReroll)state.freeReroll=false;else state.rerollN++;state.undo=null;rollShop();sfx('click');state.sel=null;save();render();sayMerchant();}
-function hammer(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it||it.tier>=4||state.hammerUsed)return;const c=hammerCost(it);if(state.gold<c){toast('Ouro insuficiente');return;}
+function rotate(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it)return;if(!drag||drag.id!==id)dragAbort();if(canPlace(it.where,it.x,it.y,it.h,it.w,it.id)){[it.w,it.h]=[it.h,it.w];sfx('click');save();render();}else toast('Sem espaço para girar aqui');}
+function reroll(){if(!inShop())return;const c=rerollCost();if(state.gold<c)return;dragAbort();state.gold-=c;if(state.freeReroll)state.freeReroll=false;else state.rerollN++;state.undo=null;rollShop();sfx('click');state.sel=null;save();render();sayMerchant();}
+function hammer(id){if(!inShop())return;const it=state.items.find(i=>i.id===id);if(!it||it.tier>=4||state.hammerUsed)return;const c=hammerCost(it);if(state.gold<c){toast('Ouro insuficiente');return;}dragAbort();
  snapshot();state.gold-=c;state.hammerUsed=true;state.freeHammer=false;it.tier++;mergedId=it.id;sfx('merge');pq(['cx',it.key,'merged']);if(it.tier===4){state.mood='legend';pq(['a','legend']);}
  toast(`Martelo do Mascate: ${ITEMS[it.key].name} agora é ${TIERS[it.tier-1]}`);state.sel=null;save();render();sayMerchant(true,'hammer');}
 /* ITM-06: expansion with shape choice + pocket modifier */
 function expandOptions(){const s=state.bag,o=[],pk=rshuffle(POCKETKEYS);
  if(s.cols<maxCols())o.push({dir:'col',pocket:pk[0]});if(s.rows<MAXROWS)o.push({dir:'row',pocket:pk[1]});
  if(o.length===1)o.push({dir:o[0].dir,pocket:pk[2]});return o;}
-function expandScreen(free){if(!inShop())return;if(!canExpand()){if(free)nextQueue();return;}
+function expandScreen(free){if(!inShop())return;dragAbort();if(!canExpand()){if(free)nextQueue();return;}
  if(!state.expandOpts)state.expandOpts=expandOptions();const b=state.bag;
  overlay(`<h2>Ampliar a mochila</h2><p class="muted center">Escolha o formato. A nova linha vira um bolso com um efeito.${free?' (De graça.)':` Custa ${BAGCOST[state.bagLvl]} de ouro.`}</p><div class="rewards">
  ${state.expandOpts.map((o,i)=>`<button class="k-card choice" data-exp="${i}" data-free="${free?1:''}"><i class="ico"><span class="shape" style="--c:${o.dir==='col'?b.cols+1:b.cols};--r:${o.dir==='row'?b.rows+1:b.rows};--pk:${POCKETS[o.pocket].col}" data-dir="${o.dir}"></span></i><div><b>${o.dir==='col'?'Mais uma coluna':'Mais uma fileira'} → ${o.dir==='col'?b.cols+1:b.cols}×${o.dir==='row'?b.rows+1:b.rows}</b><span>${POCKETS[o.pocket].name}: ${POCKETS[o.pocket].desc}.</span></div></button>`).join('')}</div>
  ${free?'':'<button class="k-btn v" id="closeOv">Agora não</button>'}`);
  document.querySelectorAll('.shape').forEach(el=>{const c=+el.style.getPropertyValue('--c'),r=+el.style.getPropertyValue('--r'),dir=el.dataset.dir;let h='';for(let y=0;y<r;y++)for(let x=0;x<c;x++)h+=`<i class="${(dir==='col'&&x===c-1)||(dir==='row'&&y===r-1)?'n':''}"></i>`;el.innerHTML=h;el.style.gridTemplateColumns=`repeat(${c},8px)`;});}
-function doExpand(i,free){if(!inShop())return;const o=state.expandOpts&&state.expandOpts[i];if(!o)return;if(!free){const c=BAGCOST[state.bagLvl];if(state.gold<c)return;state.gold-=c;}
+function doExpand(i,free){if(!inShop())return;const o=state.expandOpts&&state.expandOpts[i];if(!o)return;dragAbort();if(!free){const c=BAGCOST[state.bagLvl];if(state.gold<c)return;state.gold-=c;}
  const b=state.bag;if(o.dir==='col'){for(let y=0;y<b.rows;y++)b.pockets[K(b.cols,y)]=o.pocket;b.cols++;}else{for(let x=0;x<b.cols;x++)b.pockets[K(x,b.rows)]=o.pocket;b.rows++;}
  state.bagLvl++;mission('expand');state.expandOpts=null;state.undo=null;sfx('merge');toast(`Mochila ${b.cols}×${b.rows} · ${POCKETS[o.pocket].name} · carga +1`);save();
  if(free)nextQueue();else{closeOverlay();render();}}
-function petAct(i){if(!inShop())return;const p=state.pets[i];if(!p||!(p.ch>0))return;const k=p.key;
+function petAct(i){if(!inShop())return;const p=state.pets[i];if(!p||!(p.ch>0))return;dragAbort();const k=p.key;
  if(k==='raven'){state.freeReroll=true;toast('Corvo: a próxima troca de itens é grátis');}
  else if(k==='turtle'){state.extraLock=(state.extraLock||0)+1;toast('Tartaruga: pode reservar mais 1 item nesta parada');}
  else if(k==='salamander'){if(!SIM.salamanderHeat(state)){toast('A Salamandra já esquentou o Martelo nesta parada');return;}toast('Salamandra: o Martelo está quente e de graça');}
  else if(k==='pixie'){state.gold+=3;toast('Fada: +3 de ouro');}
  else if(k==='owl'){const ix=state.shop.map((o,j)=>o&&!o.locked&&!o.pet?j:-1).filter(j=>j>=0);if(!ix.length){toast('Nada para trocar na loja');return;}const j=rpick(ix);state.shop[j]={key:rpick(shopPool()),tier:rollTier(2)};codexSee(state.shop[j].key);toast('Coruja: achou algo melhor na loja');}
  p.ch--;state.undo=null;sfx('trig');save();render();}
-function skipShop(){if(!inShop())return;const e=state.skipOffer;if(!e)return;confirmBox('Pular a loja desta parada?',`Os itens à venda somem e você ganha a ${ETIQ[e].name}: ${ETIQ[e].desc}.`,'Pular loja',()=>{
- if(!inShop()||state.skipOffer!==e)return;state.shop=state.shop.map(()=>null);if(e==='ouro')state.gold+=8;else if(e==='trocas')state.etiq.trocas=true;else state.pendingEtiq=e;state.skipOffer=null;state.undo=null;sfx('trig');toast(ETIQ[e].name+' guardada');save();render();});}
+function skipShop(){if(!inShop())return;const e=state.skipOffer;if(!e)return;dragAbort();confirmBox('Pular a loja desta parada?',`Os itens à venda somem e você ganha a ${ETIQ[e].name}: ${ETIQ[e].desc}.`,'Pular loja',()=>{
+ if(!inShop()||state.skipOffer!==e)return;dragAbort();state.shop=state.shop.map(()=>null);if(e==='ouro')state.gold+=8;else if(e==='trocas')state.etiq.trocas=true;else state.pendingEtiq=e;state.skipOffer=null;state.undo=null;sfx('trig');toast(ETIQ[e].name+' guardada');save();render();});}
 
 /* ================= BATTLE FLOW ================= */
 function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque ao menos uma arma na mochila');return;}
@@ -757,12 +759,13 @@ function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='
 /* partida salva no meio de uma luta (recarregou, fechou o app ou veio da nuvem): a mesma montagem (newBattle) roda até o fim
    com o mesmo passo fixo da luta ao vivo e cai no resultado, como se o jogador tivesse assistido */
 function resumeFight(){showRun();meterReset();B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];skip();render();finish();}
-setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;setTimeout(()=>{finishing=false;finish();},700);}},100);
+/* v1.4 (ID 1): o fechamento agendado guarda a luta; se o jogador já fechou (toque) e começou outra, ele não encerra a luta nova */
+setInterval(()=>{if(state&&state.phase==='battle'&&B&&B.done&&!finishing){finishing=true;const b=B;setTimeout(()=>{finishing=false;if(B===b)finish();},700);}},100);
 function forge(){const done=[];for(const r of readyRecipes()){const a=r.a;a.tier=r.tier;a.key=r.res;FORGEFX.push(a.id);state.items=state.items.filter(i=>i!==r.b);done.push(`${ITEMS[r.a.key].name} (${TIERS[a.tier-1]})`);
  if(counts()){PROF.codex.recipes[r.res]=1;codexAdd(r.res,'forged');codexSee(r.res);}state.stats.forged.push(r.res);mission('forge');rgev('forge');}
  if(done.length){achRetro();}return done;}
 let lastFight=null;
-function finish(){if(state.phase!=='battle')return;runFront();BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
+function finish(){if(!state||state.phase!=='battle'||!B||!B.done)return;runFront();BASEMODE='shop';V.p.dead=0;V.e.dead=0;const win=B.done==='win',f=foeDef(),hpLeft=Math.max(0,Math.ceil(B.p.hp)),t=Math.round(B.t);
  sfx(win?'win':'lose');let forged=[];
  lastFight={stats:B.stats,es:B.es,log:B.log.slice(),blocked:B.blocked,t:B.t,foe:f.name,win};
  if(state.pfPending){state.proof=(state.proof||[]).concat([{k:state.pfPending,res:win?'win':'lose'}]).slice(-MAXFIGHTS);state.pfPending=null;}
@@ -1453,7 +1456,7 @@ function labOppSet(k,v){const d=LABD||(LABD=labCur());
  else if(k==='mod'){const i=d.mods.indexOf(v);if(i>=0)d.mods.splice(i,1);else if(labModPool(d).includes(v)){d.mods.push(v);if(d.mods.length>2)d.mods.shift();}}
  else if(k==='asc')d.asc=Math.max(0,Math.min(10,d.asc+v));
  labOppScreen();}
-function labOppApply(d){if(!isLab()||!inShop())return false;d=d||LABD;if(!d)return false;labApplyTo(state,d);LABD=null;state.stopLosses=0;state.undo=null;labGold();save();closeOverlay();render();toast(`Adversário: ${foeDef().name}${state.asc?' · A'+state.asc:''}`);return true;}
+function labOppApply(d){if(!isLab()||!inShop())return false;d=d||LABD;if(!d)return false;dragAbort();labApplyTo(state,d);LABD=null;state.stopLosses=0;state.undo=null;labGold();save();closeOverlay();render();toast(`Adversário: ${foeDef().name}${state.asc?' · A'+state.asc:''}`);return true;}
 /* Catálogo: só itens já descobertos no Codex, em qualquer raridade, direto na mochila (ou no Baú) */
 let LABTIER=1;
 const knownItem=k=>{const x=PROF.codex.items[k];return !!ITEMS[k]&&!!x&&(x.seen>0||x.bought>0||x.forged>0);};
@@ -1462,7 +1465,7 @@ function labCatScreen(){if(!isLab()||!inShop())return;const keys=Object.keys(ITE
  <div class="k-seg ltier" role="group" aria-label="Raridade">${TIERS.map((n,i)=>`<button class="${LABTIER===i+1?'on':''}" data-ltier="${i+1}" aria-pressed="${LABTIER===i+1}">${n}</button>`).join('')}</div>
  ${keys.length?`<div class="lcat">${keys.map(k=>`<button class="lci t${LABTIER}" data-lcat="${k}" style="--tier:${tierVar(LABTIER)}" aria-label="Pôr ${ITEMS[k].name} ${TIERS[LABTIER-1]}"><img src="${artURL(k,LABTIER)}" alt="" class="${ITEMS[k].tint||''}"><span>${ITEMS[k].name}</span></button>`).join('')}</div>`:'<p class="muted center">Nada descoberto ainda. Jogue jornadas para encher o Codex.</p>'}
  <button class="k-btn g" id="closeOv">Voltar à loja</button>`);}
-function labPlace(key,tier){if(!isLab()||!inShop()||!knownItem(key))return false;tier=Math.max(1,Math.min(4,tier|0||1));const d=ITEMS[key],sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);
+function labPlace(key,tier){if(!isLab()||!inShop()||!knownItem(key))return false;dragAbort();tier=Math.max(1,Math.min(4,tier|0||1));const d=ITEMS[key],sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);
  if(!sp){toast('Sem espaço na mochila nem no Baú');buzz(40);return false;}
  snapshot();state.items.push({id:state.nid++,key,tier,...sp});sfx('drop');buzz(10);toast(`${d.name} ${TIERS[tier-1]} ${sp.where==='bag'?'na mochila':'no Baú'}`);save();render();return true;}
 function labExit(){if(!isLab())return;LABD=null;MENU.mode='normal';setState(fresh());save();closeOverlay();campScreen();}
@@ -1519,24 +1522,26 @@ function newsScreen(){page(`<h2>Novidades · v${VER}</h2><div class="k-card pc">
 let drag=null,ghost=null,prev=null,tipEl=null,rotFab=null,lastTap={id:null,t:0},prevMode=null;
 const LP_MS=200;
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms||15);}catch(e){}}
-function dragInfo(){if(drag.src==='shop'){const o=state.shop[drag.idx];const d=ITEMS[o.key];return {key:o.key,tier:o.tier,w:drag.rot?d.h:d.w,h:drag.rot?d.w:d.h,id:null,o};}
- const it=state.items.find(i=>i.id===drag.id);return {key:it.key,tier:it.tier,w:drag.rot?it.h:it.w,h:drag.rot?it.w:it.h,id:it.id,where:it.where};}
+/* v1.4: a oferta arrastada é a mesma do começo do arrasto (drag.o); se ela sumiu ou mudou (Trocar, Pular loja, Desfazer), devolve null */
+function dragInfo(){if(!drag||!state)return null;
+ if(drag.src==='shop'){const o=state.shop&&state.shop[drag.idx];if(!o||o.pet||(drag.o&&o!==drag.o)||!ITEMS[o.key])return null;const d=ITEMS[o.key];return {key:o.key,tier:o.tier,w:drag.rot?d.h:d.w,h:drag.rot?d.w:d.h,id:null,o};}
+ const it=state.items.find(i=>i.id===drag.id);if(!it)return null;return {key:it.key,tier:it.tier,w:drag.rot?it.h:it.w,h:drag.rot?it.w:it.h,id:it.id,where:it.where};}
 function grip(di){if(drag.touch){drag.gdx=di.w*CS/2;drag.gdy=di.h*CS+34;}else{drag.gdx=di.w*CS/2;drag.gdy=di.h*CS/2;}}
 function ghostHTML(n){return `<div class="face t${n.tier}">${artHTML(n.key,n.tier,(n.w*CS-10)*.86,(n.h*CS-10)*.86,n.w!==ITEMS[n.key].w)}<div class="pips">${'<i></i>'.repeat(n.tier)}</div></div>`;}
-function startDrag(){if(!drag||drag.started||drag.noDrag)return;clearTimeout(drag.lp);drag.started=true;drag.ox=drag.lx??drag.sx;drag.oy=drag.ly??drag.sy;const di=dragInfo();grip(di);
+function startDrag(){if(!drag||drag.started||drag.noDrag)return;clearTimeout(drag.lp);const di=dragInfo();if(!di){dragAbort();return;}drag.started=true;drag.ox=drag.lx??drag.sx;drag.oy=drag.ly??drag.sy;grip(di);
  state.sel=null;state.selMore=false;$('#pop').hidden=true;$('#sheet').hidden=true;if(DRAWER)closeDrawer();
  ghost=document.createElement('div');ghost.className='ghost';
  ghost.style.cssText+=`;--tier:${tierVar(di.tier)};width:${di.w*CS}px;height:${di.h*CS}px`;ghost.innerHTML=ghostHTML(di);document.body.appendChild(ghost);
  tipEl=document.createElement('div');tipEl.className='tip';tipEl.hidden=true;document.body.appendChild(tipEl);
  if(di.w!==di.h){rotFab=document.createElement('button');rotFab.id='rotfab';rotFab.className='rotfab';rotFab.textContent='⟳ Girar';rotFab.setAttribute('aria-label','Girar o item arrastado');document.body.appendChild(rotFab);}
  drag.el.classList.add('dragging');document.body.classList.add('is-dragging');
- if(drag.src==='own'){const it=state.items.find(i=>i.id===drag.id);const z=$('#sellzone');z.innerHTML=`<b>Vender</b><span><img src="${spr('coin')}" alt="">${sellPrice(it.key,it.tier)}</span>`;z.hidden=false;placeSellZone();
+ if(drag.src==='own'){const it=state.items.find(i=>i.id===drag.id)||di;const z=$('#sellzone');z.innerHTML=`<b>Vender</b><span><img src="${spr('coin')}" alt="">${sellPrice(it.key,it.tier)}</span>`;z.hidden=false;placeSellZone();
   if(BASEMODE!=='chest'){prevMode=BASEMODE;BASEMODE='chest';renderShop();}}
  buzz(12);}
-function dragRotate(){if(!drag||!drag.started)return;const di=dragInfo();if(di.w===di.h)return;drag.rot=!drag.rot;const n=dragInfo();grip(n);
+function dragRotate(){if(!drag||!drag.started)return;const di=dragInfo();if(!di||di.w===di.h)return;drag.rot=!drag.rot;const n=dragInfo();grip(n);
  ghost.style.width=n.w*CS+'px';ghost.style.height=n.h*CS+'px';ghost.innerHTML=ghostHTML(n);drag.lastK='';moveGhost(drag.lx||drag.sx,drag.ly||drag.sy);buzz(8);}
 function inRect(el,px,py,pad){if(!el||el.hidden)return false;const r=el.getBoundingClientRect();pad=pad||0;return px>=r.left-pad&&px<r.right+pad&&py>=r.top-pad&&py<r.bottom+pad;}
-function target(px,py){const di=dragInfo();
+function target(px,py){const di=dragInfo();if(!di)return null;
   const ax=px-drag.gdx,ay=py-drag.gdy;
  const sellHit=drag.src==='own'&&(inRect($('#sellzone'),px,py,6)||inRect($('#sellzone'),ax+di.w*CS/2,ay+di.h*CS/2,6));
  for(const where of sellHit&&BASEMODE==='chest'?['chest','sell','bag']:sellHit?['sell','bag','chest']:['bag','chest']){if(where==='sell')return {sell:true};if(where==='chest'&&BASEMODE!=='chest')continue;const g=$('#'+where),r=g.getBoundingClientRect(),c=csOf(where);
@@ -1556,7 +1561,7 @@ function previewRelations(t){const di=t.di;let tmp,saved=null;
  return {rel,wi,zone,effects,pk,A};}
 function showPreview(t){if(prev){prev.remove();prev=null;}document.querySelectorAll('.item.syn,.item.rgl,.item.mrg').forEach(e=>e.classList.remove('syn','rgl','mrg'));
  const svg=document.querySelector('#bag .teth');if(svg)svg.innerHTML='';if(tipEl)tipEl.hidden=true;$('#sellzone').classList.toggle('hot',!!(t&&t.sell));document.body.classList.toggle('sell-hot',!!(t&&t.sell));
- const di0=dragInfo(),tw=t&&t.merge?[]:twinRel(di0.key,di0.tier,di0.id);
+ const di0=dragInfo();if(!di0)return;const tw=t&&t.merge?[]:twinRel(di0.key,di0.tier,di0.id);
  if(!t||t.sell){if(!t&&tw.length){markRel(tw);const p=bagPt(drag.px,drag.py);if(p)drawTethers(tw,p);}return;}prev=document.createElement('div');const c=csOf(t.where);
  if(t.merge){markRel([{o:t.merge,kind:'mrg'}]);prev.className='preview merge';Object.assign(prev.style,{left:t.merge.x*c+'px',top:t.merge.y*c+'px',width:t.merge.w*c+'px',height:t.merge.h*c+'px'});
   tipEl.innerHTML=`<b>Fundir → ${TIERS[t.merge.tier]}</b>${t.merge.tier+1>=3?`<span class="o">✦ desperta: ${AWK[ITEMS[t.merge.key].type][t.merge.tier+1>=4?1:0]}</span>`:''}`;tipEl.hidden=false;}
@@ -1582,6 +1587,7 @@ function moveGhost(px,py){ghost.style.transform=`translate(${px-drag.gdx}px,${py
 function endDrag(px,py){
  if(!inShop()||(drag.mx||0)<8){render();return;}/* long-press sem mover = cancelar; fora da loja (luta começou) nada muda *//* long-press sem mover = cancelar, nunca soltar no lugar errado */
  const t=target(px,py),di=dragInfo();
+ if(!di){toast('A loja mudou: arraste de novo');buzz(40);render();return;}
  if(t&&t.sell){sell(drag.id);return;}
  if(t&&t.ok){
   if(drag.src==='shop'){const p=offerPrice(di.o);if(p>state.gold){toast('Ouro insuficiente');buzz(40);render();return;}snapshot();state.gold-=p;state.shop[drag.idx]=null;pq(['cx',di.key,'bought']);gq('buy');if(!t.merge)sfx('buy');
@@ -1622,9 +1628,9 @@ document.addEventListener('pointerdown',e=>{
  if(DRAWER&&!e.target.closest('#drawer,#moreBtn,#petsmini,#overlay,#pop,#sheet,[data-pane],#chestBtn'))closeDrawer();
  if(e.button>0||drag)return;const el=e.target.closest('[data-drag]');if(!el)return;
  const r=el.getBoundingClientRect();drag={el,pid:e.pointerId,touch:e.pointerType==='touch'||e.pointerType==='pen',src:el.dataset.src,id:el.dataset.id?+el.dataset.id:null,idx:el.dataset.idx!=null?+el.dataset.idx:null,sx:e.clientX,sy:e.clientY,gdx:e.clientX-r.left,gdy:e.clientY-r.top,started:false,rot:false};
- if(drag.src==='shop'){const o=state.shop[drag.idx];if(!o){drag=null;return;}if(o.pet)drag.noDrag=true;}
+ if(drag.src==='shop'){const o=state.shop[drag.idx];if(!o){drag=null;return;}drag.o=o;if(o.pet)drag.noDrag=true;}
  if(state.phase!=='shop')drag.noDrag=true;
- if(!drag.noDrag)drag.lp=setTimeout(()=>{if(drag&&!drag.started){startDrag();moveGhost(drag.lx??drag.sx,drag.ly??drag.sy);}},LP_MS);
+ if(!drag.noDrag)drag.lp=setTimeout(()=>{if(drag&&!drag.started){startDrag();if(drag&&ghost)moveGhost(drag.lx??drag.sx,drag.ly??drag.sy);}},LP_MS);
  if(!(drag.src==='shop'&&$('#shop').classList.contains('scroll')))e.preventDefault();});
 let hovEl=null;
 document.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse'||drag||!inShop())return;const el=e.target.closest('[data-drag]');if(!el||el===hovEl)return;hovEl=el;
@@ -1633,7 +1639,8 @@ document.addEventListener('pointerout',e=>{if(!hovEl||e.pointerType!=='mouse')re
 document.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.pid)return;drag.lx=e.clientX;drag.ly=e.clientY;
  if(!drag.started){if(drag.noDrag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(Math.hypot(dx,dy)<7)return;
   if(drag.src==='shop'&&$('#shop').classList.contains('scroll')&&Math.abs(dx)>Math.abs(dy)){clearTimeout(drag.lp);drag=null;return;}/* rolagem horizontal da fileira */
-  startDrag();}
+  startDrag();if(!drag)return;}
+ if(!dragInfo()){toast('A loja mudou: arraste de novo');dragAbort();render();return;}
  e.preventDefault();moveGhost(e.clientX,e.clientY);},{passive:false});
 document.addEventListener('pointerup',e=>{if(!drag||e.pointerId!==drag.pid)return;const d=drag;clearTimeout(d.lp);
  if(!d.started){cleanup();drag=null;tap(d.src,d.el);return;}endDrag(e.clientX,e.clientY);cleanup();drag=null;render();if(MPEND)sayMerchant(true);});
@@ -1687,9 +1694,9 @@ document.addEventListener('click',e=>{
  else if(t.dataset.exp!=null)doExpand(+t.dataset.exp,!!t.dataset.free);
  else if(t.dataset.speed){speed=+t.dataset.speed;try{localStorage.setItem('alforje-speed',speed);}catch(_){}renderShop();}
  else if(id==='buy')buy(state.sel.shop);else if(id==='sell')sell(state.sel.id);else if(id==='rot')rotate(state.sel.id);
- else if(id==='hammer')hammer(state.sel.id);else if(id==='noforge'){const it=state.items.find(i=>i.id===state.sel.id);if(it){it.noforge=!it.noforge;toast(it.noforge?'Este item não será forjado':'Forja liberada');save();render();}}
+ else if(id==='hammer')hammer(state.sel.id);else if(id==='noforge'){const it=state.items.find(i=>i.id===state.sel.id);if(it){dragAbort();it.noforge=!it.noforge;toast(it.noforge?'Este item não será forjado':'Forja liberada');save();render();}}
  else if(id==='sellPet')sellPet(state.sel.pet);else if(id==='petAct')petAct(state.sel.pet);
- else if(id==='lockBtn'){if(!inShop()||!state.sel)return;const o=state.shop[state.sel.shop];if(!o)return;if(!o.locked&&state.shop.filter(x=>x&&x.locked).length>=lockLimit()){toast('Limite de reservas atingido');return;}o.locked=!o.locked;toast(o.locked?'Reservado para a próxima parada':'Reserva liberada');save();renderShop();renderPop();}
+ else if(id==='lockBtn'){if(!inShop()||!state.sel)return;const o=state.shop[state.sel.shop];if(!o)return;dragAbort();if(!o.locked&&state.shop.filter(x=>x&&x.locked).length>=lockLimit()){toast('Limite de reservas atingido');return;}o.locked=!o.locked;toast(o.locked?'Reservado para a próxima parada':'Reserva liberada');save();renderShop();renderPop();}
  else if(id==='close'){state.sel=null;state.selMore=false;render();}
  else if(id==='undo')undo();else if(id==='undo2'){closeDrawer();undo();}else if(id==='skipShop'){closeDrawer();skipShop();}
  else if(id==='labCat'||id==='labCat2'){closeDrawer();labCatScreen();}else if(id==='labOpp'){closeDrawer();LABD=null;labOppScreen();}else if(id==='labExit'){closeDrawer();labExit();}
