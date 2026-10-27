@@ -69,6 +69,40 @@ function startRun(dayIx, mode) {
   check(p.miss === null && p.seals === 0 && p.skin === 'couro' && p.best === 4 && p.ver === '8.0', 'perfil: tipos errados voltam ao padrão, valores bons ficam');
 }
 
+// ===== 2b. v1.4 (ID 16): números da jornada e do perfil validados e limitados (P2 r2 #7) =====
+{
+  const s = startRun(5, 'normal'); s.perm = { hp: 6, block: 3, dmgPct: .04, crit: .02, gold: 1, pet: null };
+  const nan = {
+    'asc texto': x => { x.asc = 'abc'; },
+    'perm.hp texto': x => { x.perm.hp = 'abc'; },
+    'perm.dmgPct NaN': x => { x.perm.dmgPct = NaN; },
+    'maxHpMod texto': x => { x.maxHpMod = 'x'; },
+    'elites com texto': x => { x.elites = { 1: 'x' }; },
+    'elites com modificador inexistente': x => { x.elites = { 2: [['furia', 'nada']] }; },
+    'elites lista': x => { x.elites = ['a']; },
+    'sobrevivência sem rota': x => { x.surv = true; x.survRoute = null; },
+    'companheiro com força texto': x => { x.pets[0] = { key: D.PETKEYS[0], tier: 1, ch: 3, mul: 'x' }; },
+  };
+  for (const name in nan) { const x = clone(s); nan[name](x); check(SV.runProblem(x) !== '', 'ID 16: jornada recusada: ' + name + ' (' + SV.runProblem(x) + ')'); }
+  const ok = clone(s); ok.elites = { 2: [null, ['furia']] };
+  check(SV.runProblem(ok) === '', 'ID 16: elites com variação vazia (null) continuam aceitas (Laboratório)');
+  const big = clone(s); big.asc = 1e6; big.gold = -40; big.perm = { hp: 9999, block: -5, dmgPct: 50, crit: 3, gold: 1, pet: { key: D.PETKEYS[0], mul: 80 } }; big.maxHpMod = -1e6; big.pets[0] = { key: D.PETKEYS[0], tier: 1, ch: 3, mul: 40 };
+  check(SV.runProblem(big) === '', 'ID 16: números grandes mas finitos não derrubam a jornada');
+  SV.fillRun(big, S.fresh());
+  check(big.asc === 10 && big.gold === 0 && big.perm.hp === 29 && big.perm.block === 0 && big.perm.dmgPct === .19 && big.perm.crit === .095 && big.perm.pet.mul === 1.9 && big.maxHpMod === -60 && big.pets[0].mul === 1.9,
+    'ID 16: fillRun limita Ascensão 0–10, ouro ≥ 0, bônus de conta no máximo do jogo e vida máxima perdida');
+  const neg = clone(s); neg.asc = -3.7; SV.fillRun(neg, S.fresh()); check(neg.asc === 0, 'ID 16: Ascensão negativa vira 0');
+  // perfil
+  const pb = { ver: '', best: 0, totalWins: 0, journeys: 0, history: [], ach: {}, asc: {}, ascW: {}, classWins: {}, codex: { items: {}, foes: {}, recipes: {} }, miss: null, seals: 0, skin: 'couro' };
+  const p = SV.fixProf({ best: -4, totalWins: -100, journeys: 1e3, asc: { warrior: 99, rogue: -2, pyro: 3.7, bardo: 5, paladin: 'x' }, ascW: { warrior: 7, rogue: 'a' }, classWins: { warrior: -1, rogue: 3 },
+    history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} } }, clone(pb));
+  check(p.best === 0 && p.totalWins === 0 && p.journeys === 1000, 'ID 16: contadores do perfil não negativos');
+  check(JSON.stringify(p.asc) === JSON.stringify({ warrior: 10, rogue: 0, pyro: 3 }) && JSON.stringify(p.ascW) === JSON.stringify({ warrior: 1 }) && JSON.stringify(p.classWins) === JSON.stringify({ rogue: 3 }),
+    'ID 16: Ascensão por classe 0–10, só classes que existem; vitórias na Ascensão 0–1');
+  const p2 = SV.fixProf({ asc: 'x', ascW: [1], history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} } }, clone(pb));
+  check(JSON.stringify(p2.asc) === '{}' && JSON.stringify(p2.ascW) === '{}', 'ID 16: Ascensão com tipo errado volta ao padrão');
+}
+
 // ===== 3. retomada da luta =====
 // ao vivo: newBattle + passos fixos de 0,05 s acumulados por quadros de tamanho variável (como loop() da página)
 function live(s) {

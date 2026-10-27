@@ -10,6 +10,8 @@ const D = ctx.window.AlforjeData, M = ctx.window.AlforjeMeta;
 
 let fails = 0;
 const check = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!cond) fails++; };
+// bloco que lança erro (função que não existe numa versão antiga) conta como falha e não derruba os outros
+const tryBlock = fn => { try { fn(); } catch (e) { check(false, 'erro: ' + e.message); } };
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const DAY = 86400000, T0 = Date.UTC(2026, 9, 21, 12, 0, 0);
 const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now == null ? T0 : now);
@@ -103,17 +105,17 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
 
 // equipamento
 {
-  check(eq(M.gearCost(1), { stone: 1, gold: 25 }) && eq(M.gearCost(5), { stone: 5, gold: 625 }) && eq(M.gearCost(19), { stone: 19, gold: 9025 }), 'v1.2 gearCost: L pedras, 25×L² ouro');
+  check(eq(M.gearCost(1), { stone: 1, gold: 25 }) && eq(M.gearCost(5), { stone: 9, gold: 625 }) && eq(M.gearCost(19), { stone: 121, gold: 9025 }), 'v1.4 (ID 8) gearCost: ⌈L²/3⌉ pedras, 25×L² ouro');
   { let st = 0, gd = 0; for (let L = 1; L < 20; L++) { st += M.gearCost(L).stone; gd += M.gearCost(L).gold; }
-    check(st === 190 && gd === 61750, 'v1.2: uma peça do 1 ao 20 custa 190 pedras e 61.750 de ouro (antes 9.500)'); }
+    check(st === 832 && gd === 61750, 'v1.4 (ID 8): uma peça do 1 ao 20 custa 832 pedras (antes 190) e 61.750 de ouro'); }
   check([1, 5, 6, 10, 11, 15, 16, 20].map(M.gearTier).join() === '1,1,2,2,3,3,4,4', 'gearTier: raridades');
   const m = mk();
   check(M.upgradeGear(m, 'weapon') === false && m.gear.weapon === 1, 'upgrade sem recursos falha');
   m.stone = 1; m.gold = 25;
   check(M.upgradeGear(m, 'weapon') && m.gear.weapon === 2 && m.stone === 0 && m.gold === 0, 'upgrade gasta recursos e sobe');
-  m.gear.armor = 10; m.stone = 10; m.gold = 2499;
+  m.gear.armor = 10; m.stone = 34; m.gold = 2499;
   check(M.upgradeGear(m, 'armor') === false && m.gear.armor === 10, 'v1.2: nível 10 → 11 pede 2.500 de ouro (2.499 não basta)');
-  m.gold = 2500; check(M.upgradeGear(m, 'armor') && m.gear.armor === 11 && m.gold === 0 && m.stone === 0, 'v1.2: nível 10 → 11 com 10 pedras e 2.500 de ouro');
+  m.gold = 2500; check(M.upgradeGear(m, 'armor') && m.gear.armor === 11 && m.gold === 0 && m.stone === 0, 'v1.4: nível 10 → 11 com 34 pedras e 2.500 de ouro');
   m.gear.ring = 20; m.stone = 99; m.gold = 9999;
   check(M.upgradeGear(m, 'ring') === false && m.gear.ring === 20, 'nível 20 não sobe');
   const p = mk(); p.gear = { weapon: 6, armor: 4, ring: 3, bag: 5 }; p.xp = 300;
@@ -152,7 +154,7 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
 
 // jornada
 {
-  check(eq(M.journeyRewards(10, true, 2, 'normal'), { gold: 165, stone: 3, xp: 100 }), 'jornada completa com Ascensão 2');
+  check(eq(M.journeyRewards(10, true, 2, 'normal'), { gold: 165, stone: 2, xp: 100 }), 'jornada completa com Ascensão 2 (v1.4 ID 8: 1 pedra a cada 4 vitórias)');
   check(eq(M.journeyRewards(5, false, 0, 'daily'), { gold: 25, stone: 0, xp: 50 }), 'diário: metade do ouro, sem pedras');
   check(M.journeyRewards(5, false, 0, 'duel').stone === 0, 'duelo: sem pedras');
 }
@@ -256,15 +258,15 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
   check(oldM.rw.daily === 0 && oldM.rw.duel === 0, 'prêmio: meta antiga ganha o contador');
 
   // Ruling 6: dia salvo muito à frente do relógio = correção
+  const c1 = mk(); M.claimCal(c1, T0, false); M.claimCal(c1, T0 + DAY, false); M.markReward(c1, T0 + DAY, 'daily');
+  check(M.calToday(c1, T0).claimed && c1.day === '2026-10-22', 'relógio 1 dia à frente: segue travado (Ruling 1)');
   const ck = mk(); M.claimCal(ck, T0, false); M.adUse(ck, T0, 'shop');
-  ck.day = '2026-10-22'; ck.cal.last = '2026-10-22'; M.markReward(ck, T0, 'daily');
-  check(M.calToday(ck, T0).claimed && ck.day === '2026-10-22', 'relógio 1 dia à frente: segue travado (Ruling 1)');
-  ck.day = '2026-10-24'; ck.cal.last = '2026-10-24'; ck.rw.daily = 1; ck.goals.pts = 40;
+  M.claimCal(ck, T0 + 3 * DAY, false); M.adUse(ck, T0 + 3 * DAY, 'shop'); M.markReward(ck, T0 + 3 * DAY, 'daily'); ck.goals.pts = 40;
   const ct = M.calToday(ck, T0);
   check(ck.day === '2026-10-21' && ck.dayMax === '2026-10-24' && ck.ad.shop === 1 && ck.goals.pts === 40 && ck.rw.daily === 1 && ct.claimed && ck.cal.last === '2026-10-24',
     'relógio 3 dias à frente: só o marcador do dia volta; contadores, metas e calendário continuam usados');
   check(M.calToday(ck, T0 + DAY).claimed && ck.ad.shop === 1 && ck.day === '2026-10-22', 'dia real seguinte, ainda antes do dia já aberto: nada reabre');
-  check(!M.calToday(ck, T0 + 4 * DAY).claimed && ck.ad.shop === 0 && ck.rw.daily === 0 && ck.dayMax === undefined, 'depois do dia mais adiantado já aberto: o dia vira normalmente');
+  check(!M.calToday(ck, T0 + 4 * DAY).claimed && ck.ad.shop === 0 && ck.rw.daily === 0 && ck.dayMax === '2026-10-25', 'depois do dia mais adiantado já aberto: o dia vira normalmente');
   const c2 = mk(); c2.day = '2026-10-23';
   M.goalsToday(c2, T0); check(c2.day === '2026-10-23', 'exatamente 2 dias à frente: ainda não corrige');
 
@@ -288,11 +290,15 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
     const fz = mk(); M.claimCal(fz, T0, false);
     M.claimCal(fz, T0 + 30 * DAY, false); M.adUse(fz, T0 + 30 * DAY, 'shop');
     const back = M.calToday(fz, T0);
-    check(back.claimed && fz.dayMax === undefined && fz.cal.last === '2026-10-21' && fz.ad.shop === 1, 'relógio 30 dias à frente e de volta: hoje segue pego, sem dayMax, contadores usados');
-    check(!M.calToday(fz, T0 + DAY).claimed, 'relógio 30 dias à frente: o dia real seguinte reabre (vazamento limitado aceito)');
-    const old = mk(); old.dayMax = '2027-06-01'; old.cal.last = '2027-06-01';
-    M.calToday(old, T0);
-    check(old.dayMax === undefined && old.cal.last === '2026-10-21', 'dayMax salvo mais de 14 dias à frente é esquecido');
+    check(back.claimed && eq(fz.far, ['2026-11-20', '2026-11-20']) && fz.dayMax === '2026-10-21' && fz.capOn === '2026-10-21' && fz.ad.shop === 1,
+      'v1.4 relógio 30 dias à frente e de volta: hoje segue pego, contadores usados, o dia aberto lá na frente fica guardado (m.far)');
+    check(!M.calToday(fz, T0 + DAY).claimed, 'relógio 30 dias à frente: o dia real seguinte (nunca aberto) abre normalmente');
+    M.calToday(fz, T0 + 30 * DAY);
+    check(fz.dayOpen === '2026-10-22' && eq(fz.far, ['2026-11-20', '2026-11-20']), 'v1.4: o dia já aberto lá na frente não reabre quando o relógio volta a ele');
+    const om = mk(); om.dayMax = '2027-06-01'; om.cal.last = '2027-06-01'; delete om.dayOpen; delete om.days;
+    const old = M.ensureMeta({ totalWins: 0, ach: {}, meta: om }, T0);
+    check(eq(old.far, ['2027-06-01', '2027-06-01']) && old.dayMax === '2026-10-21' && M.calToday(old, T0).claimed && !M.calToday(old, T0 + DAY).claimed,
+      'perfil antigo com dayMax mais de 14 dias à frente: a trava vai para m.far, hoje segue pego e amanhã abre');
     const near = mk(); M.claimCal(near, T0 + 10 * DAY, false); M.calToday(near, T0);
     check(near.dayMax === '2026-10-31' && near.cal.last === '2026-10-31', '10 dias à frente: dentro do teto, segue travado até o dia aberto');
   }
@@ -346,19 +352,20 @@ check(M.progressCounts('normal') && M.progressCounts('daily') && M.progressCount
 
 // v1.2 — decisão 14: meta impossível é trocada pela próxima do sorteio do dia, só para aquele jogador
 {
-  let t = T0, guard = 0; while (!M.goalsToday(mk(null, t), t).ids.includes('upgrade1') && guard++ < 60) t += DAY;
-  const base = M.goalsToday(mk(null, t), t).ids;
+  const rich = t => M.ensureMeta({ totalWins: 0, ach: {}, meta: { gold: 5000, stone: 50 } }, t);
+  let t = T0, guard = 0; while (!M.goalsToday(rich(t), t).ids.includes('upgrade1') && guard++ < 60) t += DAY;
+  const base = M.goalsToday(rich(t), t).ids;
   check(base.includes('upgrade1'), 'v1.2: achou um dia com a meta "Melhore uma peça" (' + M.dayKey(t) + ')');
-  const maxed = pets => { const m = mk(null, t); for (const k in m.gear) m.gear[k] = M.GEAR_MAX; m.pets = pets; m.goals = null; return m; };
+  const maxed = (pets, food) => { const m = rich(t); for (const k in m.gear) m.gear[k] = M.GEAR_MAX; m.pets = pets; m.food = food || 0; m.goals = null; return m; };
   const full = maxed({ raven: M.PET_MAX, owl: M.PET_MAX });
   const g = M.goalsToday(full, t);
   check(!g.ids.includes('upgrade1') && g.ids.length === base.length && new Set(g.ids).size === g.ids.length, 'v1.2: tudo no máximo → a meta some, sem repetir outra (' + g.ids.join(',') + ')');
   const ix = base.indexOf('upgrade1'), nx = g.ids[ix];
   check(nx && !base.includes(nx) && g.ids.filter((x, i) => i !== ix).join() === base.filter((x, i) => i !== ix).join(), 'v1.2: entra a próxima da lista do dia, no mesmo lugar (' + nx + ')');
-  check(M.goalsToday(mk(null, t), t).ids.includes('upgrade1'), 'v1.2: só para aquele jogador — quem pode melhorar mantém a meta');
-  check(M.goalsToday(maxed({ raven: 3 }), t).ids.includes('upgrade1'), 'v1.2: equipamento no máximo mas companheiro para alimentar → meta continua');
+  check(M.goalsToday(rich(t), t).ids.includes('upgrade1'), 'v1.2: só para aquele jogador — quem pode melhorar mantém a meta');
+  check(M.goalsToday(maxed({ raven: 3 }, 10), t).ids.includes('upgrade1'), 'v1.2: equipamento no máximo mas companheiro para alimentar → meta continua');
   check(!M.goalsToday(maxed({}), t).ids.includes('upgrade1'), 'v1.2: equipamento no máximo e nenhum companheiro → meta trocada');
-  const done = mk(null, t); M.goalEvent(done, t, 'upgrade', 1); for (const k in done.gear) done.gear[k] = M.GEAR_MAX;
+  const done = rich(t); M.goalEvent(done, t, 'upgrade', 1); for (const k in done.gear) done.gear[k] = M.GEAR_MAX;
   check(M.goalsToday(done, t).done.includes('upgrade1') && M.goalsToday(done, t).ids.includes('upgrade1'), 'v1.2: meta já cumprida não é trocada');
   check(M.goalEvent(full, t, M.GOALS[nx].ev, M.GOALS[nx].n).includes(nx), 'v1.2: a meta nova conta normalmente');
 }
@@ -379,10 +386,10 @@ check(!M.progressCounts('lab') && M.isLab('lab') && !M.isLab('normal'), 'v1.3: p
   check(M.discNew(m).total === 0, 'descobertas: perfil antigo começa sem novidades');
   check(M.discClaim(m, 'i', 'sword') === null && m.ruby === 0, 'descobertas: entrada antiga não paga');
   // novidades depois da migração
-  codex.items.whet.seen = 1; codex.items.axe = { seen: 0, bought: 1, merged: 0, forged: 0, wins: 0 }; codex.foes.slime.beat = 1; codex.recipes.infernal = 1;
+  codex.items.whet.seen = 1; codex.items.whet.merged = 1; codex.items.axe = { seen: 0, bought: 1, merged: 0, forged: 0, wins: 0 }; codex.foes.slime.beat = 1; codex.recipes.infernal = 1;
   M.ensureMeta(prof, T0);
   const n = M.discNew(m);
-  check(n.i === 2 && n.f === 1 && n.r === 1 && n.total === 4, 'descobertas: item visto, item comprado, inimigo derrotado e receita forjada viram novidade (' + JSON.stringify(n) + ')');
+  check(n.i === 2 && n.f === 1 && n.r === 1 && n.total === 4, 'descobertas: item fundido, item comprado, inimigo derrotado e receita forjada viram novidade (' + JSON.stringify(n) + ')');
   check(M.discIs(m, 'i', 'whet') && !M.discIs(m, 'i', 'sword'), 'descobertas: discIs só marca as novas');
   const r1 = M.discClaim(m, 'i', 'whet');
   check(r1 && r1.added === 2 && m.ruby === 2 && m.dsc.i.whet === 2, 'descobertas: abrir paga +2 rubis e marca como paga');
@@ -398,7 +405,7 @@ check(!M.progressCounts('lab') && M.isLab('lab') && !M.isLab('normal'), 'v1.3: p
   check(M.DISC_RUBY === 2, 'descobertas: valem 2 rubis');
   // perfil novo: tudo conta
   const fresh = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const mf = M.ensureMeta(fresh, T0);
-  fresh.codex.items.sword = { seen: 1 }; M.ensureMeta(fresh, T0);
+  fresh.codex.items.sword = { seen: 1, bought: 1 }; M.ensureMeta(fresh, T0);
   check(M.discNew(mf).i === 1, 'descobertas: perfil novo conta desde a primeira');
   // perfil sem Codex (formato muito antigo) não quebra
   const bare = { totalWins: 0, ach: {} }; const mb = M.ensureMeta(bare, T0);
@@ -407,6 +414,119 @@ check(!M.progressCounts('lab') && M.isLab('lab') && !M.isLab('normal'), 'v1.3: p
   const bad = { totalWins: 0, ach: {}, codex, meta: JSON.parse(JSON.stringify(prof.meta)) }; bad.meta.dsc = 'x'; const mx = M.ensureMeta(bad, T0);
   check(M.discNew(mx).total === 0 && mx.dsc.i.whet === 0, 'descobertas: registro com defeito volta à base (nada a pagar)');
 }
+
+// v1.4 (ID 3) — descoberta paga só pelo esforço: comprar/fundir o item, forjar a receita, vencer o inimigo
+tryBlock(() => {
+  const codex = { items: { sword: { seen: 2, bought: 0, merged: 0, forged: 0, wins: 0 } }, foes: { rat: { met: 1, beat: 0 } }, recipes: {} };
+  const prof = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } };
+  const m = M.ensureMeta(prof, T0); prof.codex = codex; M.ensureMeta(prof, T0);
+  check(M.discNew(m).total === 0 && !('sword' in m.dsc.i), 'ID 3: item só visto na loja (e inimigo só encontrado) não vira novidade');
+  codex.items.sword.bought = 1; M.ensureMeta(prof, T0);
+  check(M.discIs(m, 'i', 'sword'), 'ID 3: o mesmo item comprado vira novidade');
+  codex.items.helm = { seen: 1, bought: 0, merged: 2, forged: 0, wins: 0 }; codex.items.heroblade = { seen: 1, bought: 0, merged: 0, forged: 1, wins: 0 }; codex.foes.rat.beat = 1; codex.recipes.heroblade = 1;
+  M.ensureMeta(prof, T0);
+  check(M.discIs(m, 'i', 'helm') && M.discIs(m, 'i', 'heroblade') && M.discIs(m, 'f', 'rat') && M.discIs(m, 'r', 'heroblade'), 'ID 3: fundir, forjar e vencer viram novidade');
+  // migração: novidades marcadas só por ver deixam de valer, sem tirar rubis já pagos
+  const old = { totalWins: 0, ach: {}, codex: { items: { bomb: { seen: 3 }, torch: { seen: 1 }, dagger: { seen: 1, bought: 1 } }, foes: {}, recipes: {} },
+    meta: { ruby: 10, dsc: { i: { bomb: 1, torch: 2, dagger: 1, sumiu: 1 }, r: { naoexiste: 1 }, f: { fantasma: 1 } } } };
+  const mo = M.ensureMeta(old, T0);
+  check(!('bomb' in mo.dsc.i) && mo.dsc.i.torch === 2 && mo.dsc.i.dagger === 1 && mo.ruby === 10, 'ID 3: novidade antiga só vista deixa de valer; a já paga continua paga; rubis intactos');
+  check(!('sumiu' in mo.dsc.i) && !('naoexiste' in mo.dsc.r) && !('fantasma' in mo.dsc.f) && M.discNew(mo).total === 1, 'ID 3 / P2 #8: chave que o jogo não conhece sai do registro (selo zera)');
+  old.codex.items.bomb.bought = 1; M.ensureMeta(old, T0);
+  check(M.discIs(mo, 'i', 'bomb'), 'ID 3: a novidade que deixou de valer volta quando o item é comprado');
+  // limite de 10 por dia
+  const many = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const ml = M.ensureMeta(many, T0);
+  const keys = Object.keys(D.ITEMS).slice(0, 15); for (const k of keys) many.codex.items[k] = { seen: 1, bought: 1 }; M.ensureMeta(many, T0);
+  let paid = 0; for (const k of keys.slice(0, 10)) { const r = M.discClaim(ml, 'i', k); if (r && r.added === 2) paid++; }
+  const r11 = M.discClaim(ml, 'i', keys[10]);
+  check(M.DISC_DAY === 10 && paid === 10 && r11 && r11.limit === true && ml.ruby === 20 && M.discIs(ml, 'i', keys[10]) && M.discLeft(ml) === 0, 'ID 3: no máximo 10 novidades por dia (20 rubis); a 11ª espera');
+  const ml2 = M.ensureMeta(many, T0 + DAY);
+  check(M.discLeft(ml2) === 10 && M.discClaim(ml2, 'i', keys[10]).added === 2, 'ID 3: no dia seguinte a fila continua');
+  // relógio para trás e para a frente não renova o limite
+  M.ensureMeta(many, T0); const lb = M.discLeft(ml2); M.ensureMeta(many, T0 + DAY);
+  check(lb === 9 && M.discLeft(ml2) === 9, 'ID 3: relógio para trás e de volta não renova o limite do dia');
+});
+// v1.4 (ID 11) — "Coletar todos" respeita o limite do dia
+tryBlock(() => {
+  const p = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m = M.ensureMeta(p, T0);
+  const keys = Object.keys(D.ITEMS).slice(0, 13); for (const k of keys) p.codex.items[k] = { seen: 1, merged: 1 }; M.ensureMeta(p, T0);
+  const a = M.discClaimAll(m);
+  check(a.n === 10 && a.added === 20 && a.rest === 3 && m.ruby === 20 && M.discNew(m).total === 3, 'ID 11: Coletar todos abre 10 (+20 rubis) e deixa 3 para amanhã');
+  const b = M.discClaimAll(m);
+  check(b.n === 0 && b.added === 0 && b.rest === 3 && m.ruby === 20, 'ID 11: Coletar todos no limite não paga nada');
+  M.ensureMeta(p, T0 + DAY); const c = M.discClaimAll(m);
+  check(c.n === 3 && c.rest === 0 && m.ruby === 26, 'ID 11: amanhã Coletar todos pega o resto');
+});
+
+// v1.4 (ID 2) — relógio: saltos de 15 dias ida e volta (P1 r2 #1) não reabrem nada; a correção de relógio quebrado não apaga a trava e só vale 1 vez a cada 30 dias
+tryBlock(() => {
+  /* pega tudo o que o dia dá: calendário (em dobro), 3 propagandas de energia, a de ouro, o prêmio do Diário e as 2 compras de energia */
+  const harvest = (m, t) => { let n = 0; m.energy = 0; const r = M.claimCal(m, t, true); if (r) n++; for (let i = 0; i < 3; i++) if (M.adUse(m, t, 'energy')) n++; if (M.adUse(m, t, 'shop')) n++;
+    if (M.rewardOk(m, t, 'daily')) { M.markReward(m, t, 'daily'); n++; } m.ruby += 30; for (let i = 0; i < 2; i++) { m.energy = 0; if (M.buy(m, t, 'energy30')) n++; } m.energy = 0; return n; };
+  const loop = (jump, cycles) => { const p = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m = M.ensureMeta(p, T0); const per = [];
+    let tot = 0; for (let c = 0; c < cycles; c++) { const a = harvest(m, T0), b = harvest(m, T0 + jump * DAY); M.ensureMeta(p, T0); tot += a + b; per.push(a + '/' + b); } return { m, tot, per }; };
+  const one = loop(15, 1), twenty = loop(15, 20);
+  check(one.tot === 16 && twenty.tot === one.tot, 'ID 2: 20 ciclos de +15 dias/volta pagam o mesmo que 1 (' + twenty.tot + ' x ' + one.tot + '; ' + twenty.per.slice(0, 4).join(' ') + ' …)');
+  const m = twenty.m;
+  check(m.capOn === '2026-10-21' && eq(m.far, ['2026-11-05', '2026-11-05']), 'ID 2: a correção ficou marcada no perfil e a trava do dia mais adiantado foi guardada');
+  // depois da correção, os dias reais entre hoje e o dia já aberto abrem normalmente (1 vez cada) e o dia já aberto não reabre
+  let real = 0; for (let d = 1; d <= 14; d++) real += harvest(m, T0 + d * DAY) > 0 ? 1 : 0;
+  const again = harvest(m, T0 + 15 * DAY), next = harvest(m, T0 + 16 * DAY);
+  check(real === 14 && again === 0 && next > 0 && m.far === undefined, 'ID 2: dias reais seguintes abrem 1 vez cada; o dia já aberto lá na frente não paga de novo; depois dele tudo normal');
+  // 2ª ida longe dentro de 30 dias: sem correção, a trava fica (nada reabre)
+  const p2 = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m2 = M.ensureMeta(p2, T0);
+  harvest(m2, T0); harvest(m2, T0 + 15 * DAY); M.ensureMeta(p2, T0);
+  const b16 = harvest(m2, T0 + 16 * DAY); M.ensureMeta(p2, T0);
+  check(b16 > 0 && m2.dayMax === '2026-11-06' && m2.capOn === '2026-10-21', 'ID 2: outro dia novo lá na frente abre (é um dia que nunca foi aberto), mas a trava volta');
+  let lock = 0; for (let d = 1; d <= 16; d++) lock += harvest(m2, T0 + d * DAY);
+  check(lock === 0 && harvest(m2, T0 + 17 * DAY) > 0, 'ID 2: sem 2ª correção em 30 dias, nada até o dia mais adiantado reabre');
+  // 30 dias reais depois, uma nova correção vale
+  const p3 = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m3 = M.ensureMeta(p3, T0);
+  harvest(m3, T0 + 15 * DAY); M.ensureMeta(p3, T0);
+  harvest(m3, T0 + 31 * DAY); harvest(m3, T0 + 60 * DAY); M.ensureMeta(p3, T0 + 31 * DAY);
+  check(m3.capOn === '2026-11-21' && m3.far[1] === '2026-12-20', 'ID 2: 30 dias depois da 1ª, uma nova correção é aceita');
+  // energia por relógio: fica registrada como limite conhecido (regeneração de energia não é prêmio)
+});
+// v1.4 (ID 8) — pedras crescentes e ração sem uso vira ouro
+tryBlock(() => {
+  const m = mk(); for (const k of D.PETKEYS.slice(0, 2)) m.pets[k] = M.PET_MAX; m.cal.idx = 3;
+  const r = M.claimCal(m, T0 + 3 * DAY, false);
+  check(M.foodIdle(m) && r.food === undefined && r.gold === 150 && m.food === 0 && m.gold === 150, 'ID 8: com todos os companheiros obtidos no máximo, as 5 rações do calendário viram 150 de ouro');
+  m.goals.pts = 100; const c = M.claimChest(m, T0 + 3 * DAY, 1);
+  check(c.stone === 2 && c.food === undefined && c.gold === 90 && m.food === 0, 'ID 8: baú com ração vira ouro (3 rações = 90)');
+  m.egg = 1; for (const k of D.PETKEYS) m.pets[k] = M.PET_MAX; const g0 = m.gold;
+  check(M.hatch(m, () => 0) === 'gold' && m.gold === g0 + 300 && m.food === 0, 'ID 8: ovo com todos no máximo vira 300 de ouro');
+  m.ruby = 50; check(M.buy(m, T0 + 3 * DAY, 'food5') === false && m.ruby === 50, 'ID 8: loja não vende ração sem uso');
+  const n = mk(); n.pets[D.PETKEYS[0]] = 3; n.cal.idx = 3; const rn = M.claimCal(n, T0 + 3 * DAY, false);
+  check(!M.foodIdle(n) && rn.food === 5 && n.food === 5, 'ID 8: com companheiro para alimentar, a ração continua ração');
+  const z = mk(); check(!M.foodIdle(z), 'ID 8: sem nenhum companheiro, a ração continua ração');
+});
+// v1.4 (ID 12) — "Melhore uma peça ou alimente um companheiro" sai quando, no sorteio do dia, não há recursos para nada
+tryBlock(() => {
+  const prof = g => ({ totalWins: 0, ach: {}, meta: Object.assign({}, g) });
+  let t = T0, guard = 0; while (!M.goalsToday(M.ensureMeta(prof({ gold: 5000, stone: 50 }), t), t).ids.includes('upgrade1') && guard++ < 60) t += DAY;
+  const poor = M.ensureMeta(prof({ gold: 0, stone: 0 }), t);
+  check(!poor.goals.ids.includes('upgrade1') && poor.goals.ids.length === 5, 'ID 12: sem ouro/pedras/rações para nada na hora do sorteio → meta trocada');
+  const nearly = M.ensureMeta(prof({ gold: 24, stone: 5 }), t);
+  check(!nearly.goals.ids.includes('upgrade1'), 'ID 12: 24 de ouro (falta 1 para a melhoria mais barata) → trocada');
+  const ok = M.ensureMeta(prof({ gold: 25, stone: 1 }), t);
+  check(ok.goals.ids.includes('upgrade1'), 'ID 12: com recurso para a melhoria mais barata → fica');
+  const feed = M.ensureMeta(prof({ gold: 0, stone: 0, food: 2, pets: { raven: 1 } }), t);
+  check(feed.goals.ids.includes('upgrade1'), 'ID 12: com ração para alimentar → fica');
+  ok.gold = 0; ok.stone = 0; M.goalsToday(ok, t + 3600000);
+  check(ok.goals.ids.includes('upgrade1'), 'ID 12: gastar depois do sorteio não troca a meta no meio do dia');
+});
+// v1.4 (ID 16) — o perfil limita números absurdos (P2 r2 #12)
+tryBlock(() => {
+  const bad = { totalWins: -5, ach: {}, meta: { energy: 1e9, gold: -50, ruby: 1e12, stone: 2.5, food: 'x', egg: NaN, xp: 3e9, gear: { weapon: 1e6, armor: 2.5, ring: -3, bag: '7' },
+    pets: { raven: 999, owl: -5, turtle: 'x', dragao: 3 }, cal: { last: '', idx: 2.5 }, ad: { energy: -100, double: 7, shop: 1.5 }, buys: { energy30: -9 }, rw: { daily: -1 }, day: '2026-10-21', dayMax: 'nunca' } };
+  const m = M.ensureMeta(bad, T0);
+  check(m.energy === M.ENERGY_CAP && m.gold === 0 && m.ruby === M.CAP && m.stone === 2 && m.food === 0 && m.egg === 0 && m.xp === 1e7, 'ID 16: recursos e XP inteiros, não negativos e no teto');
+  check(eq(m.gear, { weapon: 20, armor: 2, ring: 1, bag: 1 }) && eq(m.pets, { raven: 10 }) && m.cal.idx === 2, 'ID 16: níveis de equipamento 1–20, companheiros 1–10 (desconhecidos saem), calendário 0–6');
+  check(m.ad.energy === 0 && m.ad.double === 1 && m.ad.shop === 1 && m.buys.energy30 === 0 && m.rw.daily === 0 && m.dayMax !== 'nunca', 'ID 16: contadores do dia dentro dos limites');
+  const po = M.permOf(m); check(po.dmgPct === .19 && po.pet === null, 'ID 16: bônus de conta dentro do máximo');
+  check(eq(M.journeyRewards(-3, false, NaN, 'normal'), { gold: 0, stone: 0, xp: 0 }), 'ID 16: prêmio de jornada com vitórias negativas não tira nada');
+});
 
 console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');
 process.exit(fails ? 1 : 0);
