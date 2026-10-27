@@ -46,7 +46,14 @@ SPR.star=["..y..",".yyy.","yyyyy",".yyy.","..y.."];
 
 
 /* ================= PROFILE (codex, ascension, history, achievements) ================= */
-const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.4';
+const RUNKEY='alforje-run6',PROFKEY='alforje-prof6',VER='8.5';
+/* v1.4 (ID 13): o Laboratório grava numa chave própria e nunca sobrescreve a jornada em andamento */
+const LABKEY='alforje-lab6',keyOf=s=>s&&s.mode==='lab'?LABKEY:RUNKEY;
+/* v1.4 (ID 14): Juros Compostos também sobe o teto de juros; o Altar melhora o melhor item e custa 5 de vida máxima.
+   As regras moram aqui (interestCap, eventChoose); os textos de data.js são ajustados na carga (data.js fica para o Lote B). */
+const ALTAR_HP=5;
+BLESS.compostos.desc='Juros de 1 a cada 4 de ouro (em vez de 5) e teto de juros +1.';
+EVENTS.altar.a=`Oferecer ${ALTAR_HP} de vida máxima: +1 raridade no seu melhor item`;
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},ascW:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
@@ -96,16 +103,24 @@ let muted=false;try{muted=localStorage.getItem('alforje-mute')==='1';}catch(e){}
 let state=null,B=null,CS=56;
 /* toda troca do estado da partida passa por aqui, para o módulo de simulação enxergar o mesmo objeto */
 function setState(s){state=s;SIM.setState(s);FORGEFX=[];for(const k in GLOW)delete GLOW[k];return s;}
-function save(){labGold();if(TAB_LOCK)return;try{if(state.phase!=='battle'){localStorage.setItem(RUNKEY,JSON.stringify(state));markDirty();}}catch(e){}}
+function save(){labGold();if(TAB_LOCK)return;try{if(state.phase!=='battle'){localStorage.setItem(keyOf(state),JSON.stringify(state));markDirty();}}catch(e){}}
 /* a luta grava a partida na entrada (fase 'battle', fila já aplicada): recarregar no meio resolve a mesma luta */
-function saveFight(s){if(TAB_LOCK)return false;try{localStorage.setItem(RUNKEY,JSON.stringify(Object.assign({},s,{undo:null,sel:null,selMore:false})));}catch(e){return false;}markDirty();return true;}
+function saveFight(s){if(TAB_LOCK)return false;try{localStorage.setItem(keyOf(s),JSON.stringify(Object.assign({},s,{undo:null,sel:null,selMore:false})));}catch(e){return false;}markDirty();return true;}
 let RUN_BAD=false,RESUME_WAIT=false;
 function dropRun(raw,why){RUN_BAD=true;try{console.warn('alforje: jornada salva descartada ('+why+')');}catch(e){}
  try{if(raw)localStorage.setItem(RUNKEY+'-bak',raw);localStorage.removeItem(RUNKEY);}catch(e){}}
 function checkRun(s,raw){if(s==null)return null;const why=window.AlforjeSave.runProblem(s);
  if(why){dropRun(raw||JSON.stringify(s),why);return null;}return window.AlforjeSave.fillRun(s,fresh());}
-function load(){let raw=null;try{raw=localStorage.getItem(RUNKEY);}catch(e){}if(raw==null)return null;
- let s=null;try{s=JSON.parse(raw);}catch(e){dropRun(raw,'JSON');return null;}return checkRun(s,raw);}
+function loadRun(){let raw=null;try{raw=localStorage.getItem(RUNKEY);}catch(e){}if(raw==null)return null;
+ let s=null;try{s=JSON.parse(raw);}catch(e){dropRun(raw,'JSON');return null;}
+ /* save antigo (v8.4): o Laboratório morava na chave da jornada; vai para a chave dele */
+ if(s&&typeof s==='object'&&s.mode==='lab'){try{if(localStorage.getItem(LABKEY)==null)localStorage.setItem(LABKEY,raw);localStorage.removeItem(RUNKEY);}catch(e){}return null;}
+ return checkRun(s,raw);}
+function loadLab(){let raw=null;try{raw=localStorage.getItem(LABKEY);}catch(e){}if(raw==null)return null;let s=null;try{s=JSON.parse(raw);}catch(e){}
+ const ok=s&&typeof s==='object'&&s.mode==='lab'&&s.cls&&!window.AlforjeSave.runProblem(s);
+ if(!ok){try{localStorage.removeItem(LABKEY);}catch(e){}return null;}return window.AlforjeSave.fillRun(s,fresh());}
+/* a jornada em andamento vem primeiro; sem ela, o Laboratório em andamento */
+function load(){const r=loadRun();if(r&&r.cls&&r.phase!=='class')return r;return loadLab()||r;}
 
 const $=s=>document.querySelector(s);
 function maxCols(s){s=s||state;const narrow=typeof window!=='undefined'&&window.innerWidth<400;return narrow?Math.max(6,Math.min(MAXCOLS,s.bag.cols)):MAXCOLS;}/* plano mobile: até 6 colunas em telas estreitas */
@@ -136,7 +151,7 @@ function readyRecipes(){const used=new Set(),out=[];
   const r=RECIPES.find(r=>r[0]===a.key&&r[1]===b.key&&(!r[3]||[...orthoNeighbors(a),...orthoNeighbors(b)].some(c=>c.key===r[3]&&c.id!==a.id&&c.id!==b.id)));
   if(r){used.add(a.id);used.add(b.id);out.push({a,b,res:r[2],tier:SIM.forgeTier(a.tier,b.tier)});}}
  return out;}
-function interestCap(){let c=3+(has('cofre')?1:0)-(state.asc>=3?1:0);for(const it of inWhere('bag'))if(ITEMS[it.key].intCap)c+=it.tier>=3?2:1;return Math.max(0,c);}
+function interestCap(){let c=3+(has('cofre')?1:0)+(has('compostos')?1:0)-(state.asc>=3?1:0);for(const it of inWhere('bag'))if(ITEMS[it.key].intCap)c+=it.tier>=3?2:1;return Math.max(0,c);}
 function interest(){return Math.min(interestCap(),Math.floor(state.gold/(has('compostos')?4:5)));}
 function piggyGold(it){const d=bagDims();let n=0;for(const [x,y] of [[it.x-1,it.y],[it.x+1,it.y],[it.x,it.y-1],[it.x,it.y+1]])if(x>=0&&y>=0&&x<d.cols&&y<d.rows&&!itemAt('bag',x,y))n++;return n*(it.tier>=3?2:1);}
 function itemGold(it){const d=ITEMS[it.key];let g=0;if(d.gold)g+=d.gold*it.tier;if(d.piggy)g+=piggyGold(it);if(g&&pocketsOf(it).includes('fundo'))g+=1;return g;}
@@ -676,17 +691,20 @@ function renderDrawer(){const d=$('#drawer');if(!DRAWER||!state.cls||state.phase
  $('#dtitle').textContent={pets:'Companheiros',mascate:'Mascate & Forja',aff:'Afinidades e bolsos',more:'Mais'}[DRAWER]||'';
  if(DRAWER==='aff')$('#affFull').innerHTML=affFull();
  if(DRAWER==='mascate')$('#mlineFull').innerHTML=`<b>Mascate Brás:</b> ${merchantLine()}`;
- if(DRAWER==='more')$('#moreList').innerHTML=`${isLab()?'<button class="k-btn o" id="labOpp">🎯 Adversário</button><button class="k-btn o" id="labCat2">📦 Catálogo</button><button class="k-btn v" id="undo2" '+(state.undo?'':'disabled')+'>↶ Desfazer</button>':''}${state.skipOffer&&state.phase==='shop'?`<button class="k-btn o" id="skipShop">Pular loja: ${ETIQ[state.skipOffer].name}</button>`:''}
+ if(DRAWER==='more'&&isLab())$('#moreList').innerHTML='<button class="k-btn v" id="undo2" '+(state.undo?'':'disabled')+'>↶ Desfazer</button><button class="k-btn o" id="labCat2">📦 Catálogo</button><button class="k-btn o" id="labOpp">🎯 Adversário</button><button class="k-btn v" id="optBtn">Opções</button><button class="k-btn v" id="labExit">Sair do Laboratório</button>';
+ else if(DRAWER==='more')$('#moreList').innerHTML=`${state.skipOffer&&state.phase==='shop'?`<button class="k-btn o" id="skipShop">Pular loja: ${ETIQ[state.skipOffer].name}</button>`:''}
   <button class="k-btn v" data-pane="pets">Companheiros</button><button class="k-btn v" data-pane="mascate">Mascate & Forja</button><button class="k-btn v" data-pane="aff">Afinidades</button>
   <button class="k-btn v" id="recipesBtn">Receitas</button><button class="k-btn v" id="oddsBtn">Chances da loja</button><button class="k-btn v" id="copyBuild">Copiar build</button>
-  <button class="k-btn v" id="missBtn">Missões${missionsReady()?' ●':''}</button><button class="k-btn v" id="optBtn">Opções</button><button class="k-btn v" id="helpBtn2">Menu</button>${isLab()?'<button class="k-btn v" id="labExit">Voltar ao acampamento</button>':''}`;}
+  <button class="k-btn v" id="missBtn">Missões${missionsReady()?' ●':''}</button><button class="k-btn v" id="optBtn">Opções</button><button class="k-btn v" id="helpBtn2">Menu</button>`;}
 function openDrawer(p){DRAWER=DRAWER===p?null:p;state.sel=null;state.selMore=false;renderPop();renderSheet();renderDrawer();}
 function closeDrawer(){if(!DRAWER)return;DRAWER=null;renderDrawer();}
 function placeSellZone(){const z=$('#sellzone'),b=$('#base');if(!z||!b)return;const r=b.getBoundingClientRect();
  z.style.left=r.left+'px';z.style.top=r.top+'px';z.style.width=r.width+'px';z.style.height=r.height+'px';z.style.right='';}
 
 /* ================= ACTIONS ================= */
-let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
+/* v1.4 (IDs 7 e 19): na jornada, o aviso fica logo abaixo do placar VS (não cobre ouro, vidas e rodada); no menu, no topo */
+function placeToast(t){const v=$('#vs'),a=$('#app');t.style.top=a&&!a.hidden&&v&&v.offsetParent?Math.round(v.getBoundingClientRect().bottom+6)+'px':'';}
+let toastT=0;function toast(m,long){const t=$('#toast');t.textContent=m;t.hidden=false;placeToast(t);clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,long?3200:1700);}
 function snapshot(){state.undo=JSON.stringify(Object.assign({},state,{undo:null,sel:null}));}
 const inShop=()=>!!state&&state.phase==='shop';
 /* v1.4 (IDs 5 e 6): todo comando que muda a loja ou a mochila cancela antes o arrasto em andamento (2º dedo) */
@@ -742,7 +760,7 @@ function skipShop(){if(!inShop())return;const e=state.skipOffer;if(!e)return;dra
 /* ================= BATTLE FLOW ================= */
 function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque ao menos uma arma na mochila');return;}
  const cheap=state.shop.filter(Boolean).map(offerPrice);
- if(!force&&!state.noAsk&&!PROF.noAsk&&!isLab()&&cheap.length&&Math.min(...cheap)<=state.gold){
+ if(!force&&!state.noAsk&&!PROF.noAsk&&!isLab()&&PROF.tut&&COACH.step<0&&cheap.length&&Math.min(...cheap)<=state.gold){
   overlay(`<h2>Lutar já?</h2><p class="center">Você ainda tem <b>${state.gold}</b> de ouro e há itens que cabem no bolso. Guardar rende juros (+${interest()} agora).</p>
   <label class="chk"><input type="checkbox" id="noAskChk"> Não perguntar de novo</label><div class="two"><button class="k-btn g" id="fightGo">Lutar assim mesmo</button><button class="k-btn v" id="closeOv">Voltar à loja</button></div>`);return;}
  MPEND=null;labGold();if(state.gold>=30)ach('rich');if(state.pets.filter(Boolean).length===3&&state.chal!=='nopets')ach('pets3');
@@ -753,7 +771,7 @@ function fight(force){if(!makePlayer().weapons.some(w=>!w.nodmg)){toast('Coloque
  state.sel=null;state.undo=null;state.mood='';const q=state.gq,pq0=state.pq;state.gq=null;state.pq=null;
  if(pf)state.pfPending=pf;
  state.phase='battle';FORGEFX=[];meterReset();qFlush(q,pq0);B=newBattle();acc=0;V.p.dead=0;V.e.dead=0;V.parts=[];V.projs=[];
- const f=foeDef();if(f.art)codexFoe(f.art,false);saveProf();closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
+ const f=foeDef();if(f.art)codexFoe(f.art,false);if(!isLab())saveProf();closeOverlay();state.sel=null;state.selMore=false;if(typeof DRAWER!=='undefined'&&DRAWER)closeDrawer();BASEMODE='shop';render();}
 let finishing=false;
 function skip(){let g=0;while(!B.done&&g++<20000)step(B,.05);if(!B.done)B.done='lose';B.ev.length=0;}
 /* partida salva no meio de uma luta (recarregou, fechou o app ou veio da nuvem): a mesma montagem (newBattle) roda até o fim
@@ -856,9 +874,11 @@ function subScreen(){const S=SUBS[state.cls];overlay(`<h2>Subclasse</h2><p class
 function takeSub(id){state.sub=id;state.gold+=6;sfx('merge');toast(`${SUBOF(id).name} · +6 de ouro`);nextQueue();}
 function eventScreen(){if(!state.event){let ks=Object.keys(EVENTS);if(!state.pets.some(Boolean))ks=ks.filter(k=>k!=='andarilho');state.event=rpick(ks);save();}
  const E=EVENTS[state.event];overlay(`<h2>${E.title}</h2><p class="story">${E.text}</p><div class="two"><button class="k-btn o" id="evA" ${state.event==='aposta'&&state.gold<5?'disabled':''}>${E.a}</button><button class="k-btn v" id="evB">${E.b}</button></div>`);}
+/* o melhor item: na mochila antes do Baú, depois o de maior valor (preço × raridade) */
+function bestItem(c){return c.slice().sort((a,b)=>(b.where==='bag')-(a.where==='bag')||basePrice(b.key,b.tier)-basePrice(a.key,a.tier)||a.id-b.id)[0];}
 function eventChoose(a){const e=state.event;state.event=null;
  if(a){if(e==='aposta'){state.gold-=5;state.say='bet';if(R()<.5){const key=rpick(SHOPKEYS);if(addItem(key,2))toast(`Cara! ${ITEMS[key].name} Raro é seu`,1);else{state.gold+=basePrice(key,2);toast('Cara! Sem espaço: virou ouro');}}else toast('Coroa. O Mascate guarda as moedas, sorrindo.',1);}
-  if(e==='altar'){const c=state.items.filter(i=>i.tier<4);state.maxHpMod=(state.maxHpMod||0)-8;if(c.length){const it=rpick(c);it.tier++;mergedId=it.id;toast(`${ITEMS[it.key].name} subiu para ${TIERS[it.tier-1]} · −8 de vida máxima`,1);}}
+  if(e==='altar'){const c=state.items.filter(i=>i.tier<4);state.maxHpMod=(state.maxHpMod||0)-ALTAR_HP;if(c.length){rpick(c);/* mantém a sequência do sorteio */const it=bestItem(c);it.tier++;mergedId=it.id;toast(`${ITEMS[it.key].name} subiu para ${TIERS[it.tier-1]} · −${ALTAR_HP} de vida máxima`,1);}}
   if(e==='andarilho'){let w=-1;state.pets.forEach((p,i)=>{if(p&&(w<0||p.tier<state.pets[w].tier))w=i;});if(w>=0){toast(`${PETS[state.pets[w].key].name} seguiu com o andarilho · +10 de ouro`,1);state.pets[w]=null;state.gold+=10;}}}
  sfx('click');nextQueue();}
 function endScreen(won,report){$('#app').classList.remove('in-battle');const surv=state.surv;const canSurv=won&&!surv&&state.mode!=='duel';
@@ -937,7 +957,7 @@ function snapNew(){const it=state.items[state.items.length-1];if(it){SNAP=null;f
 function shakeGrid(w){const g=$('#'+w);if(!g)return;g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),380);}
 function toastUndo(m){const t=$('#toast');t.textContent='';const s=document.createElement('span');s.textContent=m;t.appendChild(s);
  if(state.undo){const b=document.createElement('button');b.id='undoT';b.className='k-btn o tbtn';b.textContent='Desfazer';t.appendChild(b);}
- t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600);}
+ t.hidden=false;placeToast(t);clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600);}
 function skipEnd(){if(state.phase==='battle'&&B&&B.done)finish();}
 /* ----- destaque na loja: fusão possível ou receita com algo que você tem ----- */
 function shopHint(s){if(!s||s.pet||!state.cls)return '';const own=state.items;
@@ -1000,7 +1020,7 @@ async function postSend(j){try{
  else if(j.k==='ghost')await API.submit('ghost',{code:j.code,asc:j.asc});
  else if(j.k==='run')await API.postRun(j.rec);}catch(e){}}
 /* outra aba gravou a jornada ou o perfil: esta aba trava (sem gravar por cima) e oferece recarregar */
-window.addEventListener('storage',e=>{if(TAB_LOCK)return;if(e.key!==RUNKEY&&e.key!==PROFKEY&&e.key!==null)return;tabLock();});
+window.addEventListener('storage',e=>{if(TAB_LOCK)return;if(e.key!==RUNKEY&&e.key!==PROFKEY&&e.key!==null)return;if(e.key===RUNKEY&&isLab())return;/* a jornada de outra aba não mexe no Laboratório */tabLock();});
 function tabLock(){TAB_LOCK=true;CLOUD.ready=false;CLOUD.dirty=false;clearTimeout(CLOUD.timer);if(typeof drag!=='undefined'&&drag){try{cleanup();}catch(x){}drag=null;}
  const d=document.createElement('div');d.id='tablock';d.setAttribute('role','alertdialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-labelledby','tablockT');
  d.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(14,10,18,.88)';
@@ -1014,7 +1034,7 @@ function cloudAdopt(d){if(TAB_LOCK)return;if(state&&state.phase==='battle'&&!RES
   const bad=s!=null&&(s===''||!!window.AlforjeSave.runProblem(s));
   if(s&&!bad){window.AlforjeSave.fillRun(s,fresh());if(s.phase==='result')s.phase='shop';setState(s);}
   else if(bad){try{console.warn('alforje: jornada da nuvem com defeito; mantida a local');}catch(e){}}
-  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(s&&!bad)localStorage.setItem(RUNKEY,d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
+  try{localStorage.setItem(PROFKEY,JSON.stringify(PROF));if(s&&!bad)localStorage.setItem(keyOf(s),d.run);localStorage.setItem('alforje-ts',String(d.t));}catch(e){}
   releaseHold();
   if(bad&&state&&state.phase!=='battle')save();
   applyOpts();applySkin();closeOverlay();
@@ -1080,7 +1100,7 @@ function missionsScreen(){const M=ensureMiss(),seals=PROF.seals||0;PROF.skinSeen
 var COACH={step:-1,base:0};
 const COACH_TXT=[['.card[data-idx]:not(.sold)','Segure um item da loja e arraste até a mochila. Se preferir, toque nele e use Comprar.'],
  ['#fight','Quando estiver pronto, toque em LUTAR. Só o que está na mochila luta.'],
- ['#bag','Toque num item da mochila: a ficha mostra o que ele faz. Itens encostados do jeito certo se ajudam, e as linhas verdes mostram isso.'],
+ ['#bag','Toque num item da mochila: a ficha mostra o que ele faz. Linhas ligam itens: dourada funde, azul é apoio, roxa com bigorna é receita.'],
  [['.card[data-idx]:not(.sold) .hint.up','#bag'],'Dois iguais se fundem: solte um item sobre outro igual, da mesma raridade, e ele sobe para a próxima raridade. Na loja, a seta ⇈ marca o par.']];
 function coachStart(){COACH.step=0;COACH.base=state.items.length;coachTick();}
 function coachNext(){if(COACH.step>=0&&COACH.step<COACH_TXT.length-1){COACH.step++;COACH.mg=state.merges||0;coachTick();}else coachEnd();}
@@ -1154,7 +1174,7 @@ document.addEventListener('keydown',e=>{if(e.key!=='Tab')return;const o=$('#over
 let confirmFn=null;
 function confirmBox(title,text,okLabel,fn){confirmFn=fn;overlay(`<h2>${title}</h2><p class="center">${text}</p><div class="two"><button class="k-btn g" id="cfOk">${okLabel}</button><button class="k-btn v" id="cfNo">Cancelar</button></div>`);}
 const HOWTO=`<ol class="howto">
- <li><b>Compre</b> arrastando do Mercador para a Mochila (ou toque e use Comprar). Linhas verdes mostram sinergias; douradas, receitas.</li>
+ <li><b>Compre</b> arrastando do Mercador para a Mochila (ou toque e use Comprar). As linhas mostram as ligações: dourada = fusão, azul = apoio, roxa com bigorna = receita da forja.</li>
  <li><b>Alcance</b>: Pedra, Tocha, Veneno, Anel, Cristal e Água Benta nos lados; Trevo nas diagonais; Pena na fileira; Estandarte na coluna. As <b>Flâmulas</b> afetam todas as armas do tipo delas, em qualquer lugar.</li>
  <li><b>Tipos e Afinidades</b>: cada item tem até 2 tipos (Fogo, Gelo, Veneno, Metal, Sagrado, Natureza). 3 itens do mesmo tipo ativam um bônus; 5 ativam um bônus maior.</li>
  <li><b>Zonas e bolsos</b>: Elmo rende mais no TOPO; Botas só funcionam no FUNDO; armas no topo dão o primeiro golpe 0,2s mais cedo. Ao ampliar, a nova linha vira um bolso com efeito.</li>
@@ -1184,8 +1204,7 @@ function runMenu(){overlay(`<h2>Menu</h2><div class="menu-grid">
  <button class="k-btn v" id="codexBtn">Codex</button><button class="k-btn v" id="achBtn">Conquistas</button><button class="k-btn v" id="copyBuild">Copiar build</button>
  <button class="k-btn v" id="missBtn">Missões</button><button class="k-btn v" id="optBtn">Opções</button><button class="k-btn v" id="askBtn">${PROF.noAsk?'Confirmar luta: desligado':'Confirmar luta: ligado'}</button></div>
  ${isLab()?'<p class="muted small">Laboratório do Mascate: ouro infinito, perder não tira vida e nada conta para a conta.</p>':`<p class="muted small">Seed desta jornada: <code>${state.seed}</code>${state.mode==='seed'?' (manual: não conta para progresso)':''}</p>`}
- ${isLab()?'<button class="k-btn v" id="labExit">Voltar ao acampamento</button>':''}
- <div class="two"><button class="k-btn g" id="closeOv">Voltar ao jogo</button><button class="k-btn v" id="abandon">Abandonar ${isLab()?'o Laboratório':'jornada'}</button></div>`);}
+ <div class="two"><button class="k-btn g" id="closeOv">Voltar ao jogo</button><button class="k-btn v" id="${isLab()?'labExit':'abandon'}">${isLab()?'Sair do Laboratório':'Abandonar jornada'}</button></div>`);}
 /* ----- menu com abas: barra de cima (#mtop), página com rolagem (#mpage) e abas (#mtabs). A jornada (#app) e o menu nunca aparecem juntos. ----- */
 const fmtN=n=>Math.floor(n||0).toLocaleString('pt-BR');
 const mss=ms=>{const t=Math.ceil(ms/1000);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
@@ -1208,7 +1227,8 @@ function menuTick(){if($('#menu').hidden){clearInterval(menuT);menuT=0;return;}c
  document.querySelectorAll('[data-en]').forEach(x=>{if(x.textContent!==e.v)x.textContent=e.v;});document.querySelectorAll('[data-et]').forEach(x=>{if(x.textContent!==e.t)x.textContent=e.t;});
  document.querySelectorAll('[data-eb]').forEach(x=>x.style.width=e.pct+'%');
  const nd=String(Math.max(0,AM.JOURNEY_COST-m.energy));document.querySelectorAll('[data-need]').forEach(x=>{if(x.textContent!==nd)x.textContent=nd;});
- const dd=document.querySelector('[data-day]');if(dd&&dd.dataset.day!==m.day){menuRefresh();return;}/* virou o dia UTC: bônus, metas e limites novos */
+ const dd=document.querySelector('[data-day]');if(dd&&dd.dataset.day!==m.day){menuRefresh();return;}
+ const cg=$('#campGo');if(cg&&cg.dataset.low!==(m.energy<AM.JOURNEY_COST?'1':'0')){menuRefresh();return;}/* a energia chegou (ou acabou): JORNADA muda de cara *//* virou o dia UTC: bônus, metas e limites novos */
  const de=hms(AM.goalsToday(m,Date.now()).endsIn);document.querySelectorAll('[data-dend]').forEach(x=>{if(x.textContent!==de)x.textContent=de;});tabDot();
  const a=adLbl(m);document.querySelectorAll('[data-ad]').forEach(x=>{if(x.dataset.t!==a.t){x.innerHTML=a.h;x.dataset.t=a.t;x.setAttribute('aria-label',a.l);}if(x.disabled!==a.dis)x.disabled=a.dis;});}
 function page(html,tab){const mn=$('#menu'),pg=$('#mpage'),a=document.activeElement,was=mn.hidden;
@@ -1270,10 +1290,10 @@ function petsScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Co
  page(`<h2>Companheiros</h2>${resPills(m)}
  <div class="k-card pc pethd" id="petH"><span class="pcnt">${have}/${PETKEYS.length} companheiros · você tem ${ri('food','rações')}${fmtN(m.food)}</span>
   <button class="k-btn g" id="hatch" ${m.egg<1?'disabled':''} aria-label="Chocar ovo, ${m.egg} ovos">${ri('egg')} Chocar ovo (${m.egg})</button>${m.egg<1?'<small class="why" aria-hidden="true">Sem ovos — ganhe nos Prêmios ou na Loja</small>':''}
-  <small>${all?'Você já tem todos: cada ovo vira 10 rações.':'Cada ovo choca um companheiro que ainda falta.'} Só um vai na jornada, na 1ª vaga, e não entra no desafio sem companheiros.</small></div>
+  <small>${all?(AM.foodIdle(m)?`Todos no nível máximo: cada ovo vira ${10*AM.FOOD_GOLD} de ouro (e prêmios de ração viram ouro).`:'Você já tem todos: cada ovo vira 10 rações.'):'Cada ovo choca um companheiro que ainda falta.'} Só um vai na jornada, na 1ª vaga, e não entra no desafio sem companheiros.</small></div>
  <div class="petl">${cards}</div>${backBtn()}`,'pets');}
 function petAct2(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;
- if(t.id==='hatch'){const r=AM.hatch(m,Math.random);if(r===null){toast(m.egg<1?'Sem ovos para chocar':'Rações no máximo');}else{saveProf();toast(r==='food'?'Você já tem todos: o ovo virou 10 rações':`Novo companheiro: ${PETS[r].name}!`,true);}}
+ if(t.id==='hatch'){const r=AM.hatch(m,Math.random);if(r===null){toast(m.egg<1?'Sem ovos para chocar':AM.foodIdle(m)?'Ouro no máximo':'Rações no máximo');}else{saveProf();toast(r==='food'?'Você já tem todos: o ovo virou 10 rações':r==='gold'?`Todos no nível máximo: o ovo virou ${10*AM.FOOD_GOLD} de ouro`:`Novo companheiro: ${PETS[r].name}!`,true);}}
  else if(t.dataset.feed){const k=t.dataset.feed;if(AM.feedPet(m,k)){gev('upgrade');toast(`${PETS[k].name} no nível ${m.pets[k]}`);}else toast('Faltam rações');}
  else if(t.dataset.take){const k=t.dataset.take;AM.setPetOn(m,m.petOn===k?null:k);saveProf();toast(m.petOn?`${PETS[k].name} vai na próxima jornada`:'Nenhum companheiro na jornada');}
  petsScreen();}
@@ -1338,7 +1358,7 @@ function metaAct(t){const m=META(),AM=window.AlforjeMeta;if(!m)return;const id=t
 const SHOP_UI={energy30:['energy','+30 de energia'],stone3:['stone','3 pedras'],food5:['food','5 rações'],egg:['egg','1 ovo de companheiro']};
 function shopScreen(){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Loja','loja');return;}
  const cards=Object.keys(AM.SHOP).map(key=>{const o=AM.SHOP[key],u=SHOP_UI[key],n=o.limit?m.buys[key]||0:0,out=!!o.limit&&n>=o.limit,full=m[o.kind]>=(o.kind==='energy'?AM.ENERGY_CAP:AM.CAP),poor=m.ruby<o.ruby,cap=o.kind==='energy'?AM.ENERGY_CAP:AM.CAP,fits=(m[o.kind]||0)+o.n<=cap;
-  const why=out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):!fits?`Não cabe: ${o.kind==='energy'?'energia':'limite'} ${m[o.kind]||0}/${cap}`:poor?`Faltam ${o.ruby-m.ruby} rubis`:'';
+  const why=o.kind==='food'&&AM.foodIdle(m)?'Companheiros no nível máximo':out?'Esgotado hoje':full?(o.kind==='energy'?`Energia no máximo (${AM.ENERGY_CAP})`:'No máximo'):!fits?`Não cabe: ${o.kind==='energy'?'energia':'limite'} ${m[o.kind]||0}/${cap}`:poor?`Faltam ${o.ruby-m.ruby} rubis`:'';
   return `<div class="k-card shopc"><span class="si" aria-hidden="true">${ri(u[0])}</span><div class="st"><b>${u[1]}</b><small>${o.limit?`${n}/${o.limit} hoje · `:''}Você tem ${fmtN(m[o.kind])}${why?` · ${why}`:''}</small></div><button class="k-btn g" data-buy="${key}" ${why?'disabled':''} aria-label="Comprar ${u[1]} por ${o.ruby} rubis${why?'. '+why:''}">${ri('ruby')}${o.ruby}</button></div>`;}).join('');
  const used=m.ad.shop>=AM.AD_LIMIT.shop,gfull=m.gold>=AM.CAP;
  page(`<h2>Loja</h2>
@@ -1356,7 +1376,8 @@ function campScreen(){const m=META(),AM=window.AlforjeMeta,k=campHero(),C=CLASSE
  <div class="cstage"><div class="chero"><img src="a/h_${k}.webp" alt="${C.name}" style="${C.flip?'transform:scaleX(-1)':''}"></div>
   <div class="cside"><button class="csb" id="cBonus" aria-label="Bônus diário${cal?' (pronto)':''}"><span aria-hidden="true">${ri('chest2')}</span><small>BÔNUS</small>${dot(cal?'!':'')}</button><button class="csb" id="cGoals" aria-label="Metas do dia${chests?` (${chests} baú pronto)`:''}"><span aria-hidden="true">📜</span><small>METAS</small>${dot(chests)}</button><button class="csb" id="boardBtn" aria-label="Placar"><span aria-hidden="true">🥇</span><small>PLACAR</small></button><button class="csb" id="cMore" aria-label="Mais${dn?`, ${dn} novidade${dn>1?'s':''} no Codex`:''}"><span aria-hidden="true">☰</span><small>MAIS</small>${dot(dn?dn:missionsReady()?'!':'')}</button></div></div>
  ${e?`<div class="cen"><div class="l"><span>${ri('energy')} Energia <span data-en>${e.v}</span></span><span data-et>${e.t}</span></div><div class="cbar"><i data-eb style="width:${e.pct}%"></i></div></div>`:''}
- <button class="k-btn g cgo" id="campGo"${m?` aria-label="Jornada: custa ${AM.JOURNEY_COST} de energia"`:''}>JORNADA${m?`<small>${ri('energy')}${AM.JOURNEY_COST}</small>`:''}</button>
+ ${(()=>{const low=!!m&&m.energy<AM.JOURNEY_COST,need=m?AM.JOURNEY_COST-m.energy:0;/* v1.4 (ID 19): sem energia, o botão mostra isso e abre a janela de energia */
+  return `<button class="k-btn ${low?'v noen':'g'} cgo" id="campGo" data-low="${low?1:0}"${m?` aria-label="Jornada: custa ${AM.JOURNEY_COST} de energia${low?`. Sem energia: faltam ${need}`:''}"`:''}>JORNADA${m?`<small>${ri('energy')}${AM.JOURNEY_COST}${low?` · faltam ${need}`:''}</small>`:''}</button>`;})()}
  ${al?adBtn(al,' cad'):''}</div>`,'jogar');}
 /* redesenha a página do menu que está aberta (depois de uma propaganda, por exemplo) */
 function menuRefresh(){if($('#menu').hidden)return;if($('#goBtn'))classScreen();else if($('#campGo'))campScreen();else if($('#dCal'))dailyScreen();else if($('#shopL'))shopScreen();else if($('#eqG'))equipScreen();else if($('#petH'))petsScreen();else menuTop();}
@@ -1377,6 +1398,7 @@ let MENU={mode:'normal',asc:{},kit:{},chal:null,seed:'',duel:''};
 function chalUnlocked(i){return i<2+(PROF.journeys||0);}
 /* herói marcado no menu: no Diário é sempre a classe do dia; senão o último tocado (ou o primeiro liberado) */
 const LOCKTXT={paladin:'Paladino: 5 vitórias numa jornada ou 10 no total.',alchemist:'Alquimista: complete uma jornada ou some 20 vitórias.'};
+const LOCKHOW={paladin:'Libera: 5 vitórias numa jornada ou 10 no total',alchemist:'Libera: complete uma jornada ou some 20 vitórias'};
 function heroSel(){const M=MENU;if(M.mode==='daily')return dailyClass();if(M.pick&&CLASSES[M.pick])return M.pick;return CLASSKEYS.find(classOpen)||CLASSKEYS[0];}
 function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}render();const M=MENU,dayCls=dailyClass(),sel=heroSel();
  const modes=[['normal','Jornada'],['daily','Diário'],['challenge','Desafios'],['seed','Seed'],['duel','Duelo'],['lab','Laboratório']];
@@ -1386,13 +1408,13 @@ function classScreen(){if(!state||state.phase!=='class'){setState(fresh());}rend
  if(M.mode==='seed')info=`<label class="fld">Seed <input id="seedIn" value="${(M.seed||'').replace(/"/g,'')}" placeholder="ex.: montanha-rubra" maxlength="40"></label><p class="muted small">Mesma seed, mesma rota e mesmas lojas. Partidas com seed manual não contam para Ascensão, Codex nem conquistas.</p>`;
  if(M.mode==='challenge')info=`<div class="chals">${CHALLENGES.map((c,i)=>{const op=chalUnlocked(i);return `<button class="chal${M.chal===c.id?' on':''}" data-chal="${c.id}" aria-pressed="${M.chal===c.id}" ${op?'':'disabled'}><b>${PROF.chalDone[c.id]?'✓ ':''}${c.name}</b><span>${op?c.desc:'Complete mais jornadas para liberar.'}</span></button>`;}).join('')}</div>`;
  if(M.mode==='duel'){const ok=parseCode(M.duel);info=`<label class="fld">Código da build do oponente<textarea id="duelIn" rows="3" placeholder="ALF6....">${(M.duel||'').replace(/</g,'')}</textarea></label><button class="k-btn v sm" id="ghostBtn">Sortear fantasma de outro jogador</button>${MENU.ghostName&&ok?`<p class="bonus small">Fantasma de ${MENU.ghostName.replace(/</g,'')}</p>`:''}<p class="muted small">${M.duel?(ok?`✓ ${CLASSES[ok.c].name} com ${ok.i.length} itens. Ele substitui o Wyrm na parada 10.`:'<span class="warn">Código inválido.</span>'):'Cole o código que um amigo copiou no fim da jornada dele. O fantasma dessa mochila vira o chefe da parada 10.'}</p>`;}
- if(M.mode==='lab')info=`<p class="muted small"><b>Laboratório do Mascate</b>: ouro infinito, <b>Catálogo</b> com tudo que você já descobriu no Codex e você escolhe o adversário (parada, variação, elite e Ascensão). Perder não tira vida. É grátis e não rende nem conta nada: sem energia, prêmios, metas, missões, conquistas, Codex, placar ou histórico.</p>`;
+ if(M.mode==='lab')info=`<p class="muted small"><b>Laboratório do Mascate</b>: teste qualquer mochila contra o adversário que quiser, com ouro infinito. É grátis e não rende nada.</p>`;
  const isOpen=k=>classOpen(k)||(M.mode==='daily'&&k===dayCls);
  const dis=k=>!isOpen(k)||(M.mode==='daily'&&k!==dayCls)||(M.mode==='challenge'&&!M.chal)||(M.mode==='duel'&&!parseCode(M.duel));
  const cards=CLASSKEYS.map(k=>{const c=CLASSES[k],open=isOpen(k),st=PROF.sticker[k],am=ascMax(k),asc=Math.min(M.asc[k]||0,am),kit=M.kit[k]||0,kit2=am>=3,on=k===sel;
-  return `<div class="k-card hc${on?' sel':''}${open?'':' lock'}"><button class="hpick" data-cls="${k}" aria-pressed="${on}" ${M.mode==='daily'&&k!==dayCls?'disabled':''}><span class="por"><img src="a/h_${k}.webp" alt="" style="${c.flip?'transform:scaleX(-1)':''}">${st!=null&&st>=0?`<span class="sticker" title="Maior Ascensão vencida">A${st}</span>`:''}</span><b>${open?'':'🔒 '}${c.name}${open?'':' · bloqueado'}</b></button>
+  return `<div class="k-card hc${on?' sel':''}${open?'':' lock'}"><button class="hpick" data-cls="${k}" aria-pressed="${on}" ${M.mode==='daily'&&k!==dayCls?'disabled':''}><span class="por"><img src="a/h_${k}.webp" alt="" style="${c.flip?'transform:scaleX(-1)':''}">${st!=null&&st>=0?`<span class="sticker" title="Maior Ascensão vencida">A${st}</span>`:''}</span><b>${open?'':'🔒 '}${c.name}</b>${open?'':`<small class="lockh">${LOCKHOW[k]||'Bloqueado'}</small>`}</button>
   ${open&&M.mode==='normal'?`<div class="ascrow"><button class="mini" data-ascm="${k}" ${asc<=0?'disabled':''} aria-label="Diminuir Ascensão">−</button><span>Ascensão <b>${asc}</b>/${am}</span><button class="mini" data-ascp="${k}" ${asc>=am?'disabled':''} aria-label="Aumentar Ascensão">+</button></div>`:''}
-  ${open?`<div class="kitrow">${c.kits.map((kt,i)=>`<button class="mini${kit===i?' on':''}" data-kit="${k}:${i}" aria-pressed="${kit===i}" ${i===1&&!kit2?'disabled title="Libera ao alcançar a Ascensão 3"':''}>${i===1&&!kit2?'🔒 ':''}${kt.name}</button>`).join('')}</div>`:''}</div>`;}).join('');
+  ${open?`<div class="kitrow">${c.kits.map((kt,i)=>`<button class="mini${kit===i?' on':''}" data-kit="${k}:${i}" aria-pressed="${kit===i}" ${i===1&&!kit2?'disabled title="Libera ao alcançar a Ascensão 3"':''}>${i===1&&!kit2?'🔒 ':''}${kt.name}</button>`).join('')}${!kit2&&c.kits.length>1?'<small class="lockh">2º kit: libera na Ascensão 3</small>':''}</div>`:''}</div>`;}).join('');
  const C=CLASSES[sel],cost=META()?journeyCost(M.mode):-1,goLbl=cost>0?`COMEÇAR ${ri('energy')}${cost}`:cost===0?'COMEÇAR · grátis':'COMEÇAR';
  page(`<h2>ESCOLHA SEU HERÓI</h2>
  <details class="k-card fold"><summary>📜 Alforje</summary><p class="story">${STORY.open}</p></details>
@@ -1431,7 +1453,7 @@ function pickClass(k,opts){const M=Object.assign({},MENU,opts||{});
  for(const [key,x,y] of C.kits[kit].items){const d=ITEMS[key];if(canPlace('bag',x,y,d.w,d.h))state.items.push({id:state.nid++,key,tier:1,x,y,w:d.w,h:d.h,where:'bag'});else{const sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);if(sp)state.items.push({id:state.nid++,key,tier:1,...sp});}}
  state.route=STOPS.map(s=>Math.floor(R()*s.v.length));rollElites();state.phase='shop';rollShop();
  if(state.mode==='lab'){state.lab={v:1};labGold();}
- if(cost>0){window.AlforjeMeta.spendEnergy(mm,cost,Date.now());gev('energy',cost);const pm=window.AlforjeMeta.permFor(mm,state.asc);state.perm={hp:pm.hp,block:pm.block,dmgPct:pm.dmgPct,crit:pm.crit};state.gold+=pm.gold;
+ if(mm&&(cost>0||state.mode==='lab')){if(cost>0){window.AlforjeMeta.spendEnergy(mm,cost,Date.now());gev('energy',cost);}const pm=window.AlforjeMeta.permFor(mm,state.asc);state.perm={hp:pm.hp,block:pm.block,dmgPct:pm.dmgPct,crit:pm.crit};if(cost>0)state.gold+=pm.gold;
   if(pm.pet&&state.chal!=='nopets')state.pets[0]={key:pm.pet.key,tier:1,ch:PET_CHARGES,mul:pm.pet.mul};}
  sfx('merge');save();closeOverlay();showRun();render();if(!PROF.tut&&!opts&&!isLab())setTimeout(coachStart,350);}
 /* ----- v1.3: Laboratório do Mascate ----- */
@@ -1456,7 +1478,7 @@ function labOppSet(k,v){const d=LABD||(LABD=labCur());
  else if(k==='mod'){const i=d.mods.indexOf(v);if(i>=0)d.mods.splice(i,1);else if(labModPool(d).includes(v)){d.mods.push(v);if(d.mods.length>2)d.mods.shift();}}
  else if(k==='asc')d.asc=Math.max(0,Math.min(10,d.asc+v));
  labOppScreen();}
-function labOppApply(d){if(!isLab()||!inShop())return false;d=d||LABD;if(!d)return false;dragAbort();labApplyTo(state,d);LABD=null;state.stopLosses=0;state.undo=null;labGold();save();closeOverlay();render();toast(`Adversário: ${foeDef().name}${state.asc?' · A'+state.asc:''}`);return true;}
+function labOppApply(d){if(!isLab()||!inShop())return false;d=d||LABD;if(!d)return false;dragAbort();labApplyTo(state,d);labPerm();LABD=null;state.stopLosses=0;state.undo=null;labGold();save();closeOverlay();render();toast(`Adversário: ${foeDef().name}${state.asc?' · A'+state.asc:''}`);return true;}
 /* Catálogo: só itens já descobertos no Codex, em qualquer raridade, direto na mochila (ou no Baú) */
 let LABTIER=1;
 const knownItem=k=>{const x=PROF.codex.items[k];return !!ITEMS[k]&&!!x&&(x.seen>0||x.bought>0||x.forged>0);};
@@ -1468,20 +1490,28 @@ function labCatScreen(){if(!isLab()||!inShop())return;const keys=Object.keys(ITE
 function labPlace(key,tier){if(!isLab()||!inShop()||!knownItem(key))return false;dragAbort();tier=Math.max(1,Math.min(4,tier|0||1));const d=ITEMS[key],sp=findSpot('bag',d.w,d.h)||findSpot('chest',d.w,d.h);
  if(!sp){toast('Sem espaço na mochila nem no Baú');buzz(40);return false;}
  snapshot();state.items.push({id:state.nid++,key,tier,...sp});sfx('drop');buzz(10);toast(`${d.name} ${TIERS[tier-1]} ${sp.where==='bag'?'na mochila':'no Baú'}`);save();render();return true;}
-function labExit(){if(!isLab())return;LABD=null;MENU.mode='normal';setState(fresh());save();closeOverlay();campScreen();}
+function labExit(){if(!isLab())return;LABD=null;MENU.mode='normal';try{localStorage.removeItem(LABKEY);}catch(e){}
+ const r=loadRun();setState(r&&r.cls&&r.phase!=='class'?r:fresh());closeOverlay();if(inRun())resumeView();else campScreen();}
+/* bônus de conta no Laboratório: os mesmos da jornada normal (equipamento e companheiro), pela Ascensão escolhida; não custam nem rendem nada */
+function labPerm(){const mm=META();if(!mm||!isLab())return;const pm=window.AlforjeMeta.permFor(mm,state.asc);state.perm={hp:pm.hp,block:pm.block,dmgPct:pm.dmgPct,crit:pm.crit};
+ const p0=state.pets[0];if(p0&&pm.pet&&p0.key===pm.pet.key&&p0.mul!=null)p0.mul=pm.pet.mul;}
 /* ----- tutorial (INF-05) ----- */
 const TUT=[['Toque, segure e arraste','Toque num item ou card para ver a ficha curta acima dele, com Comprar, Girar e Vender. Para mover, segure um instante (ou já arraste): o item fica acima do dedo para você ver onde ele cai. Só o que está na Mochila luta.'],
  ['Gire, funda e venda','Itens compridos giram: toque duas vezes no item ou use o botão ⟳ enquanto arrasta. Dois iguais da mesma raridade se fundem. Para vender, arraste o item até a faixa da loja, que vira Vender durante o arrasto. O Baú fica no botão da barra de baixo e aparece sozinho quando você arrasta um item da mochila.'],
- ['Sinergia é posição','Apoios ajudam as armas que tocam do jeito certo: linhas verdes mostram quem ajuda quem. Em “Mais” na ficha, “Por que sinergiza” explica cada ligação. Companheiros, falas do Mascate e opções ficam nas gavetas: o ícone dos companheiros no topo e o botão ⋯ na barra de baixo.']];
+ ['Sinergia é posição','Apoios ajudam as armas que tocam do jeito certo: a linha azul mostra quem ajuda quem (a dourada marca uma fusão e a roxa com bigorna, uma receita). Em “Mais” na ficha, “Por que sinergiza” explica cada ligação. Companheiros, falas do Mascate e opções ficam nas gavetas: o ícone dos companheiros no topo e o botão ⋯ na barra de baixo.']];
 function tutScreen(i){page(`<h2>${TUT[i][0]}</h2><p class="story">${TUT[i][1]}</p><div class="dots">${TUT.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div><div class="two"><button class="k-btn g" data-tut="${i+1}">${i<TUT.length-1?'Próximo':'Começar'}</button><button class="k-btn v" data-tut="99">Pular</button></div>`,'jogar');}
 /* ----- Codex (PRO-02) ----- */
 /* v1.3: descobertas do Codex — selo NOVO! nas entradas novas; tocar paga +2 rubis uma vez (js/meta.js: discSync/discClaim) */
 const NOVO='<span class="nwb" aria-hidden="true">NOVO!</span>';
 function discN(){const m=META();return m?window.AlforjeMeta.discNew(m):{i:0,r:0,f:0,total:0};}
 const DTAB={i:'items',r:'recipes',f:'foes'};
-function discClaim(kind,key){const m=META(),AM=window.AlforjeMeta;if(!m)return null;const r=AM.discClaim(m,kind,key);if(!r)return null;saveProf();sfx('coin');
+const discLimitMsg=()=>`Limite de hoje: ${window.AlforjeMeta.DISC_DAY} novidades. As outras esperam até amanhã.`;
+function discClaim(kind,key){const m=META(),AM=window.AlforjeMeta;if(!m)return null;const r=AM.discClaim(m,kind,key);if(!r)return null;if(r.limit){toast(discLimitMsg(),1);return r;}saveProf();sfx('coin');
  const nm=kind==='f'?(STOPS.flatMap(s=>s.v).find(v=>v.art===key)||{}).name:ITEMS[key]&&ITEMS[key].name;
  toast(`✨ Novidade no Codex${nm?': '+nm:''} · +${r.added} rubi${r.added===1?'':'s'}${r.lost?` (rubis no máximo, ${fmtN(AM.CAP)})`:''}`,1);return r;}
+/* v1.4 (ID 11): coleta as novidades até o limite do dia */
+function discAll(){const m=META(),AM=window.AlforjeMeta;if(!m)return null;const r=AM.discClaimAll(m);if(!r.n){toast(discLimitMsg(),1);return r;}saveProf();sfx('coin');
+ toast(`✨ ${r.n} novidade${r.n>1?'s':''} no Codex · +${r.added} rubi${r.added===1?'':'s'}${r.rest?` · ${r.rest} para amanhã`:''}${r.lost?` (rubis no máximo, ${fmtN(AM.CAP)})`:''}`,1);return r;}
 function codexScreen(tab){tab=tab||'items';const C=PROF.codex,m=META(),AM=window.AlforjeMeta,N=discN(),nw=(k,x)=>!!m&&AM.discIs(m,k,x);let body='';
  if(tab==='items'){const keys=Object.keys(ITEMS);const seen=keys.filter(k=>C.items[k]&&(C.items[k].seen||C.items[k].bought||C.items[k].forged)).length;
   body=`<p class="muted small">${seen}/${keys.length} itens descobertos. Números: comprados · fundidos · vitórias com o item na mochila.</p><div class="cgrid">${keys.map(k=>{const x=C.items[k],known=x&&(x.seen||x.bought||x.forged),isN=known&&nw('i',k);
@@ -1493,12 +1523,13 @@ function codexScreen(tab){tab=tab||'items';const C=PROF.codex,m=META(),AM=window
    return isN?`<button class="ccell nw" data-disc="f:${v.art}" aria-label="${v.name}: derrotado pela primeira vez. Toque para ganhar ${AM.DISC_RUBY} rubis">${inner}</button>`:`<div class="ccell${f?'':' unk'}">${inner}</div>`;}).join('')}</div>`;}
  if(tab==='recipes')body=recipeBook(nw);
  const tabs=[['items','Itens','i'],['foes','Inimigos','f'],['recipes','Receitas','r']];
- page(`<h2>Codex</h2><div class="k-seg cxtabs">${tabs.map(([t,l,k])=>`<button class="${t===tab?'on':''}" data-codex="${t}" aria-pressed="${t===tab}"${N[k]?` aria-label="${l}, ${N[k]} novidade${N[k]>1?'s':''}"`:''}>${l}${N[k]?`<span class="k-dot" aria-hidden="true">${N[k]}</span>`:''}</button>`).join('')}</div>${N.total?`<p class="k-card cxnew">✨ ${N.total} novidade${N.total>1?'s':''} no Codex: toque no selo <b>NOVO!</b> para ganhar ${AM.DISC_RUBY} ${ri('ruby','rubis')} cada.</p>`:''}<div class="k-card pc">${body}</div>${backMoreBtn()}`,'jogar');}
+ page(`<h2>Codex</h2><div class="k-seg cxtabs">${tabs.map(([t,l,k])=>`<button class="${t===tab?'on':''}" data-codex="${t}" aria-pressed="${t===tab}"${N[k]?` aria-label="${l}, ${N[k]} novidade${N[k]>1?'s':''}"`:''}>${l}${N[k]?`<span class="k-dot" aria-hidden="true">${N[k]}</span>`:''}</button>`).join('')}</div>${N.total?(()=>{const left=m?AM.discLeft(m):0,n=Math.min(left,N.total);return `<div class="k-card cxnew"><p>✨ ${N.total} novidade${N.total>1?'s':''} no Codex: toque no selo <b>NOVO!</b> para ganhar ${AM.DISC_RUBY} ${ri('ruby','rubis')} cada (até ${AM.DISC_DAY} por dia).</p>${n?`<button class="k-btn g sm" id="discAll" aria-label="Coletar todos: ${n} novidade${n>1?'s':''}, mais ${n*AM.DISC_RUBY} rubis">Coletar todos · +${n*AM.DISC_RUBY} ${ri('ruby')}</button>`:'<p class="muted small">Limite de hoje atingido: o resto espera até amanhã.</p>'}</div>`;})():''}<div class="k-card pc">${body}</div>${backMoreBtn()}`,'jogar');}
 function achScreen(){page(`<h2>Conquistas</h2><div class="k-card pc"><p class="muted center">${Object.keys(PROF.ach).length}/${ACH.length}</p><div class="achs">${ACH.map(([id,n,d])=>`<div class="achv${PROF.ach[id]?' on':''}"><b>${PROF.ach[id]?'🏆':'·'} ${n}</b><span>${d}</span></div>`).join('')}</div></div>${backMoreBtn()}`,'jogar');}
 function histScreen(){const H=PROF.history;page(`<h2>Histórico</h2><div class="k-card pc">${H.length?`<div class="hist">${H.map((h,i)=>`<div class="hrow"><div><b>${CLASSES[h.cls]?CLASSES[h.cls].name:h.cls}${h.sub&&SUBOF(h.sub)?' · '+SUBOF(h.sub).name:''}</b> <span class="${h.won?'bonus':'warn'}">${h.won?'venceu':'caiu'} · ${h.wins} vit.${h.surv?` · norte até ${h.surv}`:''}</span>
  <span class="muted small">${new Date(h.d).toLocaleDateString('pt-BR')} · ${{normal:'Jornada',daily:'Diário',seed:'Seed',challenge:'Desafio',duel:'Duelo'}[h.mode]||''}${h.asc?' · A'+h.asc:''}${h.chal?' · '+(CHALLENGES.find(c=>c.id===h.chal)||{}).name:''} · ${h.score} pts · seed ${h.seed}</span></div>
  <div class="mini-build">${(h.build||[]).slice(0,14).map(([k,t])=>ITEMS[k]?`<img src="${artURL(k,t)}" alt="${ITEMS[k].name}" style="--tier:${tierVar(t)}">`:'').join('')}</div><button class="k-btn v sm" data-hcode="${i}">Copiar código</button></div>`).join('')}</div>`:'<p class="muted center">Nenhuma jornada terminada ainda.</p>'}</div>${backMoreBtn()}`,'jogar');}
 const NEWS=`<ul class="howto">
+ <li><b>v8.5</b>: correções do playtest. Tocar na tela logo depois de uma luta não faz mais você perder a luta seguinte, e arrastar um item com um dedo enquanto toca em Desfazer, Trocar ou Pular loja com outro não trava nem compra o item errado. Mexer no relógio do aparelho não reabre o bônus diário, as propagandas nem as compras. O Codex paga as novidades pelo que você conquista (comprar ou fundir um item, forjar uma receita, vencer um inimigo), até 10 por dia, e ganhou o botão <b>Coletar todos</b>. As melhorias do equipamento pedem mais pedras nos níveis altos (a jornada rende 1 pedra a cada 4 vitórias) e, com todos os seus companheiros no nível máximo, a ração dos prêmios vira ouro. Juros Compostos também sobe o teto de juros, e o Altar melhora o seu melhor item por 5 de vida máxima. O Laboratório usa os bônus da sua conta e guarda o teste à parte, sem tocar na jornada. O aviso mostra o nome inteiro e fica abaixo do placar, a JORNADA avisa quando falta energia e os heróis bloqueados dizem como liberar.</li>
  <li><b>v8.4</b>: o Mascate Brás ganhou rosto e humor. Ele fala com a máquina de escrever (toque para ver a frase inteira) e muda de expressão: fica empolgado com fusões Épicas e Lendárias, forjas e sequências, preocupado na última vida e ganancioso com o Martelo, as apostas e as boas vendas. Perdeu por pouco? A janela da derrota traz um “quase lá” com uma dica tirada da sua mochila. Cada item, receita ou inimigo descoberto a partir de agora ganha o selo <b>NOVO!</b> no Codex: toque nele para ganhar 2 rubis. E chegou o <b>Laboratório do Mascate</b>: grátis, com ouro infinito, Catálogo de tudo que você já descobriu e o adversário que você escolher, para testar montagens sem gastar nada (e sem ganhar nada).</li>
  <li><b>v8.3</b>: a mochila ficou mais viva. O item arrastado cresce e balança com o dedo; as linhas mostram fusão (dourada, pulsando), bônus de posição (azul) e receita da forja (roxa, com bigorna); fundir e forjar estouram faíscas na cor da raridade; Épicos brilham e Lendários soltam faíscas. Na luta, cada linha do medidor tem um anel de recarga e dispara um feixe no inimigo, e os números mostram o tipo do dano, com críticos maiores.</li>
  <li><b>v8.2</b>: a estrada foi rebalanceada. Veneno e queimadura agora têm teto e a Tocha esquenta um pouco menos; o Anel do Veterano não empilha (vale o melhor); a Forja nunca rebaixa um item; a Salamandra esquenta o Martelo 1× por parada; a reserva extra da Tartaruga vale só naquela parada. A elite da parada 9 ficou mais justa (a Couraça Viva reflete 12%) e o Wyrm voltou a ser a luta mais dura; a Bênção de Prata chega depois da 6ª vitória. A Ascensão pesa desde a A1 e cada nível pede 2 vitórias. Paladino (64 de vida, Luz Sagrada +10) e Alquimista (76 de vida, Mistura 90%) ficaram mais firmes; a Combustão causa 16 + rodada e a Adaga custa 3. Bônus permanentes menores, valendo menos nas Ascensões altas (30% na A10), e melhorias mais caras no fim, níveis e recursos mantidos, com os bônus recalculados. O Duelo não conta mais para desbloqueios e conquistas, e a meta de melhorar some quando não há o que melhorar. Visual novo: ícones de energia, ouro, rubis, pedras, rações, ovos e baús, logo nova e um acampamento ao entardecer. A aba Diário da barra de baixo virou <b>Prêmios</b> (bônus diário e metas); “Diário” agora é só o desafio do dia. O tutorial ensina a fundir, comprar em cima de um igual avisa “Fundiu!”, “Não cabe aí” diz o motivo e abandonar avisa que a energia gasta não volta.</li>
@@ -1679,8 +1710,8 @@ document.addEventListener('change',e=>{const id=e.target.id;if(id==='duelIn')cla
  if(id==='optAsk'){PROF.noAsk=e.target.checked?0:1;saveProf();}if(id==='optMute'){muted=!e.target.checked;try{localStorage.setItem('alforje-mute',muted?'1':'0');}catch(_){}applyAudio();}});
 document.addEventListener('click',e=>{
  const g=e.target.closest('#bag,#chest');if(g&&!e.target.closest('.item')&&gridTap(g,e))return;
- /* um toque fecha o balão; se ele estava sobre a faixa do inimigo, a faixa age (arsenal ou escolha do adversário) */
- if(e.target.closest('#mline')){twStop();const fi=$('#foeinfo');if(fi&&inRect(fi,e.clientX,e.clientY))fi.click();return;}
+ /* v1.4 (ID 17): o 1º toque completa o texto; o 2º fecha o balão e, se ele estava sobre a faixa do inimigo, a faixa age (arsenal ou escolha do adversário) */
+ if(e.target.closest('#mline')){if(twFinish())return;twStop();const fi=$('#foeinfo');if(fi&&inRect(fi,e.clientX,e.clientY))fi.click();return;}
  const t=e.target.closest('button');if(!t)return;
  if(t.dataset.pet!=null&&t.matches('.slot')){const i=+t.dataset.pet;if(state.pets[i]){state.sel=state.sel&&state.sel.pet===i?null:{pet:i};state.selMore=false;renderPets();renderPop();renderSheet();}return;}
  if(t.dataset.pane){DRAWER=t.dataset.pane;state.sel=null;renderPop();renderDrawer();return;}
@@ -1703,6 +1734,7 @@ document.addEventListener('click',e=>{
  else if(t.dataset.lstop)labOppSet('stop',+t.dataset.lstop);else if(t.dataset.lvar!=null)labOppSet('v',+t.dataset.lvar);else if(t.dataset.lmod)labOppSet('mod',t.dataset.lmod);else if(t.dataset.lasc)labOppSet('asc',+t.dataset.lasc);
  else if(id==='labGo')labOppApply();else if(id==='labNo'){LABD=null;closeOverlay();render();}
  else if(t.dataset.ltier){LABTIER=+t.dataset.ltier;labCatScreen();}else if(t.dataset.lcat)labPlace(t.dataset.lcat,LABTIER);
+ else if(id==='discAll'){const on=document.querySelector('[data-codex].on');discAll();codexScreen(on?on.dataset.codex:'items');}
  else if(t.dataset.disc){const [k,x]=t.dataset.disc.split(':');discClaim(k,x);codexScreen(DTAB[k]);}
  else if(id==='recipesBtn')overlay(`<h2>Receitas</h2>${recipeBook()}${backBtn()}`);
  else if(id==='oddsBtn')overlay(`<h2>Chances da loja</h2>${oddsTable()}${backBtn()}`);
@@ -1732,7 +1764,7 @@ document.addEventListener('click',e=>{
  else if(id==='cfOk'){const f=confirmFn;confirmFn=null;closeOverlay();if(f)f();}else if(id==='cfNo'){confirmFn=null;closeOverlay();render();}
  else if(id==='closeOv'){closeOverlay();render();}
  else if(id==='back')backTo();else if(id==='backMore'){if(inRun())backTo();else moreScreen();}
- else if(id==='cMore')moreScreen();else if(id==='campGo')classScreen();else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
+ else if(id==='cMore')moreScreen();else if(id==='campGo'){const mm=META(),AM=window.AlforjeMeta;if(mm){AM.tickEnergy(mm,Date.now());if(mm.energy<AM.JOURNEY_COST){noEnergy();return;}}classScreen();}else if(id==='cBonus')dailyScreen();else if(id==='cGoals')dailyScreen('goals');
  else if(t.dataset.shop!=null||id==='neShop')shopScreen();else if(id==='calGet'||id==='calDbl'||id==='adShop'||t.dataset.chest!=null||t.dataset.ir!=null||t.dataset.buy)metaAct(t);else if(id==='neGoals')dailyScreen('goals');else if(id==='neDaily'){MENU.mode='daily';classScreen();}else if(id==='neLab'){MENU.mode='lab';classScreen();}
  else if(t.dataset.slot){EQSEL=t.dataset.slot;equipScreen();}else if(id==='eqUp')eqUp();else if(id==='hatch'||t.dataset.feed||t.dataset.take)petAct2(t);
  else if(id==='adEnergy')watchAd('energy',ok=>{const cap=window.AlforjeMeta.ENERGY_CAP;toast(!ok?`Energia no máximo (${cap})`:ok<10?`+${ok} de energia (limite ${cap})`:'+10 de energia');menuRefresh();});
@@ -1741,6 +1773,7 @@ document.addEventListener('click',e=>{
  else if(id==='codexBtn')codexScreen();else if(id==='achBtn')achScreen();else if(id==='histBtn')histScreen();else if(id==='newsBtn'){retFrom();newsScreen();}
  else if(id==='newsOk'){PROF.ver=VER;saveProf();goRet();}
  else if(id==='askBtn'){PROF.noAsk=PROF.noAsk?0:1;saveProf();runMenu();}
+ else if(id==='abandon'&&isLab()){closeOverlay();labExit();}
  else if(id==='abandon')confirmBox('Abandonar esta jornada?','Ela não conta no histórico nem no progresso.'+abandonCost(),'Abandonar',()=>{setState(fresh());save();campScreen();});});
 window.addEventListener('resize',()=>{if(!drag)render();});
 
@@ -1754,8 +1787,9 @@ window.__alforje={setDiff(h,d){SIM.setDiff(h,d);},get state(){return state;},set
 function hideSplash(){const s=$('#splash');if(!s||s.dataset.gone)return;s.dataset.gone=1;setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),500);},450);}
 /* não deu para retomar: guarda a jornada em alforje-run6-bak, descarta e abre o acampamento */
 function bootFail(e){try{console.error('alforje: falha ao retomar',e);}catch(x){}
+ if(state&&state.mode==='lab'){try{localStorage.removeItem(LABKEY);}catch(x){}}else{
  let raw=null;try{raw=localStorage.getItem(RUNKEY)||(state?JSON.stringify(Object.assign({},state,{undo:null})):null);}catch(x){}
- dropRun(raw,'retomar');B=null;try{closeOverlay();}catch(x){}setState(fresh());RET='camp';try{campScreen();}catch(x){try{console.error(x);}catch(y){}}}
+ dropRun(raw,'retomar');}B=null;try{closeOverlay();}catch(x){}setState(fresh());RET='camp';try{campScreen();}catch(x){try{console.error(x);}catch(y){}}}
 function boot(data){setState((data&&data.state&&checkRun(data.state))||load()||fresh());
  const h=location.hash.match(/seed=([^&]+)/);if(h){MENU.mode='seed';MENU.seed=decodeURIComponent(h[1]);}
  if(state.phase==='result')state.phase='shop';

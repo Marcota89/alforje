@@ -22,7 +22,7 @@
 //   await boardLive() -> OPCIONAL, só lê: abre o Placar carregado de verdade (precisa da nuvem: interruptor desligado e página recarregada) e audita.
 window.navVis = s => { const e = document.querySelector(s); return !!e && !e.hidden && getComputedStyle(e).display !== 'none'; };
 window.navOne = () => navVis('#menu') !== navVis('#app');
-const NAV_OFF = 'alforje-test-offline', NAV_SNAP = 'alforje-test-snap', NAV_KEYS = ['alforje-prof6', 'alforje-run6', 'alforje-ts'];
+const NAV_OFF = 'alforje-test-offline', NAV_SNAP = 'alforje-test-snap', NAV_KEYS = ['alforje-prof6', 'alforje-run6', 'alforje-lab6', 'alforje-ts'];
 window.navOffline = on => { if (on) localStorage.setItem(NAV_OFF, '1'); else localStorage.removeItem(NAV_OFF); const C = window.__alforje.CLOUD; if (on) { C.ready = false; clearTimeout(C.timer); C.dirty = false; } };
 // guarda perfil, jornada e as chaves do localStorage (null = ausente)
 window.navKeep = () => { const A = window.__alforje, ls = {}; NAV_KEYS.forEach(k => ls[k] = localStorage.getItem(k));
@@ -158,8 +158,10 @@ window.navCamp = async () => {
     q('[data-mode="daily"]').click(); R.freeDaily = /COMEÇAR · grátis/.test(q('#goBtn').textContent);
     q('[data-mode="normal"]').click(); q('#back').click();
     R.backToCamp = !!q('#campGo') && !q('#goBtn');
-    // 3) energia 0: COMEÇAR (normal) abre a janela de energia e não cria jornada
-    m.energy = 0; m.eAt = Date.now(); q('#campGo').click(); q('#goBtn').click();
+    // 3) energia 0: v1.4 (ID 19) a JORNADA fica cinza e já abre a janela de energia; COMEÇAR (normal) também abre e não cria jornada
+    m.energy = 0; m.eAt = Date.now(); A.campScreen(); R.campLow = q('#campGo').classList.contains('noen'); q('#campGo').click();
+    R.campOpensEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && !q('#goBtn'); A.closeOverlay();
+    A.classScreen(); q('[data-mode="normal"]').click(); q('#goBtn').click();
     R.noEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && /Faltam/.test(q('#overlay').textContent) && !!q('#overlay #adEnergy') && !!q('#overlay #neShop') && !!q('#overlay #neGoals') && !!q('#overlay #neDaily') && !!q('#overlay #neLab') && /Diário, Duelo e Laboratório não gastam energia/.test(q('#overlay').textContent)
       && A.state.phase === 'class' && !A.state.cls;
     // 4) propaganda de energia: 3 s sem botão para fechar, depois +10 e "1/3 hoje"
@@ -191,7 +193,7 @@ window.navCamp = async () => {
     if (hadRun) { A.showRun(); A.render(); } else A.campScreen();
   }
   R.tsSame = localStorage.getItem(TK) === keep.ts;
-  R.pass = R.tsSame && R.capAdd && R.capBtn && R.capNoAd && R.liveNeed && R.camp && R.pills && R.timer && R.hero && R.freeDaily && R.backToCamp && R.noEnergy && R.adWaiting && R.adNoClose && R.adDone && R.adCount && R.tickStops;
+  R.pass = R.tsSame && R.capAdd && R.capBtn && R.capNoAd && R.liveNeed && R.camp && R.pills && R.timer && R.hero && R.freeDaily && R.backToCamp && R.campLow && R.campOpensEnergy && R.noEnergy && R.adWaiting && R.adNoClose && R.adDone && R.adCount && R.tickStops;
   return R;
 };
 window.navMeta = async () => {
@@ -490,10 +492,10 @@ window.navDiff = (a, b, p = '') => { const out = [];
 //                     acampamento; o PROF (perfil e meta) não muda, só preferências de interface; nada vai para a fila de envios; o ouro infinito
 //                     não vaza para uma jornada normal. No fim devolve tudo.
 window.navLab = async () => {
-  const A = window.__alforje, R = {}, q = s => document.querySelector(s), PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts', POST = 'alforje-post-pending';
+  const A = window.__alforje, R = {}, q = s => document.querySelector(s), PK = 'alforje-prof6', RK = 'alforje-run6', LK = 'alforje-lab6', TK = 'alforje-ts', POST = 'alforje-post-pending';
   const wait = ms => new Promise(r => setTimeout(r, ms));
   if (A.state.phase === 'battle') return { error: 'luta em andamento' };
-  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), post: localStorage.getItem(POST), mode: A.MENU.mode,
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), lab: localStorage.getItem(LK), ts: localStorage.getItem(TK), post: localStorage.getItem(POST), mode: A.MENU.mode,
     profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: JSON.parse(JSON.stringify(A.state)), ready: A.CLOUD.ready };
   const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
   R.catAudit = []; R.oppAudit = [];
@@ -506,7 +508,8 @@ window.navLab = async () => {
     A.campScreen(); A.noEnergy(); R.noEnergyLab = !!q('#neLab'); q('#neLab').click(); R.noEnergyGoesLab = A.MENU.mode === 'lab' && !!q('#goBtn') && /grátis/.test(q('#goBtn').textContent);
     // começar: grátis
     q('#goBtn').click();
-    R.start = A.state.mode === 'lab' && !!A.state.cls && A.state.phase === 'shop' && A.PROF.meta.energy === 15 && A.state.perm == null;
+    const pm = window.AlforjeMeta.permFor(A.META(), 0);/* v1.4 (ID 13): os bônus da conta valem no Laboratório, como numa jornada normal */
+    R.start = A.state.mode === 'lab' && !!A.state.cls && A.state.phase === 'shop' && A.PROF.meta.energy === 15 && !!A.state.perm && A.state.perm.dmgPct === pm.dmgPct && A.state.perm.hp === pm.hp;
     R.goldInf = A.state.gold === 99999 && /∞/.test(q('#stats').textContent) && navVis('#app');
     R.noCoach = q('#coach').hidden;
     // compra não desconta
@@ -530,6 +533,7 @@ window.navLab = async () => {
     A.sayMerchant(true, 'hammer'); const fr = q('#foeinfo').getBoundingClientRect(), mb = q('#mline').getBoundingClientRect(), cx = fr.left + fr.width / 2, cy = fr.top + fr.height / 2;
     const over = !q('#mline').hidden && cy >= mb.top && cy <= mb.bottom;
     q('#mline').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));
+    if (!q('#mline').hidden) q('#mline').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));/* v1.4 (ID 17): o 1º toque completa o texto */
     R.bubbleTapStrip = over && q('#mline').hidden && !!q('[data-lstop]'); q('#labNo').click();
     // Laboratório não vai para a nuvem; a nuvem com jornada vazia mantém a local
     R.noCloudRun = A.runJSON() === '';
@@ -547,7 +551,7 @@ window.navLab = async () => {
     R.winNoCount = A.B.done === 'win' && A.state.wins === 0 && A.PROF.totalWins === tw0 && A.state.phase === 'shop';
     q('#next').click();
     // luta retomada (recarregar no meio ou nuvem): continua Laboratório
-    A.fight(true); const mid = JSON.parse(localStorage.getItem(RK)); R.savedLab = mid.mode === 'lab' && mid.phase === 'battle';
+    A.fight(true); const mid = JSON.parse(localStorage.getItem(LK)); R.savedLab = mid.mode === 'lab' && mid.phase === 'battle' && localStorage.getItem(RK) === keep.run;
     // (a) recarregar no meio da luta: o boot resolve a luta salva (resumeFight) e cai no resultado do Laboratório
     A.state = JSON.parse(JSON.stringify(mid)); A.resumeFight();
     R.resumeLab = A.state.mode === 'lab' && A.state.phase === 'shop' && A.state.gold === 99999 && /Laboratório/.test(q('#overlay').textContent) && A.state.lives === L0;
@@ -557,12 +561,14 @@ window.navLab = async () => {
     await wait(50);
     R.adoptLab = A.state.mode === 'lab' && A.state.phase === 'shop' && A.state.gold === 99999 && /Laboratório/.test(q('#overlay').textContent) && A.state.lives === L0;
     if (q('#next')) q('#next').click();
-    R.reloadKeepsLab = JSON.parse(localStorage.getItem(RK)).mode === 'lab' && JSON.parse(localStorage.getItem(RK)).gold === 99999;
+    R.reloadKeepsLab = JSON.parse(localStorage.getItem(LK)).mode === 'lab' && JSON.parse(localStorage.getItem(LK)).gold === 99999 && localStorage.getItem(RK) === keep.run;
     // sair: Mais -> Voltar ao acampamento
     A.cloudAdopt({ t: Date.now() + 1e4, prof: JSON.stringify(A.PROF), run: '' }); await wait(50);
     R.adoptEmptyKeepsLab = A.state.mode === 'lab' && A.state.phase === 'shop' && navVis('#app');
     q('#moreBtn').click(); R.drawerLab = !!q('#labOpp') && !!q('#labCat2') && !!q('#labExit'); q('#labExit').click();
-    R.exit = !!q('#campGo') && !A.state.cls && A.MENU.mode === 'normal';
+    /* sair apaga só o Laboratório; com uma jornada em andamento na chave dela, volta para ela; sem jornada, para o Acampamento */
+    const kr = keep.run ? JSON.parse(keep.run) : null, active = !!(kr && kr.cls && kr.phase !== 'class' && kr.mode !== 'lab');
+    R.exit = A.MENU.mode === 'normal' && localStorage.getItem(LK) == null && (active ? A.state.cls === kr.cls && A.state.seed === kr.seed && navVis('#app') : !!q('#campGo') && !A.state.cls);
     // nada mudou no perfil (só eAt, a hora da energia, e preferências de interface)
     const allowed = /^(meta\.eAt|opt(\..*)?|ver|speed|skinSeen|tut)$/;
     R.profDiff = navDiff(P0, JSON.parse(JSON.stringify(A.PROF))).filter(p => !allowed.test(p));
@@ -575,7 +581,7 @@ window.navLab = async () => {
   finally {
     A.adStop(); A.closeOverlay(); clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
     A.PROF = keep.profObj; A.state = keep.stateObj; A.MENU.mode = keep.mode;
-    [[PK, keep.prof], [RK, keep.run], [TK, keep.ts], [POST, keep.post]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+    [[PK, keep.prof], [RK, keep.run], [LK, keep.lab], [TK, keep.ts], [POST, keep.post]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
     if (off0 == null) localStorage.removeItem(NAV_OFF);
     A.CLOUD.ready = off0 == null ? keep.ready : false;
     if (A.state.cls && A.state.phase !== 'class') { A.showRun(); A.render(); } else A.campScreen();
@@ -600,15 +606,18 @@ window.navCodexNew = async () => {
     const old = JSON.parse(JSON.stringify(A.PROF)); if (old.meta) delete old.meta.dsc;
     old.codex = { items: { sword: { seen: 3, bought: 1, merged: 0, forged: 0, wins: 1 }, shield: { seen: 1, bought: 0, merged: 0, forged: 0, wins: 0 } }, foes: { rat: { met: 1, beat: 1 } }, recipes: { heroblade: 1 } };
     localStorage.setItem(PK, JSON.stringify(old)); A.loadProf();
-    const d = A.PROF.meta.dsc; R.oldNotNew = A.discN().total === 0 && d.i.sword === 0 && d.i.shield === 0 && d.f.rat === 0 && d.r.heroblade === 0;
+    const d = A.PROF.meta.dsc; R.oldNotNew = A.discN().total === 0 && d.i.sword === 0 && !('shield' in d.i) && d.f.rat === 0 && d.r.heroblade === 0;
     A.campScreen(); R.noDotCamp = !q('#cMore .k-dot') || q('#cMore .k-dot').textContent === '!';
     // 2) Laboratório não descobre nada
     A.MENU.mode = 'lab'; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior'); for (let i = 0; i < 4; i++) A.reroll();
     R.labNoDisc = A.discN().total === 0 && Object.keys(A.PROF.codex.items).length === 2;
-    // 3) jornada normal: a loja mostra itens novos -> novidades
+    // 3) jornada normal: ver na loja não é novidade (v1.4, ID 3); comprar é, e conta ao lutar
     A.MENU.mode = 'normal'; A.META().energy = 30; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior');
     const offers = new Set(A.state.shop.filter(o => o && !o.pet).map(o => o.key).filter(k => k !== 'sword' && k !== 'shield'));
-    const N = A.discN(); R.found = offers.size > 0 && N.i === offers.size && N.total === offers.size;
+    R.seenNotNew = offers.size > 0 && A.discN().total === 0;
+    A.state.gold = 999; A.state.shop.forEach((o, i) => { if (o && !o.pet && offers.has(o.key)) A.buy(i); });
+    A.fight(true); A.skip(); A.finish(); A.closeOverlay();
+    const N = A.discN(); R.found = R.seenNotNew && N.i === offers.size && N.total === N.i + N.f;
     // 4) alertas: atalho Mais do Acampamento e Codex em ☰ Mais, com número
     A.state = JSON.parse(JSON.stringify(keep.stateObj)); A.state.phase = 'class'; A.state.cls = null; A.campScreen();
     R.dotCamp = !!q('#cMore .k-dot') && q('#cMore .k-dot').textContent === String(N.total);
@@ -635,6 +644,193 @@ window.navCodexNew = async () => {
     if (A.state.cls && A.state.phase !== 'class') { A.showRun(); A.render(); } else A.campScreen();
   }
   R.tsSame = localStorage.getItem(TK) === keep.ts;
-  R.pass = !R.error && R.tsSame && ['oldNotNew', 'noDotCamp', 'labNoDisc', 'found', 'dotCamp', 'dotMore', 'badges', 'oldNoBadge', 'tabDot', 'paid', 'paidOnce', 'reloadNoRegrant'].every(k => R[k] === true) && !R.audit.length;
+  R.pass = !R.error && R.tsSame && ['oldNotNew', 'noDotCamp', 'labNoDisc', 'seenNotNew', 'found', 'dotCamp', 'dotMore', 'badges', 'oldNoBadge', 'tabDot', 'paid', 'paidOnce', 'reloadNoRegrant'].every(k => R[k] === true) && !R.audit.length;
   return R;
+};
+//   await navLoteA()  -> v1.4 Lote A, regressões que dependem da página (cada uma falha na v8.4, d97418d):
+//                        ID 1 derrota fantasma; IDs 5/6 arrasto + Desfazer/Trocar/Pular loja com outro dedo; ID 7 aviso inteiro abaixo do placar;
+//                        ID 13 Laboratório com bônus da conta e chave própria; ID 15 sem "Lutar já?" no tutorial, Laboratório enxuto;
+//                        ID 17 balão (1º toque completa, 2º fecha); ID 19 JORNADA sem energia e heróis bloqueados; IDs 3/11 Coletar todos;
+//                        ID 10 textos das linhas; ID 14 Juros Compostos e Altar. Sem nuvem; no fim devolve perfil, jornada e chaves.
+window.navLoteA = async () => {
+  const A = window.__alforje, D = window.AlforjeData, R = {}, q = s => document.querySelector(s), qa = s => [...document.querySelectorAll(s)];
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const K = navKeep(), LK = 'alforje-lab6', lab0 = localStorage.getItem(LK);
+  navOffline(true);
+  const errs = []; const onErr = e => errs.push(String(e.message || e.error)); window.addEventListener('error', onErr);
+  /* opts: pickClass sem agendar o tutorial guiado (o teste do tutorial só precisa de PROF.tut = 0) */
+  const start = (mode, cls, opts) => { A.closeOverlay(); A.MENU.mode = mode; A.state.phase = 'class'; A.state.cls = null; if (mode === 'daily') { for (const c of D.CLASSKEYS) { A.pickClass(c); if (A.state.cls) break; } } else A.pickClass(cls || 'warrior', opts); A.MENU.mode = 'normal'; };
+  const pe = (type, el, x, y, id) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: id, pointerType: 'touch', isPrimary: id === 5, clientX: x, clientY: y, button: 0 }));
+  const mid = el => { const b = el.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+  const stuck = () => !!q('.ghost') || document.body.classList.contains('is-dragging');
+  // cada bloco é independente: um erro (função que não existe numa versão antiga) vira falha daquele bloco e os outros seguem
+  R.errors = []; const sect = async fn => { try { await fn(); } catch (e) { R.errors.push(String(e && e.message || e)); try { A.closeOverlay(); if (A.state.phase === 'battle') { A.skip(); A.finish(); A.closeOverlay(); } } catch (x) {} } };
+  try {
+    A.PROF.tut = 1; A.META().energy = 99;
+    // ===== ID 17: balão do Mascate — 1º toque completa o texto, 2º fecha =====
+    await sect(async () => {
+      start('normal'); A.sayMerchant(true, 'hammer'); const b = q('#mline');
+      const typing = !b.hidden && q('#mline .tw').textContent.length < q('#mline .twf').textContent.length - 14;
+      const [bx, by] = mid(b); b.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: bx, clientY: by }));
+      const after1 = !b.hidden && q('#mline .tw').textContent.length >= q('#mline .twf').textContent.length - 14;
+      b.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: bx, clientY: by }));
+      R.id17 = typing ? after1 && b.hidden : 'sem máquina de escrever (modo calmo)';
+      A.closeOverlay();
+    });
+    // ===== ID 1: o fechamento atrasado da luta anterior não encerra a luta seguinte =====
+    await sect(async () => {
+      start('daily'); A.state.noAsk = true; const it0 = A.state.items.find(i => D.ITEMS[i.key].type === 'weapon');
+      A.state.items = [Object.assign({}, it0, { key: 'dagger', w: 1, h: 1, tier: 1 })]; A.render();
+      A.fight(true); A.skip(); await wait(250); A.finish(); const p1 = (A.state.proof || []).length;
+      A.closeOverlay(); A.state.queue = []; A.state.phase = 'shop'; A.render();
+      const L = A.state.lives, W = A.state.wins; A.fight(true); await wait(900);
+      R.id1 = A.state.phase === 'battle' && !!A.B && !A.B.done && A.state.lives === L && A.state.wins === W && (A.state.proof || []).length === p1;
+      A.skip(); A.finish(); A.closeOverlay();
+    });
+    // ===== IDs 5 e 6: arrasto + comando com outro dedo =====
+    await sect(async () => {
+      start('normal'); A.state.gold = 99; A.state.round = 1;
+      A.state.items = A.state.items.filter(i => D.ITEMS[i.key].type === 'weapon').slice(0, 1).map(i => Object.assign(i, { x: 0, y: 0, where: 'bag' }));
+      const fill = () => { A.state.shop = ['sword', 'dagger', 'shield', 'bomb', 'torch'].map(k => ({ key: k, tier: 1 })); A.render(); };
+      // (a) Desfazer: o item arrastado deixa de existir
+      fill(); A.buy(1); const nid = A.state.items[A.state.items.length - 1].id; A.render();
+      let el = q(`[data-drag][data-id="${nid}"]`), [x, y] = mid(el); errs.length = 0;
+      pe('pointerdown', el, x, y, 5); pe('pointermove', document, x, y - 30, 5); pe('pointermove', document, x, y - 60, 5);
+      const dragging = stuck(); A.undo(); pe('pointermove', document, x, y - 80, 5); pe('pointerup', document, x, y - 80, 5);
+      const other = q('#bag [data-drag][data-src="own"]'), [ox, oy] = mid(other); pe('pointerdown', other, ox, oy, 7); pe('pointerup', document, ox, oy, 7);
+      R.id5undo = dragging && !errs.length && !stuck() && !!A.state.sel;
+      R.id5undoErr = errs.slice(); A.state.sel = null; A.render();
+      // (b) Trocar: a oferta arrastada some; soltar não compra a oferta nova
+      fill(); const g0 = A.state.gold, n0 = A.state.items.length; el = q('[data-drag][data-src="shop"][data-idx="0"]'); [x, y] = mid(el); errs.length = 0;
+      pe('pointerdown', el, x, y, 5); pe('pointermove', document, x, y - 30, 5);
+      A.reroll(); const cost = g0 - A.state.gold;
+      const bag = q('#bag').getBoundingClientRect(), c = bag.width / A.state.bag.cols, tx = bag.left + (A.state.bag.cols - 2) * c + c, ty = bag.top + (A.state.bag.rows - 2) * c + 2 * c + 34;
+      pe('pointermove', document, tx, ty, 5); pe('pointerup', document, tx, ty, 5);
+      R.id6reroll = !errs.length && !stuck() && A.state.items.length === n0 && A.state.gold === g0 - cost;
+      // (c) Pular loja (gaveta) durante o arrasto
+      fill(); A.state.skipOffer = 'ouro'; el = q('[data-drag][data-src="shop"][data-idx="1"]'); [x, y] = mid(el); errs.length = 0;
+      pe('pointerdown', el, x, y, 5); pe('pointermove', document, x, y - 30, 5); pe('pointermove', document, x, y - 60, 5);
+      A.skipShop(); q('#cfOk').click(); pe('pointermove', document, x, y - 90, 5); pe('pointerup', document, x, y - 90, 5);
+      R.id6skip = !errs.length && !stuck() && A.state.shop.every(o => o === null);
+      R.id6Err = errs.slice();
+    });
+    // ===== ID 7: aviso com o nome inteiro, abaixo do placar VS =====
+    await sect(async () => {
+      start('normal'); A.state.gold = 99; A.state.shop = [{ key: 'spikemirror', tier: 2 }, null, null, null, null]; A.render(); A.buy(0); await wait(60);
+      const t = q('#toast'), s = t.querySelector('span'), tb = t.getBoundingClientRect(), vb = q('#vs').getBoundingClientRect();
+      R.id7 = !t.hidden && /Espelho de Espinhos/.test(s.textContent) && s.scrollHeight <= s.clientHeight + 1 && tb.top >= vb.bottom && tb.left >= 15 && tb.right <= innerWidth - 15;
+    });
+    // ===== ID 14: Juros Compostos sobe o teto; o Altar melhora o melhor item por 5 de vida máxima =====
+    await sect(async () => {
+      start('normal'); A.state.asc = 0; A.state.gold = 100; A.state.bless = []; const base = A.interest(); A.state.bless = ['compostos'];
+      R.id14juros = A.interest() === base + 1 && /teto de juros \+1/.test(D.BLESS.compostos.desc);
+      const id = A.state.nid; A.state.items = [{ id: id, key: 'dagger', tier: 1, x: 0, y: 0, w: 1, h: 1, where: 'bag' }, { id: id + 1, key: 'sword', tier: 2, x: 1, y: 0, w: 1, h: 2, where: 'bag' }, { id: id + 2, key: 'whet', tier: 1, x: 2, y: 0, w: 1, h: 1, where: 'bag' }];
+      A.state.nid = id + 3; A.state.maxHpMod = 0; A.state.event = 'altar'; A.eventChoose(true); A.closeOverlay();
+      R.id14altar = A.state.items.find(i => i.id === id + 1).tier === 3 && A.state.items.find(i => i.id === id).tier === 1 && A.state.items.find(i => i.id === id + 2).tier === 1 && A.state.maxHpMod === -5;
+    });
+    // ===== ID 13: Laboratório com os bônus da conta, numa chave própria que não sobrescreve a jornada =====
+    await sect(async () => {
+      start('normal'); const runRaw = localStorage.getItem('alforje-run6'), runGold = JSON.parse(runRaw).gold;
+      const m = A.META(); m.gear.weapon = 11; m.gear.armor = 11; m.pets.raven = 6; m.petOn = 'raven';
+      A.MENU.mode = 'lab'; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior'); A.MENU.mode = 'normal';
+      const pm0 = window.AlforjeMeta.permFor(m, 0);
+      R.id13perm = A.state.mode === 'lab' && !!A.state.perm && A.state.perm.dmgPct === pm0.dmgPct && A.state.perm.block === pm0.block && pm0.dmgPct > 0 && !!A.state.pets[0] && A.state.pets[0].key === 'raven';
+      A.labOppApply({ stop: 3, v: 0, mods: [], asc: 10 }); const pm10 = window.AlforjeMeta.permFor(m, 10);
+      R.id13asc = A.state.perm.dmgPct === pm10.dmgPct && pm10.dmgPct < pm0.dmgPct;
+      A.labPlace('sword', 2);
+      R.id13key = localStorage.getItem('alforje-run6') === runRaw && JSON.parse(localStorage.getItem(LK) || '{}').mode === 'lab';
+      // ID 15: o "Mais" do Laboratório só com Desfazer, Catálogo, Adversário, Opções e Sair
+      q('#moreBtn').click(); const ids = qa('#moreList button').map(b => b.id).sort().join();
+      R.id15more = ids === ['labCat2', 'labExit', 'labOpp', 'optBtn', 'undo2'].sort().join(); R.id15moreIds = ids; q('#labExit').click();
+      R.id13exit = !localStorage.getItem(LK) && A.state.mode === 'normal' && A.state.gold === runGold && A.state.cls === 'warrior' && navVis('#app');
+      m.gear.weapon = 1; m.gear.armor = 1; delete m.pets.raven; m.petOn = null;
+    });
+    // ===== ID 15: sem "Lutar já?" durante o tutorial; descrição do Laboratório curta =====
+    await sect(async () => {
+      A.PROF.tut = 0; start('normal', 'warrior', {}); A.state.noAsk = false; A.PROF.noAsk = 0; A.state.gold = 99; A.render(); A.fight();
+      R.id15tut = A.state.phase === 'battle' && !/Lutar já/.test(q('#overlay').textContent || '');
+      if (A.state.phase === 'battle') { A.skip(); A.finish(); } A.closeOverlay(); A.PROF.tut = 1;
+      A.classScreen(); q('[data-mode="lab"]').click(); const txt = q('#mpage .minfo').textContent.trim();
+      R.id15desc = txt.split(/[.!?](?:\s|$)/).filter(s => s && s.trim()).length <= 2 && txt.split(/\s+/).length <= 25;
+    });
+    // ===== ID 19: JORNADA sem energia; heróis bloqueados dizem como liberar =====
+    await sect(async () => {
+      A.state.phase = 'class'; A.state.cls = null; const m = A.META(); m.energy = 4; m.eAt = Date.now(); A.campScreen();
+      const g = q('#campGo'); R.id19noen = g.classList.contains('noen') && /faltam/.test(g.textContent); g.click();
+      R.id19opens = /Sem energia/.test(q('#overlay').textContent) && !q('#goBtn'); A.closeOverlay(); m.energy = 99;
+      A.campScreen(); R.id19full = !q('#campGo').classList.contains('noen');
+      const P = A.PROF, keep = [P.best, P.totalWins, P.journeys]; P.best = 0; P.totalWins = 0; P.journeys = 0; A.MENU.mode = 'normal'; A.classScreen();
+      const locked = qa('#mpage .hc.lock'); R.id19lock = locked.length > 0 && locked.every(c => /Libera/.test(c.textContent));
+      R.id19audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+      [P.best, P.totalWins, P.journeys] = keep;
+    });
+    // ===== ID 10: os textos descrevem as três linhas de hoje =====
+    await sect(async () => {
+      A.moreScreen(); q('#howBtn').click(); const how = q('#mpage').textContent;
+      R.id10 = !/linhas verdes/i.test(how) && /dourada/.test(how) && /azul/.test(how) && /roxa/.test(how);
+    });
+    // ===== IDs 3 e 11: novidade só pelo esforço; "Coletar todos" até o limite do dia =====
+    await sect(async () => {
+      A.state.phase = 'class'; A.state.cls = null; const m = A.META(), C = A.PROF.codex, ks = Object.keys(D.ITEMS).filter(k => !C.items[k]).slice(0, 13);
+      const seenOnly = Object.keys(D.ITEMS).filter(k => !C.items[k] && !ks.includes(k))[0]; C.items[seenOnly] = { seen: 4, bought: 0, merged: 0, forged: 0, wins: 0 };
+      for (const k of ks) C.items[k] = { seen: 1, bought: 1, merged: 0, forged: 0, wins: 0 };
+      m.dscN = 0; A.META(); const r0 = m.ruby; A.codexScreen('items');
+      R.id3seen = !q(`[data-disc="i:${seenOnly}"]`) && !!q(`[data-disc="i:${ks[0]}"]`);
+      const btn = q('#discAll'); R.id11btn = !!btn && /\+20/.test(btn.textContent);
+      R.id11audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+      if (btn) btn.click();
+      R.id11 = m.ruby === r0 + 20 && qa('#mpage [data-disc]').length === 3 && !q('#discAll') && /Limite de hoje/.test(q('#mpage').textContent);
+    });
+  } catch (e) { R.error = String(e && e.stack || e); }
+  finally {
+    window.removeEventListener('error', onErr);
+    try { if (A.state.phase === 'battle') { A.skip(); A.finish(); } } catch (e) {}
+    if (lab0 == null) localStorage.removeItem(LK); else localStorage.setItem(LK, lab0);
+    navPut(K, true);
+  }
+  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11'];
+  R.fail = keys.filter(k => R[k] !== true);
+  R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length;
+  return R;
+};
+//   await auditLoteA() -> alforjeAudit() nas telas que o Lote A mexeu (Acampamento com e sem energia, escolha de herói com bloqueios e no Laboratório,
+//                         Codex com "Coletar todos", Pets com todos no máximo, Loja de rubis, Equipar no nível 19 (pedras novas), Como jogar, Novidades, aviso na jornada, "Mais" e ☰ do Laboratório),
+//                         em cada modo de interface (normal, texto grande, daltônico, canhoto, economia). Rode em 360x640 e em 375x812. Sem nuvem; devolve tudo no fim.
+window.auditLoteA = async () => {
+  const A = window.__alforje, D = window.AlforjeData, q = s => document.querySelector(s), out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const K = navKeep(), LK = 'alforje-lab6', lab0 = localStorage.getItem(LK); navOffline(true);
+  const start = mode => { A.closeOverlay(); A.MENU.mode = mode; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior', {}); A.MENU.mode = 'normal'; };
+  const UI = { normal: {}, big: { big: 1 }, cb: { cb: 1 }, left: { left: 1 }, eco: { eco: 1 } };
+  const screens = {
+    camp: () => { A.closeOverlay(); A.state.phase = 'class'; A.state.cls = null; A.META().energy = 99; A.campScreen(); },
+    campSemEnergia: () => { const m = A.META(); m.energy = 3; m.eAt = Date.now(); A.campScreen(); },
+    janelaSemEnergia: () => { q('#campGo').click(); },
+    heroiBloqueado: () => { A.closeOverlay(); A.META().energy = 99; const P = A.PROF; P.best = 0; P.totalWins = 0; P.journeys = 0; A.MENU.mode = 'normal'; A.classScreen(); },
+    heroiLab: () => { A.MENU.mode = 'lab'; A.classScreen(); },
+    codexColetar: () => { A.MENU.mode = 'normal'; const m = A.META(), C = A.PROF.codex; for (const k of Object.keys(D.ITEMS).slice(0, 14)) C.items[k] = { seen: 1, bought: 1, merged: 0, forged: 0, wins: 0 }; m.dscN = 0; A.META(); A.codexScreen('items'); },
+    codexLimite: () => { A.META().dscN = 10; A.codexScreen('items'); },
+    petsMax: () => { const m = A.META(); for (const k of D.PETKEYS) m.pets[k] = 10; m.egg = 1; A.petsScreen(); },
+    lojaRubis: () => { A.shopScreen(); },
+    equiparCaro: () => { const m = A.META(); for (const k in m.gear) m.gear[k] = 19; m.stone = 3; m.gold = 50; A.equipScreen(); },
+    equiparPronto: () => { const m = A.META(); m.stone = 99999; m.gold = 99999; A.equipScreen(); },
+    comoJogar: () => { A.moreScreen(); q('#howBtn').click(); },
+    novidades: () => { A.moreScreen(); q('#newsBtn').click(); },
+    avisoJornada: () => { start('normal'); A.state.gold = 99; A.state.shop = [{ key: 'spikemirror', tier: 2 }, { key: 'sword', tier: 1 }, null, null, null]; A.render(); A.buy(0); },
+    labMais: () => { start('lab'); q('#moreBtn').click(); },
+    labMenu: () => { q('#dclose') && q('#dclose').click(); q('#helpBtn').click(); },
+  };
+  try {
+    for (const u in UI) {
+      for (const k of ['big', 'cb', 'left', 'eco']) A.setOpt(k, UI[u][k] || 0);
+      for (const s in screens) { try { screens[s](); await wait(80); const r = window.alforjeAudit(); if (r.length) out[u + ':' + s] = r; } catch (e) { out[u + ':' + s] = ['erro: ' + e.message]; } }
+      A.closeOverlay();
+    }
+  } finally {
+    try { if (A.state.mode === 'lab') localStorage.removeItem(LK); } catch (e) {}
+    if (lab0 == null) localStorage.removeItem(LK); else localStorage.setItem(LK, lab0);
+    navPut(K, true); A.applyOpts();
+  }
+  return { size: innerWidth + 'x' + innerHeight, problems: out, pass: !Object.keys(out).length };
 };

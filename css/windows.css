@@ -190,8 +190,10 @@ body.is-dragging #pop{display:none!important}
 body.big #sheet ul{font-size:16.5px}
 
 /* ===== Aviso (#toast) ===== */
-#toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:80;display:flex;align-items:center;justify-content:center;gap:10px;max-width:calc(100% - 32px);pointer-events:auto;padding:6px 16px;min-height:34px;border-radius:20px;background:var(--pill-bg);border:2px solid var(--pill-edge);color:#fff;font:900 14px/1.25 var(--f-body);text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.35)}
-#toast span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;overflow-wrap:anywhere}
+/* v1.4 (IDs 7 e 19): largura pelo conteúdo até a margem da tela (left/right 16px + margin auto + max-content), texto em até 2 linhas
+   quebrando só entre palavras; na jornada o JS (placeToast) o põe logo abaixo do placar VS */
+#toast{position:fixed;left:16px;right:16px;margin:0 auto;width:max-content;top:calc(12px + env(safe-area-inset-top,0px));z-index:80;display:flex;align-items:center;justify-content:center;gap:10px;max-width:calc(100% - 32px);box-sizing:border-box;pointer-events:auto;padding:6px 16px;min-height:34px;border-radius:20px;background:var(--pill-bg);border:2px solid var(--pill-edge);color:#fff;font:900 14px/1.25 var(--f-body);text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+#toast span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;flex:0 1 auto;overflow-wrap:break-word}
 #toast .tbtn{flex:none;min-height:40px;min-width:44px;padding:0 12px;font-size:14px;border-width:2px;border-radius:14px;white-space:nowrap}
 
 /* ===== Tutorial guiado (#coach) ===== */

@@ -104,6 +104,8 @@
 #mpage .hdet span{font-size:14px;line-height:1.4}
 #mpage .hdet .subs{color:#7a35d6;font-weight:800}
 #mpage .hdet .lockt{color:var(--red);font-weight:900}
+/* v1.4 (ID 19): herói e 2º kit bloqueados dizem como liberar */
+#mpage .hpick .lockh,#mpage .kitrow .lockh{font:800 11.5px/1.2 var(--f-body);color:var(--red);text-align:center}
 #mpage .foot{padding:0 4px;color:var(--ink-brown);text-shadow:0 1px 0 rgba(255,255,255,.5)}
 
 /* ===== Codex ===== */
@@ -186,6 +188,8 @@
 #mpage .cbar i{display:block;height:100%;background:linear-gradient(90deg,#29c7ff,#7ff0ff);transition:width .3s}
 #mpage .camp>.cgo{width:100%;min-height:58px;flex-direction:column;gap:2px;border-radius:18px;font-size:23px;box-shadow:0 5px 0 #157a2c}
 #mpage .cgo small{font:900 12px/1 var(--f-body)}
+/* v1.4 (ID 19): JORNADA sem energia fica cinza (sem o verde de "vai") e abre a janela de energia */
+#mpage .camp>.cgo.noen{background:linear-gradient(180deg,#8e8a99,#625e70);box-shadow:0 5px 0 #3e3a4a;text-shadow:0 2px 0 #3e3a4a}
 #mpage .camp>.cad{align-self:center;max-width:100%;padding:0 16px;font:900 13px/1.15 var(--f-body)}
 /* fundo do acampamento (a/bg_camp.webp, 720x1280): céu atrás das pílulas, herói na grama aberta, grama escura atrás das abas */
 #menu.pcamp{background:#1b1036 url(../a/bg_camp.webp) center 62%/cover no-repeat}
@@ -328,4 +332,7 @@ body.big #mpage .petc .pb2 .k-btn{font-size:15px}
 #mpage .cxtabs>*{position:relative}
 #mpage .cxtabs .k-dot{top:-6px;right:2px}
 #mpage .cxnew{margin:0;padding:8px 12px;font:800 14px/1.3 var(--f-body);color:var(--ink-brown);text-align:center}
+/* v1.4 (ID 11): Coletar todos */
+#mpage .cxnew p{margin:0}
+#mpage .cxnew .k-btn{margin-top:6px}
 @media (prefers-reduced-motion:reduce){#mpage .nwb{animation:none}}
