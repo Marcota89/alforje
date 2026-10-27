@@ -65,6 +65,9 @@ Deno.serve(async (req) => {
     if (ix !== today && ix !== today - 1) return reply(422, { ok: false, why: "Diário fora do prazo" });
     // v1.4: o Diário leva a versão do combate em que começou (e.sv). Sem ela, ou com outra, as lutas não conferem com este
     // sim.js: responde 'versao' antes de refazer qualquer luta (o jogo mostra "começou na versão anterior", não "não confere").
+    // v1.4 (revisão final, M-2): sim.js sem SIM_VER = cópia velha publicada junto com este index.ts (função mal publicada). Responde 500
+    // em vez de dizer a todo jogador atual que a versão dele é antiga. Antes de publicar: node tools/sync-function.cjs.
+    if (!S || !S.SIM_VER) return reply(500, { ok: false, why: "servidor desatualizado" });
     if (e.sv !== S.SIM_VER) return reply(422, { ok: false, why: "versão antiga do jogo", code: "versao" });
     const v = S.verifyDaily(e, ix);
     if (!v.ok) return reply(422, { ok: false, why: v.why });

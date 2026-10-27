@@ -57,7 +57,8 @@ function setUsed(m,rs){rs=rs.slice().sort((a,b)=>a[0]-b[0]);const o=[];
  m.used=o.map(r=>[dS(r[0]),dS(r[1])]);}
 const inUsed=(m,dk)=>(Array.isArray(m.used)?m.used:[]).some(r=>dk>=r[0]&&dk<=r[1]);
 /* v1.4 (rodada 2): piso do servidor. Quando a nuvem respondeu, m.srvDay guarda o dia do servidor (iat do token da sessão, só sobe);
-   nenhuma data antes de (dia do servidor − 1) abre prêmio. Sem nuvem (só neste aparelho), nada muda. */
+   nenhuma data antes de (dia do servidor − 1) abre prêmio. Sem nuvem (só neste aparelho), nada muda.
+   (revisão final, I-1) Com a hora do servidor na sessão, o dia usado já é o do servidor (effNow) e o piso não barra: ele vale nas sessões sem nuvem. */
 const srvFloorOk=(m,dk)=>!isDay(m.srvDay)||dN(dk)>=dN(m.srvDay)-1;
 const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk)&&srvFloorOk(m,dk);
 /* v1.4 (rodada 3): hora do servidor só vale entre 2020-01-01 e o limite de Date (8,64e15 ms); fora disso é ignorada.
@@ -66,6 +67,12 @@ const SRV_MIN=Date.UTC(2020,0,1),SRV_MAX=8.64e15;
 const srvOk=t=>isNum(t)&&t>=SRV_MIN&&t<=SRV_MAX;
 function noteServer(m,srv){if(!srvOk(srv))return;const d=dayKey(srv);
  if(!isDay(m.srvDay)||d>m.srvDay||dN(m.srvDay)>dN(d)+1)m.srvDay=d;}
+/* v1.4 (revisão final, I-1): hora do servidor DESTA sessão. Com ela, o dia que abre e vira é o maior entre o dia do aparelho e o do
+   servidor: relógio atrasado não trava o jogo conectado (antes, 2+ dias atrás travava tudo para sempre). Relógio adiantado continua
+   valendo o do aparelho, como antes (nada a mais para quem mexe no relógio). Fica só na memória, por perfil (WeakMap, não vai para o
+   save); ensureMeta sem hora do servidor (sessão sem nuvem) apaga, e aí só o piso m.srvDay vale. Todas as regras de abrir continuam. */
+const LIVE=new WeakMap();
+function effNow(m,now){if(!Number.isFinite(now))now=Date.now();const s=isObj(m)?LIVE.get(m):null;return s!=null&&s>now?s:now;}
 /* v1.4 (rodada 2): desce bloco por bloco enquanto a âncora ainda estiver mais de 14 dias à frente do relógio (um período com o relógio
    errado pode ter pausas de mais de 14 dias dentro dele); a checagem dos 30 dias vale só para a âncora final */
 function capFar(m,dk){const d=dN(dk);if(!isDay(m.dayMax)||dN(m.dayMax)-d<=FAR_DAYS)return;
@@ -75,11 +82,17 @@ function capFar(m,dk){const d=dN(dk);if(!isDay(m.dayMax)||dN(m.dayMax)-d<=FAR_DA
  /* v1.4 (rodada 3): a mesma âncora da última correção pode ser reaplicada (conserto do relógio em duas etapas); a espera de 30 dias vale para âncoras novas */
  if(anchor>=dN(m.dayMax)||isDay(m.capOn)&&anchor!==dN(m.capOn)&&anchor<dN(m.capOn)+CAP_EVERY)return;
  m.dayMax=dS(anchor);m.capOn=dS(anchor);}
-/* trava segurando por relógio mudado (sem correção possível agora), ou (rodada 3) o piso do servidor barrando o dia do aparelho:
-   a próxima data que pode abrir; senão null */
-function clockWait(m,now){const dk=dayKey(now),floor=isDay(m.srvDay)&&dN(dk)<dN(m.srvDay)-1;
- if(!floor&&(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS))return null;
- let n=Math.max(isDay(m.dayMax)?dN(m.dayMax)+1:-Infinity,isDay(m.srvDay)?dN(m.srvDay)-1:-Infinity);while(inUsed(m,dS(n)))n++;return dS(n);}
+/* o aviso dos Prêmios (v1.4, revisão final I-1: verdadeiro em todo caso travado). Devolve null quando o próximo prêmio abre amanhã
+   (nada travado além do normal); senão:
+   {late:true} sem hora do servidor nesta sessão, com a data do aparelho atrás do último dia do servidor já visto e o prêmio travado
+               por isso (piso do servidor, ou dias já abertos com a nuvem). Não dá para prometer data: a data do aparelho precisa ser acertada.
+   {day}       a trava segura (o relógio foi para a frente em algum momento): a próxima data que abre. Ela é fixa (não anda com o relógio)
+               e abre no mais tardar nesse dia (uma correção de capFar só pode adiantar). */
+function clockWait(m,now){const d=dN(dayKey(effNow(m,now))),sd=isDay(m.srvDay)?dN(m.srvDay):null;
+ let n=Math.max(d+1,isDay(m.dayMax)?dN(m.dayMax)+1:-Infinity);while(inUsed(m,dS(n)))n++;
+ const floor=sd!=null&&d<sd-1;if(!floor&&n<=d+1)return null;
+ if(floor||!LIVE.has(m)&&sd!=null&&d<sd)return {late:true};
+ return {day:dS(n)};}
 /* meta impossível: "Melhore uma peça ou alimente um companheiro" vira a próxima meta do sorteio do dia, só para este jogador, quando
    tudo está no máximo ou (v1.4) quando, na hora do sorteio do dia, não há recursos para nenhuma melhoria nem alimentação */
 const canUpgradeAny=m=>Object.keys(GEAR).some(k=>(m.gear&&m.gear[k]||1)<GEAR_MAX)||Object.keys(m.pets||{}).some(k=>m.pets[k]>=1&&m.pets[k]<PET_MAX);
@@ -92,7 +105,7 @@ function swapGoals(m){const g=m.goals,i=g.ids.indexOf('upgrade1');if(i<0||g.done
 function rollDay(m,now){swapGoals(rollDay0(m,now));return m;}
 function openDay(m,dk){m.day=dk;m.dayOpen=dk;m.dayMax=dk;setUsed(m,usedN(m).concat([[dN(dk),dN(dk)]]));
  m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.dscN=0;m.goals=newGoals(dk);}
-function rollDay0(m,now){const dk=dayKey(now);
+function rollDay0(m,now){const dk=dayKey(effNow(m,now));/* v1.4 (revisão final, I-1): com a hora do servidor, o maior dos dois dias */
  /* relógio para trás mais de 2 dias: só o marcador volta (a decisão de abrir vem só da trava e de m.used) */
  if(isDay(m.day)&&m.day>dk&&dN(m.day)-dN(dk)>2)m.day=dk;
  capFar(m,dk);
@@ -153,6 +166,7 @@ function backfill(m,prof,now){
 function ensureMeta(prof,now,srv){
  if(!prof.meta)prof.meta={v:1,day:''};
  backfill(prof.meta,prof,now);noteServer(prof.meta,srv);
+ if(srvOk(srv))LIVE.set(prof.meta,srv);else LIVE.delete(prof.meta);
  discSync(prof.meta,prof.codex);
  return rollDay(prof.meta,now);}
 
@@ -226,7 +240,7 @@ function claimCal(m,now,double){const c=calToday(m,now);if(c.claimed)return null
 /* ===== metas do dia ===== */
 function goalsToday(m,now){rollDay(m,now);const g=m.goals;
  return {ids:g.ids.slice(),p:Object.assign({},g.p),done:g.done.slice(),pts:g.pts,
-  chests:CHESTS.map((c,i)=>({at:c.at,reward:foodSwap(m,c.reward),/* v1.4 (M-3): mostra o ouro que a ração vai virar */ready:g.pts>=c.at&&!g.chests[i],claimed:!!g.chests[i]})),endsIn:endsIn(now)};}
+  chests:CHESTS.map((c,i)=>({at:c.at,reward:foodSwap(m,c.reward),/* v1.4 (M-3): mostra o ouro que a ração vai virar */ready:g.pts>=c.at&&!g.chests[i],claimed:!!g.chests[i]})),endsIn:endsIn(effNow(m,now))};}
 function goalEvent(m,now,ev,n){rollDay(m,now);if(n==null)n=1;const g=m.goals,out=[];
  for(const id of g.ids){const d=GOALS[id];if(!d||d.ev!==ev||g.done.includes(id))continue;
   g.p[id]=Math.min(d.n,(g.p[id]||0)+n);

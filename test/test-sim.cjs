@@ -318,6 +318,61 @@ check(D.SILVER_WIN + 3 < D.GOAL, `v1.2 Juros Compostos (Prata) ainda rende em ${
   const ts = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'functions', 'alforje-submit', 'index.ts'), 'utf8');
   const iv = ts.indexOf('e.sv !== S.SIM_VER'), ir = ts.indexOf('S.verifyDaily(');
   check(iv > 0 && ir > iv && /code: "versao"/.test(ts.slice(iv, ir)), 'I2: alforje-submit responde code "versao" para versão faltando/diferente antes de refazer as lutas');
+  const ig = ts.indexOf('if (!S || !S.SIM_VER) return reply(500');
+  check(ig > 0 && ig < iv, 'M-2 (revisão final): sim.js sem SIM_VER na função (cópia velha) responde 500 antes de comparar a versão');
+}
+// I-2 (revisão final): o servidor confere a vida máxima (Altar) e os bolsos da prova do Diário; o combate não muda
+{
+  // Diário jogado com o Altar depois da 6ª vitória (−ALTAR_HP) e duas ampliações com bolsos (coluna na 2ª vitória, fileira na 3ª)
+  // jogador mais forte que o de playDaily: depois de cada vitória melhora o que der e põe Adagas nos espaços livres, sempre dentro do teto de ouro
+  const fits = s => S.buildPlausible(S.snapOf(s)).ok;
+  const greedy = s => { for (const it of s.items) while (it.tier < 4) { it.tier++; if (!fits(s)) { it.tier--; break; } }
+    S.setState(s); for (;;) { const sp = S.findSpot('bag', 1, 1); if (!sp) break; s.items.push(Object.assign({ id: s.nid++, key: 'dagger', tier: 1, w: 1, h: 1 }, sp)); if (!fits(s)) { s.items.pop(); break; } } };
+  const playAltar = dayIx => { const s = startDaily(dayIx), proof = [];
+    while (true) { const k = S.snapOf(s), out = liveFight(s); proof.push({ k: JSON.parse(JSON.stringify(k)), res: out.res });
+      if (out.res === 'win') { s.wins++; s.stopLosses = 0; s.round++; greedy(s); s.round--;
+        const b = s.bag;
+        if (s.wins === 2) { for (let y = 0; y < b.rows; y++) b.pockets[S.K(b.cols, y)] = 'afiado'; b.cols++; s.bagLvl++; }
+        if (s.wins === 3) { for (let x = 0; x < b.cols; x++) b.pockets[S.K(x, b.rows)] = 'leve'; b.rows++; s.bagLvl++; }
+        if (s.wins === D.EVENT_WIN) s.maxHpMod = (s.maxHpMod || 0) - D.ALTAR_HP; }
+      else { s.stopLosses++; s.lives--; }
+      s.round++; if (s.wins >= D.GOAL || s.lives <= 0) break; }
+    const won = s.wins >= D.GOAL; return { v: 2, d: S.dayStr(dayIx), s: Math.round(s.wins * 100 + (won ? 250 : 0) + s.lives * 25), cls: s.cls, w: s.wins, t: 1, pf: proof }; };
+  let altarDay = -1, legit = null; for (let i = 0; i < 40 && !legit; i++) { const e = playAltar(day + i); if (e.w > D.EVENT_WIN) { legit = e; altarDay = day + i; } }
+  const hmUsed = legit && legit.pf.some(f => f.k.hm === -D.ALTAR_HP), pkUsed = legit && legit.pf.some(f => Object.keys(f.k.b[2]).length > 0);
+  const vl = legit ? S.verifyDaily(legit, altarDay) : { why: 'nenhum Diário passou da 6ª vitória' };
+  check(legit && hmUsed && pkUsed && vl.ok, 'I-2: Diário honesto com o Altar (−' + D.ALTAR_HP + ' de vida máxima) e bolsos de 2 ampliações é aceito' + (vl.ok ? '' : ': ' + vl.why));
+  const { entry: e0 } = playDaily(day); const c0 = () => JSON.parse(JSON.stringify(e0));
+  check(e0.pf.every(f => f.k.hm === 0) && S.verifyDaily(c0(), day).ok, 'I-2: Diário honesto sem Altar (hm 0) continua aceito');
+  const hmTry = v => { const t = c0(); for (const f of t.pf) f.k.hm = v; return S.verifyDaily(t, day).why; };
+  const w100k = hmTry(100000);
+  check(w100k === 'vida máxima', 'I-2: hm 100000 é recusado (' + w100k + ')');
+  // a prova forjada da revisão: kit inicial do dia, hm 100000 e 10 vitórias seguidas (1375 pontos) — antes era aceita
+  { const st = startDaily(day), pf = []; for (let i = 0; i < D.GOAL; i++) { st.wins = i; st.round = i + 1; st.maxHpMod = 100000; pf.push({ k: JSON.parse(JSON.stringify(S.snapOf(st))), res: 'win' }); }
+    const forged = { v: 2, d: S.dayStr(day), s: D.GOAL * 100 + 250 + D.LIVES * 25, cls: st.cls, w: D.GOAL, t: 1, pf }, vf = S.verifyDaily(forged, day);
+    let replays = 0; for (const f of pf) if (S.simulate(S.stateFromSnap('D' + S.dayStr(day), f.k, S.seedRoute('D' + S.dayStr(day), 0))).res === 'win') replays++;
+    check(!vf.ok && vf.why === 'vida máxima' && replays === D.GOAL, 'I-2: prova forjada (kit inicial, hm 100000, ' + forged.s + ' pontos; as 10 lutas viram vitória no replay) é recusada (' + vf.why + ')'); }
+  check(hmTry(-D.ALTAR_HP) === 'vida máxima' && hmTry(-3) === 'vida máxima' && hmTry(2.5) === 'vida máxima' && hmTry('-5') === 'vida máxima', 'I-2: hm −ALTAR_HP antes da 6ª vitória, fora do múltiplo, quebrado ou texto é recusado');
+  if (legit) { const t = JSON.parse(JSON.stringify(legit)); for (const f of t.pf) if (f.k.hm) f.k.hm = -2 * D.ALTAR_HP;
+    check(S.verifyDaily(t, altarDay).why === 'vida máxima', 'I-2: dois Altares (−' + 2 * D.ALTAR_HP + ') numa jornada com uma Encruzilhada é recusado'); }
+  // bolsos: mapa que nenhuma ordem de ampliações gera
+  const C = D.CLASSES[e0.cls], b0 = C.bag, k1 = () => ({ c: e0.cls, sub: null, bl: [], lv: 1, p: [], w: 1, r: 2, a: 0, ch: null, i: [], hm: 0, b: [b0[0] + 1, b0[1], {}] });
+  const col = (k, v) => { for (let y = 0; y < b0[1]; y++) k.b[2][S.K(b0[0], y)] = v; return k; };
+  const pOk = k => S.dailySnapOk(k).ok;
+  const good = col(k1(), 'leve'), mixed = col(k1(), 'leve'); mixed.b[2][S.K(b0[0], 0)] = 'afiado';
+  const inBase = col(k1(), 'leve'); inBase.b[2][S.K(0, 0)] = 'leve';
+  const unknown = col(k1(), 'ouro'), missing = col(k1(), 'leve'); delete missing.b[2][S.K(b0[0], 1)];
+  const outside = col(k1(), 'leve'); outside.b[2][S.K(b0[0] + 3, 0)] = 'leve';
+  const none = k1(), arr = col(k1(), 'leve'); arr.b[2] = ['leve'];
+  check(pOk(good) && !pOk(mixed) && !pOk(inBase) && !pOk(unknown) && !pOk(missing) && !pOk(outside) && !pOk(none) && !pOk(arr),
+    'I-2: bolsos: coluna inteira de um tipo aceita; tipos misturados, bolso na mochila de base, tipo desconhecido, célula faltando, fora da mochila, ampliação sem bolso ou lista são recusados');
+  const t2 = c0(); t2.pf[0].k.b[2] = { [S.K(0, 0)]: 'afiado' }; const wp = S.verifyDaily(t2, day).why;
+  check(wp === 'bolsos', 'I-2: prova do Diário com Bolso Afiado na mochila inicial é recusada (' + wp + ')');
+  // coluna e fileira em qualquer ordem: a célula do canto é da ampliação que veio depois
+  const two = { c: e0.cls, lv: 2, w: 3, b: [b0[0] + 1, b0[1] + 1, {}] }; col(two, 'afiado'); for (let x = 0; x <= b0[0]; x++) two.b[2][S.K(x, b0[1])] = 'leve';
+  const two2 = JSON.parse(JSON.stringify(two)); two2.b[2][S.K(b0[0], b0[1])] = 'afiado';/* a coluna veio depois da fileira: o canto é dela */
+  check(S.pocketsPlausible(two) && S.pocketsPlausible(two2), 'I-2: coluna antes ou depois da fileira: os dois mapas possíveis são aceitos');
+  check(S.SIM_VER === '8.6', 'I-2: SIM_VER continua 8.6 (o combate não mudou)');
 }
 // ID 18: o veneno da Mistura Volátil passa pelo teto das armas (antes acumulava sem limite e sem decair)
 {

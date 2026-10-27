@@ -4,12 +4,16 @@
 let sb=null,uid=null;
 /* v1.4 (rodada 2): hora do servidor = "iat" do token da sessão (o servidor assina na hora em que emite; renova a cada ~1 h).
    O navegador não deixa ler o cabeçalho Date do Supabase (CORS), por isso o token. Um iat antigo só deixa o piso mais baixo, nunca trava ninguém. */
-let srvMs=null;
+let srvMs=null,srvAt=0;
 /* v1.4 (rodada 3): hora fora de [2020-01-01, 8,64e15 ms] é ignorada (token adulterado ou absurdo) */
 const SRV_MIN=Date.UTC(2020,0,1),SRV_MAX=8.64e15;
+/* v1.4 (revisão final, I-1): relógio monotônico (performance.now, que mudar a data do aparelho não mexe). Sem ele, 0 (fica no iat). */
+const mono=()=>{try{return typeof performance!=='undefined'&&typeof performance.now==='function'?performance.now():0;}catch(e){return 0;}};
 function noteToken(s){try{const p=JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))),t=p.iat*1000;
- if(Number.isFinite(t)&&t>=SRV_MIN&&t<=SRV_MAX&&(srvMs==null||t>srvMs))srvMs=t;}catch(e){}}
-function serverTime(){return srvMs;}
+ if(Number.isFinite(t)&&t>=SRV_MIN&&t<=SRV_MAX&&(srvMs==null||t>srvMs)){srvMs=t;srvAt=mono();}}catch(e){}}
+/* iat + o tempo que passou desde que o token chegou (pelo relógio monotônico): nunca passa da hora real do servidor, e a virada do dia
+   UTC não espera a renovação do token (~1 h). Aba suspensa só atrasa (fica mais baixa), o que é o lado seguro. */
+function serverTime(){return srvMs==null?null:srvMs+Math.max(0,mono()-srvAt);}
 
 async function init(){const C=window.ALFORJE_CONFIG;
  if(!C||!C.url||!C.key||!window.supabase||typeof window.supabase.createClient!=='function')return null;

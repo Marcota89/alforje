@@ -536,7 +536,7 @@ window.navLab = async () => {
     if (!q('#mline').hidden) q('#mline').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));/* v1.4 (ID 17): o 1º toque completa o texto */
     R.bubbleTapStrip = over && q('#mline').hidden && !!q('[data-lstop]'); q('#labNo').click();
     // Laboratório não vai para a nuvem; a nuvem com jornada vazia mantém a local
-    R.noCloudRun = A.runJSON() === '';
+    R.noCloudRun = (j => j !== '' && !/"mode":"lab"/.test(j))(A.runJSON());/* v1.4 (revisão final, M-4): a jornada do Laboratório nunca vai, e nem run:'' (vai a jornada de verdade guardada) */
     const f = A.foeDef(); R.oppSet = A.state.wins === 5 && f.stop === 5 && f.name === window.AlforjeData.STOPS[5].v[1].name && f.mods.includes(mod) && A.state.asc === 2 && /P6/.test(q('#stats').textContent);
     // perder: troca a mochila por uma adaga Comum contra o chefe na A10
     A.labOppApply({ stop: 10, v: 0, mods: ['furia'], asc: 10 });
@@ -801,6 +801,11 @@ window.navLoteA = async () => {
       const cell = q('.dcell:nth-child(4)'), ch = q('[data-chest="1"]');
       R.m3 = /150 de ouro/.test(cell.getAttribute('aria-label')) && !/ração|rações/.test(cell.getAttribute('aria-label')) && /90 de ouro/.test(ch.getAttribute('aria-label'));
       R.m23audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+      // revisão final (I-1): sem nuvem, com o último dia do servidor 5 dias à frente do aparelho, o aviso pede para acertar a data
+      // (não promete uma data) e não diz "Volte amanhã"
+      m.used = [[today, today]]; m.dayMax = today; delete m.capOn; m.cal.last = m.dayOpen; m.srvDay = new Date(Date.parse(today) + 5 * 864e5).toISOString().slice(0, 10); A.META(); A.dailyScreen();
+      const wl = q('#clockWait'); R.i1late = !!wl && /acerte a data/.test(wl.textContent) && !/\d\d\/\d\d\/\d{4}/.test(wl.textContent) && !/Volte amanhã/.test(q('#dCal').textContent);
+      R.i1audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
     });
   } catch (e) { R.error = String(e && e.stack || e); }
   finally {
@@ -809,14 +814,16 @@ window.navLoteA = async () => {
     if (lab0 == null) localStorage.removeItem(LK); else localStorage.setItem(LK, lab0);
     navPut(K, true);
   }
-  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14gold', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3'];
+  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14gold', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3', 'i1late'];
   R.fail = keys.filter(k => R[k] !== true);
-  R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length && !(R.m23audit || []).length;
+  R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length && !(R.m23audit || []).length && !(R.i1audit || []).length;
   return R;
 };
 //   await navLoteB()  -> v1.4 Lote B, o que depende da página: rollShop aplica a garantia de fusão (com Etiqueta e companheiro), a Coruja
 //                        reaplica a garantia, a garantia nunca oferece raridade com chance 0% na parada, o Diário de outra versão não vai
-//                        ao placar (aviso amigável) e o Altar cobra ALTAR_HP de data.js. Sem nuvem; no fim devolve perfil, jornada e chaves.
+//                        ao placar (aviso amigável) e o Altar cobra ALTAR_HP de data.js. Revisão final (M-4): aba no Laboratório não grava na nuvem
+//                        (cloudPush volta antes de tudo, save não marca nada, runJSON manda a jornada de verdade) e o pendente sai no labExit.
+//                        Sem nuvem; no fim devolve perfil, jornada e chaves.
 window.navLoteB = async () => {
   const A = window.__alforje, D = window.AlforjeData, S = window.AlforjeSim, R = {}, q = s => document.querySelector(s);
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -849,9 +856,22 @@ window.navLoteB = async () => {
     R.i2msg = /versão anterior/.test(seen) && !/não confere/.test(seen); R.i2toast = seen;
     // M5: o Altar cobra o ALTAR_HP de data.js
     start('normal'); A.state.maxHpMod = 0; A.state.event = 'altar'; A.eventChoose(true); A.closeOverlay(); R.m5altar = A.state.maxHpMod === -D.ALTAR_HP;
+    // M-4 (revisão final): aba no Laboratório nunca grava na nuvem. Sem rede: o interruptor de teste fica ligado e pushSave vira espião.
+    // No Laboratório cloudPush volta antes de tudo (CLOUD.ready/dirty intactos); fora dele chega ao interruptor de teste (ready=false), que é o passo antes de gravar.
+    { const C = A.CLOUD, API = window.AlforjeCloud, ps0 = API && API.pushSave, pushed = []; if (API) API.pushSave = async d => { pushed.push(d); };
+      try { start('normal'); A.save(); const realSeed = A.state.seed;
+        A.MENU.mode = 'lab'; A.B = null; A.state = Object.assign(JSON.parse(JSON.stringify(A.state)), { phase: 'class', cls: null }); A.pickClass('warrior', {}); A.MENU.mode = 'normal';
+        const inLab = A.state.mode === 'lab';
+        C.ready = true; C.dirty = true; await A.cloudPush(); const labKept = C.ready === true && C.dirty === true;
+        C.ready = true; C.dirty = false; A.save(); const labSaveClean = C.ready === true && C.dirty === false;
+        const rj = A.runJSON(); R.m4run = inLab && rj !== '' && !/"mode":"lab"/.test(rj) && JSON.parse(rj).seed === realSeed;
+        clearTimeout(C.timer); C.timer = 0; C.ready = true; C.dirty = true; A.labExit(); const sched = C.timer !== 0; clearTimeout(C.timer);
+        C.ready = true; C.dirty = true; await A.cloudPush(); const outReached = C.ready === false;
+        R.m4lab = inLab && labKept && labSaveClean && pushed.length === 0; R.m4exit = A.state.mode !== 'lab' && A.state.seed === realSeed && sched && outReached && pushed.length === 0;
+      } finally { if (API) API.pushSave = ps0; C.ready = false; C.dirty = false; clearTimeout(C.timer); A.closeOverlay(); } }
   } catch (e) { R.error = String(e && e.stack || e); }
   finally { try { if (A.state.phase === 'battle') { A.skip(); A.finish(); } } catch (e) {} navPut(K, true); }
-  R.fail = ['m4merge', 'm4etiq', 'm4pet', 'm4nofuse', 'm3noZero', 'm2owl', 'i2start', 'i2msg', 'm5altar'].filter(k => R[k] !== true);
+  R.fail = ['m4merge', 'm4etiq', 'm4pet', 'm4nofuse', 'm3noZero', 'm2owl', 'i2start', 'i2msg', 'm5altar', 'm4lab', 'm4run', 'm4exit'].filter(k => R[k] !== true);
   R.pass = !R.error && !R.fail.length;
   return R;
 };
@@ -874,6 +894,7 @@ window.auditLoteA = async () => {
     codexLimite: () => { A.META().dscN = 10; A.codexScreen('items'); },
     petsMax: () => { const m = A.META(); for (const k of D.PETKEYS) m.pets[k] = 10; m.egg = 1; A.petsScreen(); },
     lojaRubis: () => { A.shopScreen(); },
+    premiosAtrasado: () => { const m = A.META(), t = m.dayOpen; m.used = [[t, t]]; m.dayMax = t; delete m.capOn; m.cal.last = t; m.srvDay = new Date(Date.parse(t) + 5 * 864e5).toISOString().slice(0, 10); A.META(); A.dailyScreen(); },
     premiosRelogio: () => { const m = A.META(), t = m.dayOpen, far = new Date(Date.parse(t) + 400 * 864e5).toISOString().slice(0, 10); m.used = [[t, t], [far, far]]; m.dayMax = far; m.capOn = new Date(Date.parse(t) - 5 * 864e5).toISOString().slice(0, 10); for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen(); },
     equiparCaro: () => { const m = A.META(); for (const k in m.gear) m.gear[k] = 19; m.stone = 3; m.gold = 50; A.equipScreen(); },
     equiparPronto: () => { const m = A.META(); m.stone = 99999; m.gold = 99999; A.equipScreen(); },

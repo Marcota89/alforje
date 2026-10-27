@@ -236,8 +236,9 @@ const ETIQ={raros:{name:'Etiqueta dos Raros',desc:'a próxima loja garante 2 ite
  ouro:{name:'Etiqueta da Bolsa',desc:'+8 de ouro agora'},trocas:{name:'Etiqueta do Freguês',desc:'a 1ª troca de itens de cada parada sai de graça até o fim'},
  epico:{name:'Etiqueta Épica',desc:'a próxima loja garante 1 item Épico'}};
 const ETIQKEYS=Object.keys(ETIQ);
-/* Encruzilhada (EVE-03). ALTAR_HP: vida máxima que o Altar cobra (regra em main.js eventChoose; texto abaixo) */
-const ALTAR_HP=5;
+/* Encruzilhada (EVE-03). ALTAR_HP: vida máxima que o Altar cobra (regra em main.js eventChoose; texto abaixo).
+   EVENT_WIN: a Encruzilhada vem uma vez por jornada, depois da 6ª vitória (main.js); o servidor usa os dois para conferir a vida máxima do Diário */
+const ALTAR_HP=5,EVENT_WIN=6;
 const EVENTS={
  aposta:{title:'A aposta do Mascate',text:'"Cinco moedas na mesa. Cara, você leva um item Raro. Coroa, eu levo as moedas. Topa?"',a:'Apostar 5 de ouro',b:'Seguir viagem'},
  altar:{title:'Altar na beira da estrada',text:'Uma pedra coberta de runas pede sangue. Dizem que quem oferece sai mais forte.',a:`Oferecer ${ALTAR_HP} de vida máxima: +1 raridade no seu melhor item`,b:'Seguir viagem'},
@@ -283,6 +284,6 @@ const MERCH={
  over:['Mochila pesada demais! Armas demais deixam todas lentas.'],
  surv:['Daqui para o norte eu não vendo fiado. Nem para você.']
 };
-Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,ASC_PRICE,BLESS,ETIQ,ETIQKEYS,EVENTS,ALTAR_HP,CHALLENGES,ACH,STORY,MERCH});
+Object.assign(D,{TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,ASC_PRICE,BLESS,ETIQ,ETIQKEYS,EVENTS,ALTAR_HP,EVENT_WIN,CHALLENGES,ACH,STORY,MERCH});
 window.AlforjeData=Object.freeze(D);
 })();

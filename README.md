@@ -28,4 +28,4 @@ node tools/build.cjs
 node test/test-sim.cjs
 ```
 
-A função do servidor usa cópias de `js/data.js` e `js/sim.js`: ao mudar esses arquivos, publique a função de novo para o placar continuar conferindo as lutas do mesmo jeito que o jogo.
+A função do servidor usa cópias de `js/data.js` e `js/sim.js` (ficam em `supabase/functions/alforje-submit/`): ao mudar esses arquivos, rode `node tools/sync-function.cjs` e publique a função de novo para o placar continuar conferindo as lutas do mesmo jeito que o jogo. `node test/static-check.cjs --final` falha se as cópias estiverem diferentes de `js/`. Ordem ao publicar uma versão nova do combate (`SIM_VER`): primeiro a função, depois o site, na mesma janela.

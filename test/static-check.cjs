@@ -60,6 +60,9 @@ if (args.includes('--final')) {
     report(hit.length === 0, f + ' sem ' + words.join('/') + (hit.length ? ' (achou: ' + hit.join(', ') + ')' : ''));
   });
   report(!fs.existsSync(path.join(root, 'css/legacy.css')), 'css/legacy.css removido');
+  // v1.4 (revisão final, M-2): a função do servidor leva cópias idênticas de js/data.js e js/sim.js (node tools/sync-function.cjs)
+  const fd = require(path.join(root, 'tools', 'sync-function.cjs')).diffs();
+  report(fd.length === 0, 'função alforje-submit com data.js/sim.js iguais aos de js/ e win.js presente' + (fd.length ? ' (' + fd.join('; ') + '; rode node tools/sync-function.cjs)' : ''));
 }
 
 console.log(failed ? 'FALHOU' : 'tudo ok');

@@ -1,7 +1,7 @@
 /* Alforje: geometria da mochila, inimigos e simulação de combate. Sem DOM. */
 (function(){
 'use strict';
-const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH}=window.AlforjeData;
+const {TAGS,TAGKEYS,ITEMS,RECIPES,SHOPKEYS,PATNAME,PETS,PETKEYS,PET_CHARGES,TM,TP,TIERS,AWK,tierVar,CLASSES,CLASSKEYS,SUBS,SUBOF,POCKETS,POCKETKEYS,ARCH,MODS,MODPOOL,STOPS,BAGCOST,MAXEXP,MAXCOLS,MAXROWS,CHEST_ROWS,GOAL,SURV_GOAL,LIVES,SILVER_WIN,ASC_FOE,ASC_MOD2,BLESS,ETIQ,ETIQKEYS,EVENTS,CHALLENGES,ACH,STORY,MERCH,ALTAR_HP,EVENT_WIN}=window.AlforjeData;
 let state=null;
 let DIFF={hp:2.1,dmg:1.5};
 /* v1.4 (I2): versão do combate. O Diário guarda a versão em que começou (state.simv) e manda no registro (e.sv); o servidor
@@ -330,6 +330,25 @@ function buildPlausible(k){const bad=m=>({ok:false,why:m});
  for(const p of pets){if(!p)continue;if(!PETS[p[0]]||!(p[1]>=1&&p[1]<=4))return bad('companheiro');cost+=itemCost(PETS[p[0]].price,p[1]);}
  if(cost>goldCap(k.r))return bad('mochila cara demais para a rodada');
  return {ok:true,cost};}
+/* v1.4 (revisão final, I-2): o que buildPlausible não olhava e decide a luta. Só no Diário (os fantasmas não levam vida máxima).
+   Vida máxima (hm): inteiro, nunca positiva, múltipla de ALTAR_HP e no máximo um Altar por Encruzilhada possível até esta luta
+   (uma por jornada, depois da EVENT_WIN-ª vitória). Bolsos: exatamente as linhas e colunas que as ampliações criaram (doExpand em main.js:
+   cada ampliação cria uma coluna em x = colunas da época, y < fileiras da época, ou uma fileira em y = fileiras da época, x < colunas da
+   época, toda de um tipo só de POCKETS). Confere se alguma ordem das ampliações (no máximo MAXEXP) gera o mapa recebido. */
+function pocketsPlausible(k){const C=CLASSES[k.c],base=k.ch==='small'?[4,4]:C.bag,pk=k.b[2]==null?{}:k.b[2];
+ if(typeof pk!=='object'||Array.isArray(pk))return false;const keys=Object.keys(pk);
+ if(keys.some(x=>typeof pk[x]!=='string'||!Object.prototype.hasOwnProperty.call(POCKETS,pk[x])))return false;
+ const nc=k.b[0]-base[0],nr=k.b[1]-base[1];if(!(nc>=0&&nr>=0&&nc+nr<=MAXEXP))return false;
+ const line=cells=>{const v=pk[cells[0]];return cells.every(c=>Object.prototype.hasOwnProperty.call(pk,c)&&pk[c]===v);};
+ const walk=(c,r,cols,rows,n)=>{if(!c&&!r)return n===keys.length;
+  if(c){const cells=[];for(let y=0;y<rows;y++)cells.push(K(cols,y));if(line(cells)&&walk(c-1,r,cols+1,rows,n+cells.length))return true;}
+  if(r){const cells=[];for(let x=0;x<cols;x++)cells.push(K(x,rows));if(line(cells)&&walk(c,r-1,cols,rows+1,n+cells.length))return true;}
+  return false;};
+ return walk(nc,nr,base[0],base[1],0);}
+function dailySnapOk(k){const bad=m=>({ok:false,why:m}),hm=k.hm==null?0:k.hm;
+ if(!Number.isInteger(hm)||hm>0||hm%ALTAR_HP!==0||-hm/ALTAR_HP>(k.w>=EVENT_WIN?1:0))return bad('vida máxima');
+ if(!pocketsPlausible(k))return bad('bolsos');
+ return {ok:true};}
 /* confere um registro do placar: refaz cada luta da prova e recalcula a pontuação */
 function verifyDaily(e,dayIx){const bad=m=>({ok:false,why:m});
  if(!e||e.v!==2||!Array.isArray(e.pf)||!e.pf.length||e.pf.length>MAXFIGHTS)return bad('sem prova');
@@ -343,6 +362,7 @@ function verifyDaily(e,dayIx){const bad=m=>({ok:false,why:m});
   if(k.r!==prevR+1||k.w!==wins||(k.sl||0)!==sl)return bad('sequência das lutas');
   if(surv){const sr=k.sr;if(!sr||!(sr.s>=5&&sr.s<=8)||!(sr.v>=0&&sr.v<=2))return bad('rota do Norte');}
   const p=buildPlausible(k);if(!p.ok)return bad(p.why);
+  const q=dailySnapOk(k);if(!q.ok)return bad(q.why);
   const out=simulate(stateFromSnap(seed,k,rt));if(out.res!==f.res)return bad('resultado não confere');
   prevR=k.r;
   if(out.res==='win'){wins++;sl=0;}else{sl++;if(surv)survLives--;else lives--;}
@@ -358,5 +378,5 @@ function ghostPlausible(o,asc){if(!o)return {ok:false,why:'código'};
  return buildPlausible({c:o.c,sub:o.s||null,bl:o.bl||[],b:o.b,lv:o.lv||0,i:o.i,p:o.p||[],w:GOAL,r:SURV_GOAL+LIVES+1,a:asc||0,ch:null});}
 window.AlforjeSim={setState(s){state=s;return s;},getState(){return state;},setDiff(h,d){DIFF={hp:h,dmg:d};},
  SIM_VER,forgeTier,blessTier,keyCost,salamanderHeat,newStop,shopMerge,mergesWith,DOT_K,addDot,
- dayStr,dailyClass,battleSeed,BR,snapOf,seedRoute,stateFromSnap,simulate,goldCap,buildPlausible,verifyDaily,ghostPlausible,MAXFIGHTS,hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step};
+ dayStr,dailyClass,battleSeed,BR,snapOf,seedRoute,stateFromSnap,simulate,goldCap,buildPlausible,dailySnapOk,pocketsPlausible,verifyDaily,ghostPlausible,MAXFIGHTS,hashStr,R,pick,rpick,rshuffle,todayStr,dayIndex,fresh,has,bagDims,chestCols,dims,inWhere,isWeapon,tagsOf,hasTag,occ,canPlace,itemAt,findSpot,K,cellsOf,pocketsOf,patOf,starCells,touches,zoneOk,orthoNeighbors,resonance,fightingWeapons,SUPKEYS,supportLinks,affinity,itemWeight,weightInfo,weaponStats,stopIx,isEliteStop,rollElites,foeDef,foeStats,withState,makePlayer,makeFoe,ghostState,dps,newBattle,stat,estat,rec,lg,hurt,strike,fireTrig,spdOf,step};
 })();

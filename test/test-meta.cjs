@@ -299,7 +299,7 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
     // perfil antigo (v8.4, sem m.used) com a trava muito à frente: sem histórico abaixo dela não há âncora, então a trava fica e a tela diz quando abre
     const om = mk(); om.dayMax = '2027-06-01'; om.cal.last = '2027-06-01'; delete om.dayOpen; delete om.used; delete om.capOn;
     const old = M.ensureMeta({ totalWins: 0, ach: {}, meta: om }, T0);
-    check(eq(old.used, [['2027-06-01', '2027-06-01']]) && old.dayMax === '2027-06-01' && M.calToday(old, T0).claimed && M.calToday(old, T0 + DAY).claimed && M.clockWait(old, T0 + DAY) === '2027-06-02',
+    check(eq(old.used, [['2027-06-01', '2027-06-01']]) && old.dayMax === '2027-06-01' && M.calToday(old, T0).claimed && M.calToday(old, T0 + DAY).claimed && (M.clockWait(old, T0 + DAY) || {}).day === '2027-06-02',
       'perfil antigo com a trava 14+ dias à frente e nada abaixo: segue travado, nada reabre, e clockWait diz a próxima data (2027-06-02)');
     // perfil da v8.5 de antes desta correção (days + far): vira m.used; tudo da data mais antiga até a trava conta como usado
     const v85 = M.ensureMeta({ totalWins: 0, ach: {}, meta: { day: '2026-10-21', dayOpen: '2026-10-22', dayMax: '2026-10-22', days: ['2026-10-19', '2026-10-21', '2026-10-22'], far: ['2026-11-20', '2026-11-21'], capOn: '2026-10-21', cal: { last: '2026-10-22', idx: 1 } } }, T0);
@@ -553,10 +553,11 @@ tryBlock(() => {
   const visit = (p, t, srv) => { const a0 = p.meta && p.meta.ad; const m = M.ensureMeta(p, t, srv); return m.ad !== a0 ? m.dayOpen : null; };
   const walk = srv => { const p = newP(); let n = 0; for (let i = 0; i <= 1000; i++) if (visit(p, T0 - 1000 * DAY + i * DAY, srv)) n++; return { p, n }; };
   const withSrv = walk(T0), noSrv = walk(undefined);
-  check(withSrv.n === 2 && withSrv.p.meta.srvDay === '2026-10-21', 'R1-M-1: perfil novo com o relógio 1000 dias atrás, servidor conhecido: só abrem (dia do servidor − 1) e o dia do servidor (' + withSrv.n + ')');
+  /* revisão final (I-1): com a hora do servidor na sessão, o dia que abre é o do servidor (antes: o piso deixava abrir também o dia − 1) */
+  check(withSrv.n === 1 && withSrv.p.meta.srvDay === '2026-10-21' && withSrv.p.meta.dayOpen === '2026-10-21', 'R1-M-1: perfil novo com o relógio 1000 dias atrás, servidor conhecido: só o dia do servidor abre, uma vez (' + withSrv.n + ')');
   check(noSrv.n === 1001 && noSrv.p.meta.srvDay === undefined, 'R1-M-1: sem dia do servidor (só neste aparelho), nada muda (' + noSrv.n + ')');
-  // aparelho 1 dia atrás do servidor (fuso, virada do dia): abre normalmente
-  { const p = newP(); check(visit(p, T0, T0 + DAY) === '2026-10-21' && visit(p, T0 + DAY, T0 + 2 * DAY) === '2026-10-22', 'R1-M-1: aparelho até 1 dia atrás do servidor abre normalmente'); }
+  // aparelho 1 dia atrás do servidor (fuso, virada do dia): abre normalmente, pelo dia do servidor (revisão final, I-1)
+  { const p = newP(); check(visit(p, T0, T0 + DAY) === '2026-10-22' && visit(p, T0 + DAY, T0 + 2 * DAY) === '2026-10-23', 'R1-M-1: aparelho até 1 dia atrás do servidor abre normalmente (pelo dia do servidor)'); }
   // o piso só sobe e fica no perfil: depois, mesmo sem nuvem, um relógio no passado não abre
   { const p = newP(); visit(p, T0 - 100 * DAY); visit(p, T0 - 100 * DAY, T0); M.ensureMeta(p, T0, T0 - DAY / 2); const sd = p.meta.srvDay;
     const r = JSON.parse(JSON.stringify(p)); let n = 0; for (let i = 1; i <= 30; i++) if (visit(r, T0 - 100 * DAY + i * DAY)) n++;
@@ -587,22 +588,75 @@ tryBlock(() => {
     check(blocked === null && back === '2026-10-23' && p.meta.srvDay === '2026-10-23', 'R2-M-2: piso gravado em 2100 trava só até a próxima hora do servidor, que o devolve ao dia do servidor'); }
   { const p = newP(); visit(p, T0, T0); M.ensureMeta(p, T0, T0 - 30 * DAY);
     check(p.meta.srvDay === M.dayKey(T0 - 30 * DAY), 'R2-M-2: piso mais de 1 dia à frente da hora do servidor recebida é limitado a ela'); }
-  // R2-M-3: piso do servidor barrando o dia do aparelho: clockWait diz quando abre (dia do servidor − 1)
-  { const p = newP(); visit(p, T0 - 10 * DAY); const m = M.ensureMeta(p, T0 - 5 * DAY, T0);
-    check(M.clockWait(m, T0 - 5 * DAY) === '2026-10-20' && M.clockWait(m, T0) === null, 'R2-M-3: aparelho 5 dias atrás do servidor: clockWait = dia do servidor − 1 (' + M.clockWait(m, T0 - 5 * DAY) + '); em dia, null'); }
+  // R2-M-3 (refeito na revisão final, I-1): aparelho 5 dias atrás do servidor. Conectado, abre o dia do servidor e não há aviso;
+  // numa sessão sem nuvem o piso barra a data do aparelho e o aviso pede para acertar a data (não promete uma data que anda)
+  { const p = newP(); visit(p, T0 - 10 * DAY); const m = M.ensureMeta(p, T0 - 5 * DAY, T0); const on = m.dayOpen, wOn = M.clockWait(m, T0 - 5 * DAY);
+    M.ensureMeta(p, T0 - 5 * DAY); const wOff = M.clockWait(p.meta, T0 - 5 * DAY), opened = visit(p, T0 + DAY);
+    check(on === '2026-10-21' && wOn === null && eq(wOff, { late: true }) && opened === '2026-10-22' && M.clockWait(p.meta, T0 + DAY) === null,
+      'R2-M-3: aparelho 5 dias atrás: conectado abre o dia do servidor sem aviso; sem nuvem, aviso "acerte a data" (' + JSON.stringify(wOff) + '); com a data certa, abre e o aviso some'); }
   // isDay: data impossível no perfil não trava nada nem lança
   { const m = M.ensureMeta({ totalWins: 0, ach: {}, meta: { srvDay: '2026-13-45', capOn: '2026-02-31x' } }, T0);
     check(m.srvDay === undefined && m.capOn === undefined && M.clockWait(m, T0) === null, 'rodada 3: srvDay/capOn com data impossível saem do perfil'); }
 });
+// v1.4 (revisão final, I-1) — relógio atrasado e jogo conectado: o dia que abre é o maior entre o do aparelho e o do servidor
+tryBlock(() => {
+  const newP = () => ({ totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } });
+  const D0 = Date.UTC(2026, 9, 21), H = 3600000;
+  // um dia real: visitas às 1 h, 9 h e 20 h (UTC real). lag = quanto o aparelho está atrás; online = a sessão tem a hora do servidor.
+  // Conta bônus pagos (e a data de cada um), propagandas de energia, recompensa do Diário, metas novas e limite do Codex zerado.
+  const live = (p, i, lag, online, L) => { for (const h of [1, 9, 20]) { const t = D0 + i * DAY + h * H, dev = t - lag;
+      const m = M.ensureMeta(p, dev, online ? t : undefined); if (L.g0 !== m.goals) { L.goals++; L.g0 = m.goals; }
+      if (m.dscN === 0) L.dsc++; m.dscN = M.DISC_DAY;
+      const c = M.claimCal(m, dev, false); if (c) { L.cal++; L.days.push(m.dayOpen); }
+      m.energy = 0; for (let k = 0; k < 2; k++) if (M.adUse(m, dev, 'energy')) L.ad++;
+      if (M.rewardOk(m, dev, 'daily')) { M.markReward(m, dev, 'daily'); L.rw++; } } };
+  const fresh = () => ({ cal: 0, ad: 0, rw: 0, goals: 0, dsc: 0, days: [], g0: null });
+  const once = days => new Set(days).size === days.length && days.every((d, i) => !i || d > days[i - 1]);
+  // 5 dias com o relógio certo e conectado; depois o relógio cai 2 dias atrás e o jogador segue conectado por 30 dias
+  { const p = newP(), L0 = fresh(); for (let i = 0; i < 5; i++) live(p, i, 0, true, L0);
+    const L = fresh(); L.g0 = p.meta.goals; for (let i = 5; i < 35; i++) live(p, i, 2 * DAY, true, L);
+    const want = []; for (let i = 5; i < 35; i++) want.push(M.dayKey(D0 + i * DAY));
+    check(L.cal === 30 && eq(L.days, want), 'I-1: aparelho 2 dias atrás + hora do servidor por 30 dias: 1 bônus por dia do servidor, nas datas do servidor (' + L.cal + ')');
+    check(L.ad === 90 && L.rw === 30 && L.goals === 30 && L.dsc === 30, 'I-1: e os limites do dia viram todo dia: propagandas 3/dia (' + L.ad + '), recompensa do Diário (' + L.rw + '), metas novas (' + L.goals + '), limite do Codex (' + L.dsc + ')');
+    const m = p.meta; check(m.dayMax === want[29] && m.day === want[29] && m.srvDay === want[29], 'I-1: trava, marcador e piso ficam no dia do servidor (' + m.dayMax + ')');
+    const g = M.goalsToday(M.ensureMeta(p, D0 + 34 * DAY + 20 * H - 2 * DAY - 5 * H, D0 + 34 * DAY + 20 * H), D0 + 34 * DAY + 20 * H - 2 * DAY - 5 * H);
+    check(g.endsIn === 4 * H, 'I-1: o relógio das metas conta até a virada do dia do servidor (' + g.endsIn / H + ' h)'); }
+  // o mesmo jogador sem nuvem (mesmos 5 dias conectado, depois 30 sem nuvem): comportamento de antes, 2 dias travados (as datas do
+  // aparelho já tinham aberto) e depois 1 por dia, cada data uma vez
+  { const p = newP(), L0 = fresh(); for (let i = 0; i < 5; i++) live(p, i, 0, true, L0);
+    const L = fresh(); L.g0 = p.meta.goals; for (let i = 5; i < 35; i++) live(p, i, 2 * DAY, false, L);
+    check(L.cal === 28 && once(L0.days.concat(L.days)) && L.days[0] === M.dayKey(D0 + 5 * DAY), 'I-1: o mesmo sem nuvem não muda: 28 bônus em 30 dias, cada data uma vez (' + L.cal + ')'); }
+  // conectado com o aparelho atrás e depois sem nuvem no mesmo dia: as datas do aparelho já estão abaixo da trava, nada a mais
+  { const p = newP(), L = fresh(); live(p, 0, 0, true, L); live(p, 1, 2 * DAY, true, L); live(p, 1, 2 * DAY, false, L); live(p, 1, DAY, false, L);
+    check(L.cal === 2 && once(L.days), 'I-1: trocar entre conectado e sem nuvem no mesmo dia não paga de novo (' + L.cal + ')'); }
+  // quem adianta o relógio não ganha nada a mais com a hora do servidor: os mesmos bônus, as mesmas datas, a mesma trava
+  { const run = online => { const p = newP(), L = fresh(); let k = 0;
+      for (let i = 0; i < 10; i++) for (const h of [1, 9, 20]) { const t = D0 + i * DAY + h * H, dev = t + (++k) * DAY;
+        const m = M.ensureMeta(p, dev, online ? t : undefined); if (M.claimCal(m, dev, false)) { L.cal++; L.days.push(m.dayOpen); } }
+      return { L, used: JSON.stringify(p.meta.used), max: p.meta.dayMax }; };
+    const a = run(true), b = run(false);
+    check(a.L.cal === b.L.cal && eq(a.L.days, b.L.days) && a.used === b.used && a.max === b.max && once(a.L.days), 'I-1: relógio adiantado a cada visita: com a hora do servidor, nada a mais (' + a.L.cal + ' = ' + b.L.cal + ')'); }
+  // passeio aleatório (relógio para trás e para a frente, com e sem nuvem): nenhuma data paga 2 vezes e nada passa do maior relógio visto
+  { const rnd = (s => () => (s = (s * 1103515245 + 12345) >>> 0) / 4294967296)(7); let bad = 0;
+    for (let w = 0; w < 300; w++) { const p = newP(), days = []; let top = '';
+      for (let i = 0; i < 40; i++) { const t = D0 + i * DAY / 2, x = rnd(), dev = t + (x < .4 ? -Math.floor(rnd() * 5) : x < .7 ? 0 : Math.floor(rnd() * 30)) * DAY, on = rnd() < .5;
+        const hi = M.dayKey(Math.max(dev, on ? t : -Infinity)); if (hi > top) top = hi;
+        const m = M.ensureMeta(p, dev, on ? t : undefined); if (M.claimCal(m, dev, false)) days.push(m.dayOpen); }
+      if (new Set(days).size !== days.length || days.some(d => d > top)) bad++; }
+    check(bad === 0, 'I-1: 300 passeios mistos (atrás, adiantado, com e sem nuvem): cada data paga no máximo uma vez (' + bad + ')'); }
+});
 // v1.4 (rodada de correção 3, R2-M-2) — js/cloud.js ignora iat fora de [2020-01-01, 8,64e15 ms]
 tryBlock(() => {
   const tok = iat => 'h.' + Buffer.from(JSON.stringify({ iat })).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
-  const load = iat => { const c = { window: {}, Date, JSON, Number, Math, atob, console }; c.window.ALFORJE_CONFIG = { url: 'u', key: 'k' };
+  const load = (iat, perf) => { const c = { window: {}, Date, JSON, Number, Math, atob, console }; if (perf) c.performance = perf; c.window.ALFORJE_CONFIG = { url: 'u', key: 'k' };
     c.window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: { access_token: tok(iat), user: { id: 'x' } } } }), onAuthStateChange: () => {} } }) };
     vm.createContext(c); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud.js'), 'utf8'), c, { filename: 'cloud.js' }); return c.window.AlforjeCloud; };
   const ok = load(Math.floor(T0 / 1000)), huge = load(1e17), old = load(Date.UTC(2010, 0, 1) / 1000);
-  pending.push(Promise.all([ok.init(), huge.init(), old.init()]).then(() => {
+  let clk = 1000; const mono = load(Math.floor(T0 / 1000), { now: () => clk });
+  pending.push(Promise.all([ok.init(), huge.init(), old.init(), mono.init()]).then(() => {
     check(ok.serverTime() === Math.floor(T0 / 1000) * 1000 && huge.serverTime() === null && old.serverTime() === null, 'R2-M-2: cloud.js aceita iat bom e ignora iat absurdo (1e17 s) ou antigo (2010)');
+    const s0 = mono.serverTime(); clk += 2 * 3600000; const s1 = mono.serverTime(); clk = 0;
+    check(s0 === Math.floor(T0 / 1000) * 1000 && s1 === s0 + 2 * 3600000 && mono.serverTime() === s0, 'revisão final (I-1): serverTime = iat + tempo monotônico desde o token (2 h depois: +2 h; relógio monotônico para trás não desce do iat)');
   }).catch(e => check(false, 'cloud.js: ' + e.message)));
 });
 
