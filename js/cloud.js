@@ -2,19 +2,20 @@
 (function(){
 'use strict';
 let sb=null,uid=null;
-/* v1.4 (rodada 2): hora do servidor, lida do cabeçalho Date das respostas que o jogo já pede (nenhuma chamada nova).
-   Guarda o ms do servidor e o performance.now() da leitura; serverTime() soma o tempo que passou desde então (não usa o relógio do aparelho). */
-let srvMs=null,srvAt=0;
-function noteDate(r){try{const h=r&&r.headers&&r.headers.get('date'),t=h?Date.parse(h):NaN;if(Number.isFinite(t)){srvMs=t;srvAt=performance.now();}}catch(e){}return r;}
-const timedFetch=(...a)=>fetch(...a).then(noteDate);
-function serverTime(){return srvMs==null?null:srvMs+(performance.now()-srvAt);}
+/* v1.4 (rodada 2): hora do servidor = "iat" do token da sessão (o servidor assina na hora em que emite; renova a cada ~1 h).
+   O navegador não deixa ler o cabeçalho Date do Supabase (CORS), por isso o token. Um iat antigo só deixa o piso mais baixo, nunca trava ninguém. */
+let srvMs=null;
+function noteToken(s){try{const p=JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))),t=p.iat*1000;
+ if(Number.isFinite(t)&&(srvMs==null||t>srvMs))srvMs=t;}catch(e){}}
+function serverTime(){return srvMs;}
 
 async function init(){const C=window.ALFORJE_CONFIG;
  if(!C||!C.url||!C.key||!window.supabase||typeof window.supabase.createClient!=='function')return null;
- sb=window.supabase.createClient(C.url,C.key,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'alforje-auth'},global:{fetch:timedFetch}});
+ sb=window.supabase.createClient(C.url,C.key,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'alforje-auth'}});
  let {data:{session}}=await sb.auth.getSession();
  /* primeira visita: conta de convidado, sem cadastro; o progresso fica preso a ela neste aparelho */
  if(!session){const r=await sb.auth.signInAnonymously();if(r.error)return null;session=r.data.session;}
+ noteToken(session);sb.auth.onAuthStateChange((e,s)=>{if(s)noteToken(s);});
  uid=session&&session.user?session.user.id:null;return uid;}
 
 async function loadSave(){const {data,error}=await sb.from('saves').select('t,v,prof,run').eq('user_id',uid).maybeSingle();if(error)throw error;return data;}

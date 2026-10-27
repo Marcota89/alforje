@@ -56,7 +56,7 @@ function setUsed(m,rs){rs=rs.slice().sort((a,b)=>a[0]-b[0]);const o=[];
  while(o.length>USED_MAX){let k=0;for(let i=1;i<o.length-1;i++)if(o[i+1][0]-o[i][1]<o[k+1][0]-o[k][1])k=i;o[k][1]=o[k+1][1];o.splice(k+1,1);}
  m.used=o.map(r=>[dS(r[0]),dS(r[1])]);}
 const inUsed=(m,dk)=>(Array.isArray(m.used)?m.used:[]).some(r=>dk>=r[0]&&dk<=r[1]);
-/* v1.4 (rodada 2): piso do servidor. Quando a nuvem respondeu, m.srvDay guarda o dia do servidor (cabeçalho Date, só sobe);
+/* v1.4 (rodada 2): piso do servidor. Quando a nuvem respondeu, m.srvDay guarda o dia do servidor (iat do token da sessão, só sobe);
    nenhuma data antes de (dia do servidor − 1) abre prêmio. Sem nuvem (só neste aparelho), nada muda. */
 const srvFloorOk=(m,dk)=>!isDay(m.srvDay)||dN(dk)>=dN(m.srvDay)-1;
 const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk)&&srvFloorOk(m,dk);
