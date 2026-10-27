@@ -290,15 +290,21 @@ const mk = (prof, now) => M.ensureMeta(prof || { totalWins: 0, ach: {} }, now ==
     const fz = mk(); M.claimCal(fz, T0, false);
     M.claimCal(fz, T0 + 30 * DAY, false); M.adUse(fz, T0 + 30 * DAY, 'shop');
     const back = M.calToday(fz, T0);
-    check(back.claimed && eq(fz.far, ['2026-11-20', '2026-11-20']) && fz.dayMax === '2026-10-21' && fz.capOn === '2026-10-21' && fz.ad.shop === 1,
-      'v1.4 relógio 30 dias à frente e de volta: hoje segue pego, contadores usados, o dia aberto lá na frente fica guardado (m.far)');
+    check(back.claimed && eq(fz.used, [['2026-10-21', '2026-10-21'], ['2026-11-20', '2026-11-20']]) && fz.dayMax === '2026-10-21' && fz.capOn === '2026-10-21' && fz.ad.shop === 1,
+      'v1.4 relógio 30 dias à frente e de volta: hoje segue pego, contadores usados; a trava desce até a âncora (o último dia aberto antes do salto)');
     check(!M.calToday(fz, T0 + DAY).claimed, 'relógio 30 dias à frente: o dia real seguinte (nunca aberto) abre normalmente');
     M.calToday(fz, T0 + 30 * DAY);
-    check(fz.dayOpen === '2026-10-22' && eq(fz.far, ['2026-11-20', '2026-11-20']), 'v1.4: o dia já aberto lá na frente não reabre quando o relógio volta a ele');
-    const om = mk(); om.dayMax = '2027-06-01'; om.cal.last = '2027-06-01'; delete om.dayOpen; delete om.days;
+    check(fz.dayOpen === '2026-10-22' && fz.dayMax === '2026-10-22', 'v1.4: o dia já aberto lá na frente (em m.used) não reabre quando o relógio volta a ele');
+    // perfil antigo (v8.4, sem m.used) com a trava muito à frente: sem histórico abaixo dela não há âncora, então a trava fica e a tela diz quando abre
+    const om = mk(); om.dayMax = '2027-06-01'; om.cal.last = '2027-06-01'; delete om.dayOpen; delete om.used; delete om.capOn;
     const old = M.ensureMeta({ totalWins: 0, ach: {}, meta: om }, T0);
-    check(eq(old.far, ['2027-06-01', '2027-06-01']) && old.dayMax === '2026-10-21' && M.calToday(old, T0).claimed && !M.calToday(old, T0 + DAY).claimed,
-      'perfil antigo com dayMax mais de 14 dias à frente: a trava vai para m.far, hoje segue pego e amanhã abre');
+    check(eq(old.used, [['2027-06-01', '2027-06-01']]) && old.dayMax === '2027-06-01' && M.calToday(old, T0).claimed && M.calToday(old, T0 + DAY).claimed && M.clockWait(old, T0 + DAY) === '2027-06-02',
+      'perfil antigo com a trava 14+ dias à frente e nada abaixo: segue travado, nada reabre, e clockWait diz a próxima data (2027-06-02)');
+    // perfil da v8.5 de antes desta correção (days + far): vira m.used; tudo da data mais antiga até a trava conta como usado
+    const v85 = M.ensureMeta({ totalWins: 0, ach: {}, meta: { day: '2026-10-21', dayOpen: '2026-10-22', dayMax: '2026-10-22', days: ['2026-10-19', '2026-10-21', '2026-10-22'], far: ['2026-11-20', '2026-11-21'], capOn: '2026-10-21', cal: { last: '2026-10-22', idx: 1 } } }, T0);
+    check(eq(v85.used, [['2026-10-19', '2026-10-22'], ['2026-11-20', '2026-11-21']]) && v85.days === undefined && v85.far === undefined && M.calToday(v85, T0 + DAY).claimed && !M.calToday(v85, T0 + 2 * DAY).claimed,
+      'migração v8.5: days/far viram m.used (10-19 a 10-22 inteiro, nada passado reabre); a próxima data nova abre');
+    M.calToday(v85, T0 + 30 * DAY); check(v85.dayOpen === '2026-10-23' && v85.dayMax === '2026-10-23', 'migração v8.5: a data lá na frente que já pagou continua usada');
     const near = mk(); M.claimCal(near, T0 + 10 * DAY, false); M.calToday(near, T0);
     check(near.dayMax === '2026-10-31' && near.cal.last === '2026-10-31', '10 dias à frente: dentro do teto, segue travado até o dia aberto');
   }
@@ -458,35 +464,56 @@ tryBlock(() => {
   check(c.n === 3 && c.rest === 0 && m.ruby === 26, 'ID 11: amanhã Coletar todos pega o resto');
 });
 
-// v1.4 (ID 2) — relógio: saltos de 15 dias ida e volta (P1 r2 #1) não reabrem nada; a correção de relógio quebrado não apaga a trava e só vale 1 vez a cada 30 dias
+// v1.4 (ID 2, rodada de correção 1) — relógio: cada data do calendário paga no máximo uma vez, para sempre (m.used + trava m.dayMax);
+// a correção de relógio quebrado só desce a trava até a âncora do histórico, 1 vez a cada 30 dias do histórico
 tryBlock(() => {
-  /* pega tudo o que o dia dá: calendário (em dobro), 3 propagandas de energia, a de ouro, o prêmio do Diário e as 2 compras de energia */
   const harvest = (m, t) => { let n = 0; m.energy = 0; const r = M.claimCal(m, t, true); if (r) n++; for (let i = 0; i < 3; i++) if (M.adUse(m, t, 'energy')) n++; if (M.adUse(m, t, 'shop')) n++;
     if (M.rewardOk(m, t, 'daily')) { M.markReward(m, t, 'daily'); n++; } m.ruby += 30; for (let i = 0; i < 2; i++) { m.energy = 0; if (M.buy(m, t, 'energy30')) n++; } m.energy = 0; return n; };
-  const loop = (jump, cycles) => { const p = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m = M.ensureMeta(p, T0); const per = [];
+  const newP = () => ({ totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } });
+  /* visita com o relógio em t: devolve a data se ela abriu agora (m.ad é trocado só quando uma data abre) */
+  const visit = (p, t) => { const a0 = p.meta && p.meta.ad; const m = M.ensureMeta(p, t); return m.ad !== a0 ? m.dayOpen : null; };
+  const claims = (p, ts) => { let n = 0; for (const t of ts) { const m = M.ensureMeta(p, t); if (M.claimCal(m, t, false)) n++; } return n; };
+  // 1) o caso da spec: 20 ciclos de +15 dias e volta pagam o mesmo que 1
+  const loop = (jump, cycles) => { const p = newP(); const m = M.ensureMeta(p, T0); const per = [];
     let tot = 0; for (let c = 0; c < cycles; c++) { const a = harvest(m, T0), b = harvest(m, T0 + jump * DAY); M.ensureMeta(p, T0); tot += a + b; per.push(a + '/' + b); } return { m, tot, per }; };
   const one = loop(15, 1), twenty = loop(15, 20);
   check(one.tot === 16 && twenty.tot === one.tot, 'ID 2: 20 ciclos de +15 dias/volta pagam o mesmo que 1 (' + twenty.tot + ' x ' + one.tot + '; ' + twenty.per.slice(0, 4).join(' ') + ' …)');
-  const m = twenty.m;
-  check(m.capOn === '2026-10-21' && eq(m.far, ['2026-11-05', '2026-11-05']), 'ID 2: a correção ficou marcada no perfil e a trava do dia mais adiantado foi guardada');
-  // depois da correção, os dias reais entre hoje e o dia já aberto abrem normalmente (1 vez cada) e o dia já aberto não reabre
-  let real = 0; for (let d = 1; d <= 14; d++) real += harvest(m, T0 + d * DAY) > 0 ? 1 : 0;
-  const again = harvest(m, T0 + 15 * DAY), next = harvest(m, T0 + 16 * DAY);
-  check(real === 14 && again === 0 && next > 0 && m.far === undefined, 'ID 2: dias reais seguintes abrem 1 vez cada; o dia já aberto lá na frente não paga de novo; depois dele tudo normal');
-  // 2ª ida longe dentro de 30 dias: sem correção, a trava fica (nada reabre)
-  const p2 = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m2 = M.ensureMeta(p2, T0);
-  harvest(m2, T0); harvest(m2, T0 + 15 * DAY); M.ensureMeta(p2, T0);
-  const b16 = harvest(m2, T0 + 16 * DAY); M.ensureMeta(p2, T0);
-  check(b16 > 0 && m2.dayMax === '2026-11-06' && m2.capOn === '2026-10-21', 'ID 2: outro dia novo lá na frente abre (é um dia que nunca foi aberto), mas a trava volta');
-  let lock = 0; for (let d = 1; d <= 16; d++) lock += harvest(m2, T0 + d * DAY);
-  check(lock === 0 && harvest(m2, T0 + 17 * DAY) > 0, 'ID 2: sem 2ª correção em 30 dias, nada até o dia mais adiantado reabre');
-  // 30 dias reais depois, uma nova correção vale
-  const p3 = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const m3 = M.ensureMeta(p3, T0);
-  harvest(m3, T0 + 15 * DAY); M.ensureMeta(p3, T0);
-  harvest(m3, T0 + 31 * DAY); harvest(m3, T0 + 60 * DAY); M.ensureMeta(p3, T0 + 31 * DAY);
-  check(m3.capOn === '2026-11-21' && m3.far[1] === '2026-12-20', 'ID 2: 30 dias depois da 1ª, uma nova correção é aceita');
-  // energia por relógio: fica registrada como limite conhecido (regeneração de energia não é prêmio)
+  // 2) relógio em T−1000 e andando 1 dia por vez por 200 dias (no mesmo dia real): nada abre
+  { const p = newP(); M.claimCal(M.ensureMeta(p, T0), T0, false); const ts = []; for (let i = 0; i <= 200; i++) ts.push(T0 - 1000 * DAY + i * DAY);
+    const n = claims(p, ts); check(n === 0 && p.meta.capOn === undefined, 'ID 2 (I-1): relógio 1000 dias atrás andando 200 dias: 0 resgates, 0 correções (' + n + ')'); }
+  // 3) 5 datas passadas diferentes no mesmo dia real: 0 correções e 0 resgates
+  { const p = newP(); M.claimCal(M.ensureMeta(p, T0), T0, false); let n = 0, caps = 0;
+    for (let r = 0; r < 5; r++) { const P = T0 - (1000 + 500 * r) * DAY, c0 = p.meta.capOn; const ts = []; for (let i = 0; i <= 100; i++) ts.push(P + i * DAY); n += claims(p, ts); M.ensureMeta(p, T0); if (p.meta.capOn !== c0) caps++; }
+    check(n === 0 && caps === 0 && p.meta.capOn === undefined, 'ID 2 (I-1): 5 âncoras no passado no mesmo dia real: 0 correções, 0 resgates (' + caps + '/' + n + ')'); }
+  // 4) +60 dias, volta, +60 dias de novo: a 2ª ida não paga nenhuma data já paga
+  { const p = newP(); M.ensureMeta(p, T0); const seen = {}; let dup = 0, first = 0, second = 0;
+    for (let i = 1; i <= 60; i++) { const d = visit(p, T0 + i * DAY); if (d) { first++; if (seen[d]) dup++; seen[d] = 1; } }
+    M.ensureMeta(p, T0);
+    for (let i = 1; i <= 60; i++) { const d = visit(p, T0 + i * DAY); if (d) { second++; if (seen[d]) dup++; seen[d] = 1; } }
+    check(first === 60 && second === 0 && dup === 0, 'ID 2 (I-2): +60 dias, volta, +60 de novo: 2ª ida não paga nada (' + first + '/' + second + ', repetidas ' + dup + ')'); }
+  // 5) caso legítimo: relógio pula +5000 dias e é consertado; o dia real seguinte abre; 2º pulo dentro de 30 dias do histórico fica travado
+  { const p = newP(); M.ensureMeta(p, T0); visit(p, T0 + 5000 * DAY); visit(p, T0 + 5001 * DAY);
+    const fix = visit(p, T0 + DAY), nxt = visit(p, T0 + 2 * DAY);
+    check(fix === '2026-10-22' && nxt === '2026-10-23' && p.meta.capOn === '2026-10-21' && p.meta.dayMax === '2026-10-23', 'ID 2: relógio +5000 dias e consertado: o dia real abre normalmente (correção na âncora 2026-10-21)');
+    visit(p, T0 + 6000 * DAY); let n = 0; for (let i = 3; i <= 40; i++) if (visit(p, T0 + i * DAY)) n++;
+    check(n === 0 && M.clockWait(p.meta, T0 + 40 * DAY) !== null, 'ID 2: 2º pulo dentro de 30 dias do histórico: a trava fica (0 datas abertas em 38 dias reais) e clockWait avisa'); }
+  // 6) propriedade: 2.000 passeios aleatórios do relógio — nenhuma data abre 2 vezes, e quem nunca passa do dia real R abre no máximo R − 1º dia + 1 datas
+  { let s0 = 12345; const rnd = () => { s0 = (s0 * 1103515245 + 12345) >>> 0; return s0 / 4294967296; };
+    let twice = 0, over = 0, walks = 0;
+    for (let w = 0; w < 2000; w++) { const p = newP(), F = T0 + Math.floor(rnd() * 40) * DAY; let t = F, R = F; const seen = {}; let opens = 0;
+      const step = () => { const d = visit(p, t); if (d) { opens++; if (seen[d]) twice++; seen[d] = 1; } if (t > R) R = t; };
+      step();
+      for (let k = 0; k < 40; k++) { const x = rnd();
+        if (x < .45) t += DAY; else if (x < .6) t += Math.ceil(rnd() * 40) * DAY; else if (x < .75) t -= Math.ceil(rnd() * 60) * DAY;
+        else if (x < .9) t = F + Math.floor((rnd() * 3300) - 3000) * DAY; else t += Math.ceil(rnd() * 3000) * DAY;
+        step(); }
+      if (opens > Math.round((R - F) / DAY) + 1) over++; walks++; }
+    check(walks === 2000 && twice === 0 && over === 0, 'ID 2: 2.000 passeios aleatórios do relógio: nenhuma data aberta 2 vezes (' + twice + '), aberturas ≤ dias reais (' + over + ')'); }
+  // 7) m.used guarda no máximo 64 faixas; ao juntar, as datas do meio contam como usadas
+  { const p = newP(); M.ensureMeta(p, T0); for (let i = 1; i <= 100; i++) visit(p, T0 + i * 3 * DAY);
+    const u = p.meta.used; check(u.length === 64 && u[0][0] === '2026-10-21', 'ID 2: m.used limitado a 64 faixas, juntando as mais próximas (' + u.length + ')'); }
 });
+
 // v1.4 (ID 8) — pedras crescentes e ração sem uso vira ouro
 tryBlock(() => {
   const m = mk(); for (const k of D.PETKEYS.slice(0, 2)) m.pets[k] = M.PET_MAX; m.cal.idx = 3;

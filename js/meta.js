@@ -35,24 +35,37 @@ const isObj=o=>o&&typeof o==='object'&&!Array.isArray(o);
 const isNum=n=>typeof n==='number'&&Number.isFinite(n);
 /* o dia da meta só avança (comparação de strings ISO): relógio para trás não reabre nada */
 function goalsOk(g){return isObj(g)&&Array.isArray(g.ids)&&g.ids.length&&g.ids.every(id=>GOALS[id])&&isObj(g.p)&&Array.isArray(g.done)&&isNum(g.pts)&&Array.isArray(g.chests)&&g.chests.length===CHESTS.length;}
-/* ===== v1.4: relógio do aparelho =====
-   m.day     marcador do dia: anda com o relógio e volta junto se o relógio voltar mais de 2 dias.
-   m.dayOpen o dia aberto de verdade cujos contadores valem agora (propagandas, compras, prêmios, metas). O calendário paga 1 vez por dia aberto.
-   m.dayMax  trava: nenhum dia até ele reabre (o dia mais adiantado já aberto). Relógio para trás não reabre nada até passar dele.
-   m.days    os últimos dias abertos (memória curta: diz quais dias ficaram "lá na frente").
-   m.far     [de, até]: os dias abertos lá na frente quando o relógio quebrado foi corrigido. Continuam usados: não reabrem quando o relógio chegar neles.
-   m.capOn   dia da última correção de relógio quebrado (no máximo 1 a cada 30 dias reais). */
-const DAYS_KEEP=30,CAP_EVERY=30;
-const far=(d,dk)=>Date.parse(d)-Date.parse(dk)>14*DAY_MS;
-const inFar=(m,dk)=>Array.isArray(m.far)&&dk>=m.far[0]&&dk<=m.far[1];
-const dayLocked=(m,dk)=>(typeof m.dayMax==='string'&&dk<=m.dayMax)||inFar(m,dk);
-const capOk=(m,dk)=>typeof m.capOn!=='string'||Math.abs(Date.parse(dk)-Date.parse(m.capOn))>=CAP_EVERY*DAY_MS;
-/* relógio quebrado: a trava está mais de 14 dias à frente do relógio. A trava NUNCA é apagada: os dias já abertos lá na frente vão para m.far
-   (continuam usados) e só os dias entre hoje e eles voltam a abrir normalmente. Uma correção a cada 30 dias reais; fora dela, a trava fica. */
-function capFar(m,dk){if(typeof m.dayMax!=='string'||!far(m.dayMax,dk)||!capOk(m,dk))return;
- const ahead=(Array.isArray(m.days)?m.days:[]).filter(d=>d>dk).sort(),lo=ahead.length&&ahead[0]<m.dayMax?ahead[0]:m.dayMax,hi=m.dayMax;
- m.far=Array.isArray(m.far)?[lo<m.far[0]?lo:m.far[0],hi>m.far[1]?hi:m.far[1]]:[lo,hi];
- m.dayMax=dk;m.capOn=dk;}
+/* ===== v1.4: relógio do aparelho (rodada de correção 1) =====
+   Regra única: cada data do calendário paga no máximo uma vez, para sempre.
+   m.used    todas as datas já abertas, em faixas [[de, até], …] ordenadas e juntas (datas vizinhas viram uma faixa só). No máximo 64 faixas:
+             passando disso, as duas faixas mais próximas se fundem e as datas entre elas também contam como usadas.
+   m.dayMax  trava: a data mais alta aberta. Uma data só abre se for maior que a trava e não estiver em m.used.
+   m.dayOpen a data aberta cujos contadores valem agora (propagandas, compras, prêmios, metas). O calendário paga 1 vez por data aberta.
+   m.day     marcador do dia (metas do dia e telas): anda com o relógio e volta junto se o relógio voltar mais de 2 dias. Não decide nada.
+   Relógio quebrado (trava mais de 14 dias à frente do relógio): o bloco do topo de m.used (faixas separadas por até 14 dias sem abrir)
+   é o que foi aberto com o relógio errado; a âncora é o fim da faixa logo abaixo desse bloco. A trava desce até a âncora (nunca abaixo
+   dela, diga o relógio o que disser) e m.capOn = âncora. Sem âncora, ou com a âncora a menos de 30 dias de m.capOn (uma data do histórico,
+   não do relógio: mexer no relógio não zera a espera), não há correção e a trava fica. As datas do bloco do topo continuam em m.used. */
+const USED_MAX=64,CAP_EVERY=30,FAR_DAYS=14;
+const isDay=d=>typeof d==='string'&&/^\d{4}-\d\d-\d\d$/.test(d);
+const dN=d=>Math.round(Date.parse(d)/DAY_MS),dS=n=>new Date(n*DAY_MS).toISOString().slice(0,10);
+const usedN=m=>(Array.isArray(m.used)?m.used:[]).map(r=>[dN(r[0]),dN(r[1])]);
+/* grava as faixas (números de dia) ordenadas e juntas, no máximo USED_MAX */
+function setUsed(m,rs){rs=rs.slice().sort((a,b)=>a[0]-b[0]);const o=[];
+ for(const r of rs){const l=o[o.length-1];if(l&&r[0]<=l[1]+1){if(r[1]>l[1])l[1]=r[1];}else o.push([r[0],r[1]]);}
+ while(o.length>USED_MAX){let k=0;for(let i=1;i<o.length-1;i++)if(o[i+1][0]-o[i][1]<o[k+1][0]-o[k][1])k=i;o[k][1]=o[k+1][1];o.splice(k+1,1);}
+ m.used=o.map(r=>[dS(r[0]),dS(r[1])]);}
+const inUsed=(m,dk)=>(Array.isArray(m.used)?m.used:[]).some(r=>dk>=r[0]&&dk<=r[1]);
+const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk);
+function capFar(m,dk){if(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS)return;
+ const u=usedN(m);let i=u.length-1;if(i<1)return;
+ while(i>0&&u[i][0]-u[i-1][1]-1<=FAR_DAYS)i--;/* sobe o bloco do topo: buracos de até 14 datas não abertas */
+ if(i===0)return;const anchor=u[i-1][1];
+ if(anchor>=dN(m.dayMax)||isDay(m.capOn)&&anchor<dN(m.capOn)+CAP_EVERY)return;
+ m.dayMax=dS(anchor);m.capOn=dS(anchor);}
+/* trava segurando por relógio mudado (sem correção possível agora): a próxima data que pode abrir; senão null */
+function clockWait(m,now){const dk=dayKey(now);if(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS)return null;
+ let n=dN(m.dayMax)+1;while(inUsed(m,dS(n)))n++;return dS(n);}
 /* meta impossível: "Melhore uma peça ou alimente um companheiro" vira a próxima meta do sorteio do dia, só para este jogador, quando
    tudo está no máximo ou (v1.4) quando, na hora do sorteio do dia, não há recursos para nenhuma melhoria nem alimentação */
 const canUpgradeAny=m=>Object.keys(GEAR).some(k=>(m.gear&&m.gear[k]||1)<GEAR_MAX)||Object.keys(m.pets||{}).some(k=>m.pets[k]>=1&&m.pets[k]<PET_MAX);
@@ -63,22 +76,19 @@ function swapGoals(m){const g=m.goals,i=g.ids.indexOf('upgrade1');if(i<0||g.done
  if(canUpgradeAny(m)&&!(draw&&!(g.p.upgrade1>0)&&!canAffordAny(m)))return m;
  const nx=goalOrder(m.day).find(id=>id!=='upgrade1'&&!g.ids.includes(id));if(nx){g.ids[i]=nx;delete g.p.upgrade1;}return m;}
 function rollDay(m,now){swapGoals(rollDay0(m,now));return m;}
-function openDay(m,dk){m.day=dk;m.dayOpen=dk;m.dayMax=dk;
- const ds=(Array.isArray(m.days)?m.days:[]).filter(d=>typeof d==='string'&&d!==dk);ds.push(dk);ds.sort();m.days=ds.slice(-DAYS_KEEP);
- if(Array.isArray(m.far)&&m.far[1]<dk)delete m.far;
+function openDay(m,dk){m.day=dk;m.dayOpen=dk;m.dayMax=dk;setUsed(m,usedN(m).concat([[dN(dk),dN(dk)]]));
  m.ad={energy:0,double:0,shop:0};m.buys={energy30:0};m.rw={daily:0,duel:0};m.dscN=0;m.goals=newGoals(dk);}
 function rollDay0(m,now){const dk=dayKey(now);
- if(typeof m.day!=='string'||!m.day){openDay(m,dk);return m;}
- /* relógio para trás mais de 2 dias: só o marcador volta; o dia de onde ele veio vira a trava (se ainda não estiver guardado) */
- if(m.day>dk&&Date.parse(m.day)-Date.parse(dk)>2*DAY_MS){if(!inFar(m,m.day)&&!(typeof m.dayMax==='string'&&m.dayMax>=m.day))m.dayMax=m.day;m.day=dk;}
+ /* relógio para trás mais de 2 dias: só o marcador volta (a decisão de abrir vem só da trava e de m.used) */
+ if(isDay(m.day)&&m.day>dk&&dN(m.day)-dN(dk)>2)m.day=dk;
  capFar(m,dk);
- if(dk>m.day){if(!dayLocked(m,dk)){openDay(m,dk);return m;}m.day=dk;}
+ if(canOpen(m,dk)){openDay(m,dk);return m;}
+ if(!isDay(m.day)||dk>m.day)m.day=dk;
  if(!goalsOk(m.goals))m.goals=newGoals(m.day);
  return m;}
 /* preenche com o padrão o que faltar numa meta antiga ou parcial */
 /* v1.4: todo número vira inteiro dentro dos limites (perfil adulterado ou corrompido não dá energia, nível ou bônus fora do jogo) */
 const lim=(v,a,b,d)=>isNum(v)?Math.max(a,Math.min(b,Math.floor(v))):d;
-const isDay=d=>typeof d==='string'&&/^\d{4}-\d\d-\d\d$/.test(d);
 const XP_MAX=1e7;
 function backfill(m,prof,now){
  const tw=isNum(prof.totalWins)&&prof.totalWins>0?prof.totalWins:0;
@@ -97,9 +107,19 @@ function backfill(m,prof,now){
  if(!isDay(m.day))m.day='';
  if('dayMax' in m&&!isDay(m.dayMax))delete m.dayMax;
  if(!isDay(m.dayOpen))m.dayOpen=isDay(m.dayMax)&&m.dayMax>m.day?m.dayMax:m.day;/* perfil antigo: o dia aberto é o mais adiantado */
- if(!Array.isArray(m.days))m.days=m.dayOpen?[m.dayOpen]:[];
- m.days=m.days.filter(isDay).slice(-DAYS_KEEP);
- if('far' in m&&!(Array.isArray(m.far)&&m.far.length===2&&isDay(m.far[0])&&isDay(m.far[1])&&m.far[0]<=m.far[1]))delete m.far;
+ /* m.used: perfil antigo (ou registro com defeito) monta as faixas com days, far, dayMax e dayOpen, e tudo da mais antiga delas até a
+    trava conta como usado (nada que já passou reabre); sem trava, ela vira o dia aberto */
+ if(!(Array.isArray(m.used)&&m.used.every(r=>Array.isArray(r)&&r.length===2&&isDay(r[0])&&isDay(r[1])&&r[0]<=r[1]))){
+  const pts=[],rs=[];if(Array.isArray(m.days))for(const d of m.days)if(isDay(d))pts.push(d);
+  if(Array.isArray(m.far)&&isDay(m.far[0])&&isDay(m.far[1])&&m.far[0]<=m.far[1]){rs.push([dN(m.far[0]),dN(m.far[1])]);pts.push(m.far[0]);}
+  if(isDay(m.dayOpen))pts.push(m.dayOpen);
+  if(!isDay(m.dayMax)){const c=[m.dayOpen,m.day].filter(isDay).sort();if(c.length)m.dayMax=c[c.length-1];}
+  if(isDay(m.dayMax))pts.push(m.dayMax);
+  for(const d of pts)rs.push([dN(d),dN(d)]);
+  if(isDay(m.dayMax)&&pts.length){const lo=pts.slice().sort()[0];if(lo<=m.dayMax)rs.push([dN(lo),dN(m.dayMax)]);}
+  setUsed(m,rs);}
+ else setUsed(m,usedN(m));
+ delete m.days;delete m.far;
  if('capOn' in m&&!isDay(m.capOn))delete m.capOn;
  if(!isObj(m.ad))m.ad={};
  for(const k in AD_LIMIT)m.ad[k]=lim(m.ad[k],0,AD_LIMIT[k],0);
@@ -190,7 +210,7 @@ function claimCal(m,now,double){const c=calToday(m,now);if(c.claimed)return null
 /* ===== metas do dia ===== */
 function goalsToday(m,now){rollDay(m,now);const g=m.goals;
  return {ids:g.ids.slice(),p:Object.assign({},g.p),done:g.done.slice(),pts:g.pts,
-  chests:CHESTS.map((c,i)=>({at:c.at,reward:c.reward,ready:g.pts>=c.at&&!g.chests[i],claimed:!!g.chests[i]})),endsIn:endsIn(now)};}
+  chests:CHESTS.map((c,i)=>({at:c.at,reward:foodSwap(m,c.reward),/* v1.4 (M-3): mostra o ouro que a ração vai virar */ready:g.pts>=c.at&&!g.chests[i],claimed:!!g.chests[i]})),endsIn:endsIn(now)};}
 function goalEvent(m,now,ev,n){rollDay(m,now);if(n==null)n=1;const g=m.goals,out=[];
  for(const id of g.ids){const d=GOALS[id];if(!d||d.ev!==ev||g.done.includes(id))continue;
   g.p[id]=Math.min(d.n,(g.p[id]||0)+n);
@@ -275,7 +295,7 @@ function achRuby(m,achKeys){let n=0;
 
 window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,ASC_WINS,HP_PER_LV,
  gearBonus,permScale,permFor,ascWin,progressCounts,isLab,canUpgradeAny,canAffordAny,DISC_RUBY,DISC_DAY,discSync,discNew,discIs,discClaim,discClaimAll,discLeft,
- FOOD_GOLD,foodIdle,
+ FOOD_GOLD,foodIdle,foodSwap,clockWait,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
  levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,rewardOk,markReward,adUse,buy,achRuby};
 })();

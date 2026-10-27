@@ -782,6 +782,23 @@ window.navLoteA = async () => {
       if (btn) btn.click();
       R.id11 = m.ruby === r0 + 20 && qa('#mpage [data-disc]').length === 3 && !q('#discAll') && /Limite de hoje/.test(q('#mpage').textContent);
     });
+    // ===== Rodada de correção 1: M-1 sair do Laboratório com a jornada em luta; M-2 aviso do relógio; M-3 ração mostrada como ouro =====
+    await sect(async () => {
+      start('normal'); A.state.noAsk = true; A.fight(true); const seed = A.state.seed;
+      A.MENU.mode = 'lab'; A.B = null; A.state = Object.assign(JSON.parse(JSON.stringify(A.state)), { phase: 'class', cls: null }); A.pickClass('warrior', {}); A.MENU.mode = 'normal';
+      A.fight(true); A.skip(); q('#labExit') || q('#moreBtn').click(); q('#labExit').click();
+      R.m1 = A.state.mode !== 'lab' && A.state.seed === seed && A.state.phase !== 'battle' && !/Laboratório/.test(q('#overlay').textContent || '');
+      A.closeOverlay();
+    });
+    await sect(async () => {
+      A.closeOverlay(); A.state.phase = 'class'; A.state.cls = null; const m = A.META(), today = m.dayOpen, far = new Date(Date.parse(today) + 400 * 864e5).toISOString().slice(0, 10);
+      m.used = [[today, today], [far, far]]; m.dayMax = far; m.capOn = today; A.META(); A.dailyScreen();
+      const nx = new Date(Date.parse(far) + 864e5).toISOString().slice(0, 10), w = q('#clockWait'); R.m2 = !!w && w.textContent.includes(nx.split('-').reverse().join('/'));/* a data travada já foi aberta: o próximo prêmio é o dia seguinte */
+      for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen();
+      const cell = q('.dcell:nth-child(4)'), ch = q('[data-chest="1"]');
+      R.m3 = /150 de ouro/.test(cell.getAttribute('aria-label')) && !/ração|rações/.test(cell.getAttribute('aria-label')) && /90 de ouro/.test(ch.getAttribute('aria-label'));
+      R.m23audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+    });
   } catch (e) { R.error = String(e && e.stack || e); }
   finally {
     window.removeEventListener('error', onErr);
@@ -789,9 +806,9 @@ window.navLoteA = async () => {
     if (lab0 == null) localStorage.removeItem(LK); else localStorage.setItem(LK, lab0);
     navPut(K, true);
   }
-  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11'];
+  const keys = ['id1', 'id5undo', 'id6reroll', 'id6skip', 'id7', 'id14juros', 'id14altar', 'id13perm', 'id13asc', 'id13key', 'id15more', 'id13exit', 'id15tut', 'id15desc', 'id19noen', 'id19opens', 'id19full', 'id19lock', 'id10', 'id3seen', 'id11btn', 'id11', 'm1', 'm2', 'm3'];
   R.fail = keys.filter(k => R[k] !== true);
-  R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length;
+  R.pass = !R.error && !R.fail.length && (R.id17 === true || typeof R.id17 === 'string') && !(R.id11audit || []).length && !(R.id19audit || []).length && !(R.m23audit || []).length;
   return R;
 };
 //   await auditLoteA() -> alforjeAudit() nas telas que o Lote A mexeu (Acampamento com e sem energia, escolha de herói com bloqueios e no Laboratório,
@@ -813,6 +830,7 @@ window.auditLoteA = async () => {
     codexLimite: () => { A.META().dscN = 10; A.codexScreen('items'); },
     petsMax: () => { const m = A.META(); for (const k of D.PETKEYS) m.pets[k] = 10; m.egg = 1; A.petsScreen(); },
     lojaRubis: () => { A.shopScreen(); },
+    premiosRelogio: () => { const m = A.META(), t = m.dayOpen, far = new Date(Date.parse(t) + 400 * 864e5).toISOString().slice(0, 10); m.used = [[t, t], [far, far]]; m.dayMax = far; m.capOn = t; for (const k of D.PETKEYS) m.pets[k] = 10; A.dailyScreen(); },
     equiparCaro: () => { const m = A.META(); for (const k in m.gear) m.gear[k] = 19; m.stone = 3; m.gold = 50; A.equipScreen(); },
     equiparPronto: () => { const m = A.META(); m.stone = 99999; m.gold = 99999; A.equipScreen(); },
     comoJogar: () => { A.moreScreen(); q('#howBtn').click(); },

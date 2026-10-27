@@ -1324,7 +1324,7 @@ function tabDot(){const m=META(),AM=window.AlforjeMeta,now=Date.now();
  set('pets',m&&m.egg>0&&(PETKEYS.some(k=>!m.pets[k])||m.food<AM.CAP),'!','Pets, ovo para chocar');}
 function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScreen('Prêmios','diario');return;}
  const now=Date.now(),c=AM.calToday(m,now),g=AM.goalsToday(m,now),last=(c.idx+6)%7,dblUsed=m.ad.double>=AM.AD_LIMIT.double;
- const cells=AM.CAL.map((r,i)=>{const ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
+ const cells=AM.CAL.map((r0,i)=>{const r=AM.foodSwap(m,r0),ks=RES_ORDER.filter(k=>r[k]>0),got=c.claimed?i<=last&&i!==c.idx:i<c.idx,cur=!c.claimed&&i===c.idx,nxt=c.claimed&&i===c.idx;
   return `<div class="dcell${got?' got':''}${cur?' now':''}${nxt?' nxt':''}${i===6?' d7':''}" role="img" aria-label="Dia ${i+1}: ${rwSay(r)}${got?', pego':cur?', hoje':nxt?', amanhã':''}"><span class="dn" aria-hidden="true">Dia ${i+1}</span><span class="di" aria-hidden="true">${i===6?ri('chest3'):ks.map(k=>ri(k)).join('')}</span><span class="dv" aria-hidden="true">${i===6?rwTxt(r):ks.map(k=>fmtN(r[k])).join(' · ')}</span></div>`;}).join('');
  const goals=g.ids.map(id=>{const d=AM.GOALS[id],p=g.p[id]||0,done=g.done.includes(id);
   return `<div class="dgoal${done?' ok':''}"><span class="gi" aria-hidden="true">${GOAL_ICO[d.ev]||'⭐'}</span><div class="gt"><b>${d.t}</b><span>${done?'Feita':p+'/'+d.n}</span><div class="pb" aria-hidden="true"><i style="width:${Math.round(p/d.n*100)}%"></i></div></div>${done?`<span class="gok" role="img" aria-label="Feita">✔</span>`:`<button class="k-btn g sm gir" data-ir="${GOAL_GO[d.ev]||'play'}" aria-label="Ir: ${d.t}">IR</button>`}</div>`;}).join('');
@@ -1333,7 +1333,8 @@ function dailyScreen(part){const m=META(),AM=window.AlforjeMeta;if(!m){soonScree
  <div class="k-card pc" id="dCal" data-day="${m.day}"><div class="dcal">${cells}</div>
   <button class="k-btn g" id="calGet" ${c.claimed?'disabled':''}>${c.claimed?'JÁ PEGOU HOJE':'PEGAR'}</button>
   <button class="k-btn ad" id="calDbl" ${c.claimed||dblUsed?'disabled':''}>${dblUsed&&!c.claimed?'Dobro de hoje já usado':'▶ Assistir e pegar em dobro'}</button>
-  <p class="muted small center">${c.claimed?`Volte amanhã: Dia ${c.idx+1}. `:''}Perder um dia não zera a sequência.</p></div>
+  <p class="muted small center">${c.claimed?`Volte amanhã: Dia ${c.idx+1}. `:''}Perder um dia não zera a sequência.</p>${(()=>{const w=AM.clockWait(m,now);/* v1.4 (M-2) */
+  return w?`<p class="muted small center" id="clockWait">O relógio do aparelho mudou: o próximo prêmio abre em ${w.split('-').reverse().join('/')}.</p>`:'';})()}</div>
  <div class="k-card pc" id="dGoals"><h4 class="dh">Metas do dia</h4>
   <div class="dtrack" role="img" aria-label="${g.pts} de 100 pontos"><span class="dpts" aria-hidden="true">${g.pts}</span><div class="dbar" aria-hidden="true"><i style="width:${Math.min(100,g.pts)}%"></i><b style="left:40%"></b><b style="left:70%"></b></div></div>
   <div class="dchests">${chests}</div>${goals}
@@ -1491,7 +1492,8 @@ function labPlace(key,tier){if(!isLab()||!inShop()||!knownItem(key))return false
  if(!sp){toast('Sem espaço na mochila nem no Baú');buzz(40);return false;}
  snapshot();state.items.push({id:state.nid++,key,tier,...sp});sfx('drop');buzz(10);toast(`${d.name} ${TIERS[tier-1]} ${sp.where==='bag'?'na mochila':'no Baú'}`);save();render();return true;}
 function labExit(){if(!isLab())return;LABD=null;MENU.mode='normal';try{localStorage.removeItem(LABKEY);}catch(e){}
- const r=loadRun();setState(r&&r.cls&&r.phase!=='class'?r:fresh());closeOverlay();if(inRun())resumeView();else campScreen();}
+ const r=loadRun();setState(r&&r.cls&&r.phase!=='class'?r:fresh());B=null;finishing=false;closeOverlay();
+ if(state.cls&&state.phase==='battle')resumeFight();else if(inRun())resumeView();else campScreen();}
 /* bônus de conta no Laboratório: os mesmos da jornada normal (equipamento e companheiro), pela Ascensão escolhida; não custam nem rendem nada */
 function labPerm(){const mm=META();if(!mm||!isLab())return;const pm=window.AlforjeMeta.permFor(mm,state.asc);state.perm={hp:pm.hp,block:pm.block,dmgPct:pm.dmgPct,crit:pm.crit};
  const p0=state.pets[0];if(p0&&pm.pet&&p0.key===pm.pet.key&&p0.mul!=null)p0.mul=pm.pet.mul;}
