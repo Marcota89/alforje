@@ -56,16 +56,22 @@ function setUsed(m,rs){rs=rs.slice().sort((a,b)=>a[0]-b[0]);const o=[];
  while(o.length>USED_MAX){let k=0;for(let i=1;i<o.length-1;i++)if(o[i+1][0]-o[i][1]<o[k+1][0]-o[k][1])k=i;o[k][1]=o[k+1][1];o.splice(k+1,1);}
  m.used=o.map(r=>[dS(r[0]),dS(r[1])]);}
 const inUsed=(m,dk)=>(Array.isArray(m.used)?m.used:[]).some(r=>dk>=r[0]&&dk<=r[1]);
-const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk);
-function capFar(m,dk){if(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS)return;
- const u=usedN(m);let i=u.length-1;if(i<1)return;
- while(i>0&&u[i][0]-u[i-1][1]-1<=FAR_DAYS)i--;/* sobe o bloco do topo: buracos de até 14 datas não abertas */
- if(i===0)return;const anchor=u[i-1][1];
+/* v1.4 (rodada 2): piso do servidor. Quando a nuvem respondeu, m.srvDay guarda o dia do servidor (cabeçalho Date, só sobe);
+   nenhuma data antes de (dia do servidor − 1) abre prêmio. Sem nuvem (só neste aparelho), nada muda. */
+const srvFloorOk=(m,dk)=>!isDay(m.srvDay)||dN(dk)>=dN(m.srvDay)-1;
+const canOpen=(m,dk)=>(!isDay(m.dayMax)||dk>m.dayMax)&&!inUsed(m,dk)&&srvFloorOk(m,dk);
+function noteServer(m,srv){if(!isNum(srv))return;const d=dayKey(srv);if(!isDay(m.srvDay)||d>m.srvDay)m.srvDay=d;}
+/* v1.4 (rodada 2): desce bloco por bloco enquanto a âncora ainda estiver mais de 14 dias à frente do relógio (um período com o relógio
+   errado pode ter pausas de mais de 14 dias dentro dele); a checagem dos 30 dias vale só para a âncora final */
+function capFar(m,dk){const d=dN(dk);if(!isDay(m.dayMax)||dN(m.dayMax)-d<=FAR_DAYS)return;
+ const u=usedN(m);let i=u.length-1,anchor=null;if(i<1)return;
+ for(;;){while(i>0&&u[i][0]-u[i-1][1]-1<=FAR_DAYS)i--;/* sobe o bloco: buracos de até 14 datas não abertas */
+  if(i===0)return;anchor=u[i-1][1];if(anchor-d<=FAR_DAYS)break;i--;}
  if(anchor>=dN(m.dayMax)||isDay(m.capOn)&&anchor<dN(m.capOn)+CAP_EVERY)return;
  m.dayMax=dS(anchor);m.capOn=dS(anchor);}
 /* trava segurando por relógio mudado (sem correção possível agora): a próxima data que pode abrir; senão null */
 function clockWait(m,now){const dk=dayKey(now);if(!isDay(m.dayMax)||dN(m.dayMax)-dN(dk)<=FAR_DAYS)return null;
- let n=dN(m.dayMax)+1;while(inUsed(m,dS(n)))n++;return dS(n);}
+ let n=Math.max(dN(m.dayMax)+1,isDay(m.srvDay)?dN(m.srvDay)-1:-Infinity);while(inUsed(m,dS(n)))n++;return dS(n);}
 /* meta impossível: "Melhore uma peça ou alimente um companheiro" vira a próxima meta do sorteio do dia, só para este jogador, quando
    tudo está no máximo ou (v1.4) quando, na hora do sorteio do dia, não há recursos para nenhuma melhoria nem alimentação */
 const canUpgradeAny=m=>Object.keys(GEAR).some(k=>(m.gear&&m.gear[k]||1)<GEAR_MAX)||Object.keys(m.pets||{}).some(k=>m.pets[k]>=1&&m.pets[k]<PET_MAX);
@@ -121,6 +127,7 @@ function backfill(m,prof,now){
  else setUsed(m,usedN(m));
  delete m.days;delete m.far;
  if('capOn' in m&&!isDay(m.capOn))delete m.capOn;
+ if('srvDay' in m&&!isDay(m.srvDay))delete m.srvDay;
  if(!isObj(m.ad))m.ad={};
  for(const k in AD_LIMIT)m.ad[k]=lim(m.ad[k],0,AD_LIMIT[k],0);
  if(!isObj(m.rw))m.rw={};
@@ -134,9 +141,10 @@ function backfill(m,prof,now){
  if(!isObj(m.achPaid))m.achPaid={};
  if(!isObj(m.dsc)||!isObj(m.dsc.i)||!isObj(m.dsc.r)||!isObj(m.dsc.f))m.dsc=discBase(prof.codex);
  if(!m.v)m.v=1;}
-function ensureMeta(prof,now){
+/* srv (opcional): a hora do servidor em ms, quando a nuvem já respondeu */
+function ensureMeta(prof,now,srv){
  if(!prof.meta)prof.meta={v:1,day:''};
- backfill(prof.meta,prof,now);
+ backfill(prof.meta,prof,now);noteServer(prof.meta,srv);
  discSync(prof.meta,prof.codex);
  return rollDay(prof.meta,now);}
 

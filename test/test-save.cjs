@@ -103,6 +103,15 @@ function startRun(dayIx, mode) {
   check(JSON.stringify(p2.asc) === '{}' && JSON.stringify(p2.ascW) === '{}', 'ID 16: Ascensão com tipo errado volta ao padrão');
 }
 
+// ===== 2c. v1.4 (rodada 2): o piso do servidor (meta.srvDay) só fica se for uma data válida =====
+{
+  const pb = { ver: '', best: 0, history: [], ach: {}, asc: {}, codex: { items: {}, foes: {}, recipes: {} }, miss: null, seals: 0, skin: 'couro' };
+  const ok = SV.fixProf({ history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} }, meta: { srvDay: '2026-10-21', gold: 5 } }, clone(pb));
+  const bad = SV.fixProf({ history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} }, meta: { srvDay: 99, gold: 5 } }, clone(pb));
+  const bad2 = SV.fixProf({ history: [], ach: {}, codex: { items: {}, foes: {}, recipes: {} }, meta: { srvDay: '2026-13-45x' } }, clone(pb));
+  check(ok.meta.srvDay === '2026-10-21' && !('srvDay' in bad.meta) && bad.meta.gold === 5 && !('srvDay' in bad2.meta), 'rodada 2: srvDay válido fica no perfil; com defeito sai (o resto do perfil fica)');
+}
+
 // ===== 3. retomada da luta =====
 // ao vivo: newBattle + passos fixos de 0,05 s acumulados por quadros de tamanho variável (como loop() da página)
 function live(s) {

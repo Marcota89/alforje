@@ -55,7 +55,8 @@ const ALTAR_HP=5;
 function freshProf(){return {ver:'',tut:0,best:0,totalWins:0,journeys:0,classWins:{},asc:{},ascW:{},sticker:{},history:[],ach:{},chalDone:{},daily:{},bestSurv:0,codex:{items:{},foes:{},recipes:{}},speed:1,shopMin:0,noAsk:0,miss:null,seals:0,skin:'couro'};}
 let PROF=freshProf();
 /* meta-progressão (energia, moedas, nível, equipamento...): vive em PROF.meta; ensureMeta cria/migra e vira o dia */
-function META(){return window.AlforjeMeta?window.AlforjeMeta.ensureMeta(PROF,Date.now()):null;}
+/* v1.4 (rodada 2): com a nuvem respondendo, a hora do servidor (cabeçalho Date, js/cloud.js) vira piso das datas que abrem prêmio */
+function META(){const C=window.AlforjeCloud,srv=C&&typeof C.serverTime==='function'?C.serverTime():null;return window.AlforjeMeta?window.AlforjeMeta.ensureMeta(PROF,Date.now(),srv):null;}
 /* PROF_HOLD: o perfil salvo estava ilegível (cópia em alforje-prof6-bak). Fica marcado em alforje-prof-hold até a nuvem
    responder de verdade (loadSave): enquanto isso o perfil grava só neste aparelho, nunca vai para a nuvem e não mexe em alforje-ts */
 const HOLDKEY='alforje-prof-hold';

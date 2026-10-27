@@ -75,6 +75,8 @@ function fixProf(p,base){
  for(const k in c.foes)if(!isObj(c.foes[k]))delete c.foes[k];
  if(p.miss!=null&&!(isObj(p.miss)&&Array.isArray(p.miss.ids)&&isObj(p.miss.p)&&isObj(p.miss.done)))p.miss=null;
  if(p.meta!=null&&!isObj(p.meta))delete p.meta;
+ /* v1.4 (rodada 2): o piso do servidor (meta.srvDay) só fica se for uma data AAAA-MM-DD válida */
+ if(isObj(p.meta)&&'srvDay' in p.meta&&!(typeof p.meta.srvDay==='string'&&/^\d{4}-\d\d-\d\d$/.test(p.meta.srvDay)&&Number.isFinite(Date.parse(p.meta.srvDay))))delete p.meta.srvDay;
  /* v1.4: Ascensão por classe 0–10 (inteira), vitórias na Ascensão 0–1; contadores do perfil não negativos */
  for(const f of ['asc','ascW','classWins'])if(p[f]!=null&&!isObj(p[f]))p[f]={};
  for(const k of Object.keys(p.asc||{})){const v=p.asc[k];if(!isNum(v)||!has(D.CLASSES,k))delete p.asc[k];else p.asc[k]=clamp(Math.floor(v),0,10);}

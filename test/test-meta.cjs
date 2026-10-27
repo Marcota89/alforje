@@ -514,6 +514,55 @@ tryBlock(() => {
     const u = p.meta.used; check(u.length === 64 && u[0][0] === '2026-10-21', 'ID 2: m.used limitado a 64 faixas, juntando as mais próximas (' + u.length + ')'); }
 });
 
+// v1.4 (rodada de correção 2, R1-I-1) — a correção desce bloco por bloco enquanto a âncora estiver mais de 14 dias à frente do relógio
+tryBlock(() => {
+  const newP = () => ({ totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } });
+  const visit = (p, t) => { const a0 = p.meta && p.meta.ad; const m = M.ensureMeta(p, t); return m.ad !== a0 ? m.dayOpen : null; };
+  const opensFrom = (p, d0, n) => { let k = 0; for (let i = 0; i < n; i++) if (visit(p, T0 + (d0 + i) * DAY)) k++; return k; };
+  // cenário do revisor: relógio +365 dias por 60 dias reais, com uma pausa de 20 dias no meio; depois consertado
+  { const p = newP(); visit(p, T0); for (let i = 1; i <= 60; i++) { if (i > 20 && i <= 40) continue; visit(p, T0 + (365 + i) * DAY); }
+    const fix = visit(p, T0 + 61 * DAY), after = opensFrom(p, 62, 120);
+    check(fix === M.dayKey(T0 + 61 * DAY) && after === 120 && p.meta.capOn === '2026-10-21' && M.clockWait(p.meta, T0 + 200 * DAY) === null,
+      'R1-I-1: relógio +365 d com uma pausa de 20 d dentro, consertado: o dia real abre e os 120 seguintes também (âncora no histórico real)'); }
+  // vários blocos aninhados lá na frente (+300, +200, +100, cada um com pausa > 14 d): a correção desce todos até o histórico real
+  { const p = newP(); for (let i = 0; i < 5; i++) visit(p, T0 + i * DAY);
+    for (const base of [100, 200, 300]) for (let i = 0; i < 5; i++) visit(p, T0 + (base + i) * DAY);
+    const fix = visit(p, T0 + 5 * DAY);
+    check(fix === M.dayKey(T0 + 5 * DAY) && p.meta.capOn === M.dayKey(T0 + 4 * DAY) && opensFrom(p, 6, 30) === 30, 'R1-I-1: 3 blocos aninhados lá na frente: a correção desce até o histórico real e o jogador segue (30/30)');
+    // as datas lá na frente continuam usadas: quando o relógio real chega nelas, não pagam de novo
+    let again = 0; for (const base of [100, 200, 300]) for (let i = 0; i < 5; i++) if (visit(p, T0 + (base + i) * DAY)) again++;
+    check(again === 0, 'R1-I-1: as datas dos blocos lá na frente nunca pagam de novo (' + again + ')'); }
+  // o laço da spec (20× +15 d / volta) continua sem pagar nada a mais
+  { const p = newP(); visit(p, T0); let n = 0; for (let c = 0; c < 20; c++) { if (visit(p, T0 + 15 * DAY)) n++; if (visit(p, T0)) n++; }
+    check(n === 1, 'R1-I-1: 20× (+15 d / volta) abre só a data +15 uma vez (' + n + ')'); }
+  // a checagem dos 30 dias vale para a âncora final: 2º relógio quebrado dentro de 30 dias do histórico fica travado
+  { const p = newP(); visit(p, T0); visit(p, T0 + 400 * DAY); visit(p, T0 + DAY); visit(p, T0 + 2 * DAY);
+    visit(p, T0 + 500 * DAY); visit(p, T0 + 700 * DAY); const n = opensFrom(p, 3, 20);
+    check(n === 0 && p.meta.capOn === '2026-10-21', 'R1-I-1: 2º salto dentro de 30 dias do histórico, mesmo com blocos aninhados: a trava fica (' + n + ')'); }
+  // fuzz: nenhuma data paga 2 vezes com blocos aninhados e relógio ida e volta
+  { let s0 = 777; const rnd = () => { s0 = (s0 * 1103515245 + 12345) >>> 0; return s0 / 4294967296; }; let twice = 0;
+    for (let w = 0; w < 500; w++) { const p = newP(), seen = {}; let t = T0;
+      for (let k = 0; k < 40; k++) { const x = rnd(); t = x < .5 ? t + DAY : x < .7 ? t + Math.ceil(rnd() * 400) * DAY : x < .9 ? T0 + Math.floor(rnd() * 60) * DAY : t - Math.ceil(rnd() * 100) * DAY;
+        const d = visit(p, t); if (d) { if (seen[d]) twice++; seen[d] = 1; } } }
+    check(twice === 0, 'R1-I-1: 500 passeios com blocos aninhados: nenhuma data paga 2 vezes (' + twice + ')'); }
+});
+// v1.4 (rodada de correção 2, R1-M-1) — piso do servidor: com a nuvem respondendo, nada antes de (dia do servidor − 1) abre
+tryBlock(() => {
+  const newP = () => ({ totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } });
+  const visit = (p, t, srv) => { const a0 = p.meta && p.meta.ad; const m = M.ensureMeta(p, t, srv); return m.ad !== a0 ? m.dayOpen : null; };
+  const walk = srv => { const p = newP(); let n = 0; for (let i = 0; i <= 1000; i++) if (visit(p, T0 - 1000 * DAY + i * DAY, srv)) n++; return { p, n }; };
+  const withSrv = walk(T0), noSrv = walk(undefined);
+  check(withSrv.n === 2 && withSrv.p.meta.srvDay === '2026-10-21', 'R1-M-1: perfil novo com o relógio 1000 dias atrás, servidor conhecido: só abrem (dia do servidor − 1) e o dia do servidor (' + withSrv.n + ')');
+  check(noSrv.n === 1001 && noSrv.p.meta.srvDay === undefined, 'R1-M-1: sem dia do servidor (só neste aparelho), nada muda (' + noSrv.n + ')');
+  // aparelho 1 dia atrás do servidor (fuso, virada do dia): abre normalmente
+  { const p = newP(); check(visit(p, T0, T0 + DAY) === '2026-10-21' && visit(p, T0 + DAY, T0 + 2 * DAY) === '2026-10-22', 'R1-M-1: aparelho até 1 dia atrás do servidor abre normalmente'); }
+  // o piso só sobe e fica no perfil: depois, mesmo sem nuvem, um relógio no passado não abre
+  { const p = newP(); visit(p, T0, T0); M.ensureMeta(p, T0, T0 - 50 * DAY); const sd = p.meta.srvDay;
+    const r = JSON.parse(JSON.stringify(p)); let n = 0; for (let i = 1; i <= 30; i++) if (visit(r, T0 - 40 * DAY + i * DAY)) n++;
+    check(sd === '2026-10-21' && n === 0, 'R1-M-1: o dia do servidor só sobe e vale depois de recarregar, mesmo sem nuvem (' + n + ')'); }
+  // piso com defeito no perfil é descartado
+  { const m = M.ensureMeta({ totalWins: 0, ach: {}, meta: { srvDay: 'ontem' } }, T0); check(m.srvDay === undefined, 'R1-M-1: srvDay com defeito é descartado'); }
+});
 // v1.4 (ID 8) — pedras crescentes e ração sem uso vira ouro
 tryBlock(() => {
   const m = mk(); for (const k of D.PETKEYS.slice(0, 2)) m.pets[k] = M.PET_MAX; m.cal.idx = 3;
