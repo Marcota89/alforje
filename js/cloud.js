@@ -25,7 +25,7 @@ async function pushSave(d){const {error}=await sb.from('saves').upsert(Object.as
 
 /* o servidor refaz as lutas antes de gravar; devolve {ok, score} ou {ok:false, why} */
 async function submit(kind,payload){const {data,error}=await sb.functions.invoke('alforje-submit',{body:Object.assign({kind},payload)});
- if(error){let why='servidor indisponível';try{const b=await error.context.json();if(b&&b.why)why=b.why;}catch(e){}return {ok:false,why};}
+ if(error){let why='servidor indisponível',code;try{const b=await error.context.json();if(b&&b.why)why=b.why;if(b&&b.code)code=b.code;}catch(e){}return {ok:false,why,code};}
  return data;}
 
 async function board(day,limit){const {data,error}=await sb.from('board').select('user_id,score,cls,wins').eq('day',day).order('score',{ascending:false}).limit(limit||30);if(error)throw error;return data||[];}

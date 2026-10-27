@@ -146,7 +146,7 @@ function foeDef(){
 const ascFoe=(k,s,el)=>{const a=state.asc||0,w=(ASC_FOE.early+(1-ASC_FOE.early)*Math.min(s,9)/9)*(el==='boss'?ASC_FOE.boss:el?(s===2?ASC_FOE.elite3:ASC_FOE.elite):1);return 1+(k[0]*Math.min(a,5)+k[1]*Math.max(0,a-5))*w;};
 function foeStats(){const f=foeDef(),st=STOPS[f.stop],A=ARCH[f.arch],el=f.elite?1.15:1,s=f.stop;
  let hpS=1,dS=1;if(f.surv){hpS=STOPS[9].hp/st.hp*Math.pow(1.15,f.surv);dS=STOPS[9].dps/st.dps*Math.pow(1.15,f.surv);}
- /* v1.2: a Ascensão deixa os inimigos mais fortes (vida e dano, ASC_FOE); a A10 ainda soma ×1,13 de vida */
+ /* v1.2: a Ascensão deixa os inimigos mais fortes (vida e dano, ASC_FOE); a A8 soma ASC_FOE.a8 e a A10 ainda ASC_FOE.a10 de vida */
  const ascHp=(state.asc>=8?ASC_FOE.a8:1)*(state.asc>=10?ASC_FOE.a10:1),big=f.boss?'boss':f.elite,aH=ascFoe(ASC_FOE.hp,s,big),aD=ascFoe(ASC_FOE.dmg,s,big);
  const HP=Math.round(st.hp*A.hp*el*DIFF.hp*hpS*ascHp*aH),D=st.dps*(f.elite?1.1:1)*DIFF.dmg*dS*aD;
  let atk=[],block=0,reflect=0,heal=null;
