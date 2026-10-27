@@ -77,11 +77,36 @@ function backfill(m,prof,now){
  if(!isNum(m.buys.energy30))m.buys.energy30=0;
  if(!Array.isArray(m.achBase))m.achBase=Object.keys(prof.ach||{});
  if(!isObj(m.achPaid))m.achPaid={};
+ if(!isObj(m.dsc)||!isObj(m.dsc.i)||!isObj(m.dsc.r)||!isObj(m.dsc.f))m.dsc=discBase(prof.codex);
  if(!m.v)m.v=1;}
 function ensureMeta(prof,now){
  if(!prof.meta)prof.meta={v:1,day:''};
  backfill(prof.meta,prof,now);
+ discSync(prof.meta,prof.codex);
  return rollDay(prof.meta,now);}
+
+/* ===== v1.3: descobertas do Codex (+2 rubis cada) =====
+   m.dsc = {i:itens, r:receitas, f:inimigos}: 0 = já estava no Codex antes desta versão (não paga), 1 = descoberta nova ainda não aberta, 2 = aberta e paga.
+   Quem já tinha Codex na migração recebe tudo como 0 (nada retroativo). O resto é derivado do próprio Codex (que o Laboratório, o Seed e o Duelo não tocam),
+   então desfazer, recarregar ou o Laboratório não criam nem repetem descobertas: cada chave paga uma vez só. */
+const DISC_RUBY=2,DISC_KINDS=['i','r','f'];
+function discKnown(codex){const c=isObj(codex)?codex:{},o={i:[],r:[],f:[]};
+ if(isObj(c.items))for(const k in c.items){const x=c.items[k];if(isObj(x)&&(x.seen>0||x.bought>0||x.forged>0))o.i.push(k);}
+ if(isObj(c.recipes))for(const k in c.recipes)if(c.recipes[k])o.r.push(k);
+ if(isObj(c.foes))for(const k in c.foes){const x=c.foes[k];if(isObj(x)&&x.beat>0)o.f.push(k);}
+ return o;}
+function discBase(codex){const k=discKnown(codex),d={i:{},r:{},f:{}};for(const t of DISC_KINDS)for(const x of k[t])d[t][x]=0;return d;}
+/* marca como novidade (1) o que entrou no Codex e ainda não está no registro; devolve quantas entraram agora */
+function discSync(m,codex){if(!isObj(m.dsc))return 0;const k=discKnown(codex);let n=0;
+ for(const t of DISC_KINDS)for(const x of k[t])if(!(x in m.dsc[t])){m.dsc[t][x]=1;n++;}
+ return n;}
+/* novidades ainda não abertas: total e por tipo */
+function discNew(m){const o={i:0,r:0,f:0,total:0};if(!isObj(m.dsc))return o;
+ for(const t of DISC_KINDS)for(const x in m.dsc[t])if(m.dsc[t][x]===1){o[t]++;o.total++;}
+ return o;}
+const discIs=(m,kind,key)=>isObj(m.dsc)&&isObj(m.dsc[kind])&&m.dsc[kind][key]===1;
+/* abrir uma novidade: paga DISC_RUBY uma vez (respeita o limite de rubis) e devolve {added,lost}; null se não era novidade */
+function discClaim(m,kind,key){if(!discIs(m,kind,key))return null;m.dsc[kind][key]=2;const a=addRes(m,'ruby',DISC_RUBY);return {added:a,lost:DISC_RUBY-a};}
 
 /* ===== energia ===== */
 function tickEnergy(m,now){
@@ -155,12 +180,12 @@ function permFor(m,asc){const p=permOf(m),f=permScale(asc);
  return {hp:Math.round(p.hp*f),block:Math.round(p.block*f),dmgPct:p.dmgPct*f,crit:p.crit*f,gold:Math.floor(p.gold*f),pet:p.pet?{key:p.pet.key,mul:1+(p.pet.mul-1)*f}:null};}
 
 /* ===== fim de jornada ===== */
-function journeyRewards(wins,won,asc,mode){let gold=Math.round((10*wins+(won?50:0))*(1+.05*(asc||0))),stone=Math.floor(wins/3);
+function journeyRewards(wins,won,asc,mode){if(mode==='lab')return {gold:0,stone:0,xp:0};let gold=Math.round((10*wins+(won?50:0))*(1+.05*(asc||0))),stone=Math.floor(wins/3);
  if(mode==='daily'||mode==='duel'){gold=Math.floor(gold/2);stone=0;}
  return {gold,stone,xp:10*wins};}
 
 /* Diário e Duelo pagam prêmio de conta só na 1ª jornada de cada modo por dia UTC */
-function rewardOk(m,now,mode){rollDay(m,now);return !(mode==='daily'||mode==='duel')||!(m.rw[mode]>0);}
+function rewardOk(m,now,mode){rollDay(m,now);if(mode==='lab')return false;return !(mode==='daily'||mode==='duel')||!(m.rw[mode]>0);}
 function markReward(m,now,mode){rollDay(m,now);if(mode==='daily'||mode==='duel')m.rw[mode]=(m.rw[mode]||0)+1;}
 
 /* ===== Ascensão e o que conta para o perfil ===== */
@@ -169,8 +194,10 @@ const ASC_WINS=2,ASC_MAX=10;
 function ascWin(prof,cls,asc){if(!isObj(prof.asc))prof.asc={};if(!isObj(prof.ascW))prof.ascW={};const cur=prof.asc[cls]||0;
  if(asc<cur||cur>=ASC_MAX)return false;prof.ascW[cls]=(prof.ascW[cls]||0)+1;
  if(prof.ascW[cls]>=ASC_WINS){prof.asc[cls]=Math.min(ASC_MAX,Math.max(cur,asc)+1);prof.ascW[cls]=0;return true;}return false;}
-/* Seed e Duelo não contam para desbloqueios, conquistas, Codex nem "jornada completa" (o Duelo só paga a recompensa de conta do dia) */
-const progressCounts=mode=>mode!=='seed'&&mode!=='duel';
+/* Seed e Duelo não contam para desbloqueios, conquistas, Codex nem "jornada completa" (o Duelo só paga a recompensa de conta do dia).
+   v1.3: o Laboratório (sandbox) não conta para nada e não rende nada (nem a recompensa de conta). */
+const progressCounts=mode=>mode!=='seed'&&mode!=='duel'&&mode!=='lab';
+const isLab=mode=>mode==='lab';
 
 /* ===== propaganda, loja, conquistas ===== */
 /* devolve false se recusou; senão o que entrou (energia/ouro) ou true (dobro). No limite (99 de energia, 99999 de ouro) recusa sem gastar a vez. */
@@ -186,7 +213,7 @@ function achRuby(m,achKeys){let n=0;
  return n?addRes(m,'ruby',n*ACH_RUBY):0;}
 
 window.AlforjeMeta={ENERGY_MAX,REGEN_MS,JOURNEY_COST,ENERGY_CAP,CAP,CAL,CHESTS,GOALS,GEAR,LV_MAX,GEAR_MAX,PET_MAX,SHOP,AD_LIMIT,ASC_WINS,HP_PER_LV,
- gearBonus,permScale,permFor,ascWin,progressCounts,canUpgradeAny,
+ gearBonus,permScale,permFor,ascWin,progressCounts,isLab,canUpgradeAny,DISC_RUBY,discSync,discNew,discIs,discClaim,
  dayKey,ensureMeta,tickEnergy,nextEnergyIn,spendEnergy,addRes,applyReward,calToday,claimCal,goalsToday,goalEvent,claimChest,
  levelOf,addXp,gearCost,gearTier,upgradeGear,feedCost,feedPet,hatch,setPetOn,permOf,journeyRewards,rewardOk,markReward,adUse,buy,achRuby};
 })();

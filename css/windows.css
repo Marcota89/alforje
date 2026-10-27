@@ -232,3 +232,33 @@ body.big #sheet ul{font-size:16.5px}
   #splash,#coach .hole,#overlay .modal .choice{transition:none!important}
   #drawer .dpane .slot img,#drawer .dpane .slot.fire{animation:none!important}
 }
+
+/* ===== v1.3 etapa 2 ===== */
+/* "quase lá": cartão do Mascate preocupado com a dica, na janela de derrota */
+#overlay .modal .nearmiss{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;padding:8px 10px;border-color:#c2410c;background:linear-gradient(180deg,#fff6e6,#ffe1c2)}
+#overlay .modal .nearmiss img{width:64px;height:60px;object-fit:contain}
+#overlay .modal .nearmiss div{display:grid;gap:3px;font:700 14px/1.3 var(--f-body);color:var(--ink-brown)}
+#overlay .modal .nearmiss div>b{font:400 18px/1.1 var(--f-title);color:#c2410c;letter-spacing:.03em}
+/* Laboratório: escolha do adversário */
+#overlay .modal .lopp{display:flex;flex-wrap:wrap;gap:6px}
+#overlay .modal .lstops{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+#overlay .modal .lstops .k-btn{min-width:0;padding:0 2px}
+#overlay .modal .lvars{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+#overlay .modal .lvar{display:grid;justify-items:center;align-content:start;gap:2px;min-height:76px;margin:0;padding:6px 4px;cursor:pointer;font:900 12.5px/1.15 var(--f-body);color:var(--ink-brown);text-align:center}
+#overlay .modal .lvar img{height:44px;width:auto;max-width:80px;object-fit:contain}
+#overlay .modal .lvar.on{box-shadow:0 0 0 3px var(--orange),0 3px 0 var(--orange-d)}
+#overlay .modal .lmods .k-btn{flex:1 1 40%}
+#overlay .modal .lasc{align-items:center;justify-content:center;gap:14px}
+#overlay .modal .lasc b{font:400 22px/1 var(--f-title);color:var(--orange-d);min-width:3ch;text-align:center}
+#overlay .modal .lasc .k-btn{width:56px}
+#overlay .modal .lprev{display:grid;gap:4px;padding:8px 10px}
+#overlay .modal .lprev>b{font:400 17px/1.1 var(--f-title);color:var(--orange-d)}
+#overlay .modal .lprev>span{font:700 13.5px/1.3 var(--f-body)}
+/* Laboratório: Catálogo */
+#overlay .modal .ltier{background:rgba(90,42,0,.16)}
+#overlay .modal .ltier>*{min-height:44px;font-size:13px;color:var(--ink-brown)}
+#overlay .modal .lcat{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+#overlay .modal .lci{display:grid;justify-items:center;align-content:start;gap:3px;min-height:84px;margin:0;padding:6px 3px;border:2px solid var(--tier,#9aa6b2);border-radius:12px;background:linear-gradient(180deg,#fffdf4,#fff0cb);color:var(--ink-brown);font:900 11.5px/1.15 var(--f-body);text-align:center;cursor:pointer;box-shadow:0 2px 0 rgba(165,82,10,.35)}
+#overlay .modal .lci img{height:40px;width:auto;max-width:72px;object-fit:contain}
+#overlay .modal .lci:active{transform:translateY(2px);box-shadow:none}
+body.big #overlay .modal .lci{font-size:12.5px}

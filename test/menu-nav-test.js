@@ -17,6 +17,8 @@
 //                        de energia; propaganda: 3 s sem fechar, depois +10 e "1/3 hoje"; energia 99 trava a propaganda.
 //   await menuSweep() -> passa por todas as abas, modos e páginas do menu rodando alforjeAudit() (precisa de test/ui-audit.js), com o interruptor
 //                        ligado (o Placar mostra a mensagem sem conexão). Usa a escolha de herói (estado novo) e no fim devolve a jornada (não roda durante uma luta).
+//   await navLab()    -> Laboratório (v1.3): grátis, ouro infinito, Catálogo, adversário, perder não tira vida, nada muda no perfil (ver abaixo).
+//   await navCodexNew() -> descobertas do Codex (v1.3): selo NOVO!, bolinhas, +2 rubis uma vez (ver abaixo).
 //   await boardLive() -> OPCIONAL, só lê: abre o Placar carregado de verdade (precisa da nuvem: interruptor desligado e página recarregada) e audita.
 window.navVis = s => { const e = document.querySelector(s); return !!e && !e.hidden && getComputedStyle(e).display !== 'none'; };
 window.navOne = () => navVis('#menu') !== navVis('#app');
@@ -102,7 +104,7 @@ window.menuSweep = async () => {
   await run('aba:jogar', () => click('[data-nav="jogar"]'));
   await run('pilula->loja', () => { A.campScreen(); click('#pGold'); });
   await run('heroi:normal', () => { A.campScreen(); click('#campGo'); click('[data-mode="normal"]'); });
-  for (const m of ['daily', 'challenge', 'seed', 'duel']) await run('heroi:' + m, () => { A.classScreen(); click(`[data-mode="${m}"]`); });
+  for (const m of ['daily', 'challenge', 'seed', 'duel', 'lab']) await run('heroi:' + m, () => { A.classScreen(); click(`[data-mode="${m}"]`); });
   await run('heroi:challenge+desafio', () => { click('[data-mode="challenge"]'); const c = q('[data-chal]:not(:disabled)'); if (c) c.click(); });
   await run('heroi:historia+ascensao', () => { click('[data-mode="normal"]'); document.querySelectorAll('#mpage details').forEach(d => d.open = true); });
   await run('janela:semEnergia', () => { A.campScreen(); A.noEnergy(); });
@@ -158,7 +160,7 @@ window.navCamp = async () => {
     R.backToCamp = !!q('#campGo') && !q('#goBtn');
     // 3) energia 0: COMEÇAR (normal) abre a janela de energia e não cria jornada
     m.energy = 0; m.eAt = Date.now(); q('#campGo').click(); q('#goBtn').click();
-    R.noEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && /Faltam/.test(q('#overlay').textContent) && !!q('#overlay #adEnergy') && !!q('#overlay #neShop') && !!q('#overlay #neGoals') && !!q('#overlay #neDaily') && /Diário e Duelo não gastam energia/.test(q('#overlay').textContent)
+    R.noEnergy = !q('#overlay').hidden && !!q('#overlay #noEn') && /Faltam/.test(q('#overlay').textContent) && !!q('#overlay #adEnergy') && !!q('#overlay #neShop') && !!q('#overlay #neGoals') && !!q('#overlay #neDaily') && !!q('#overlay #neLab') && /Diário, Duelo e Laboratório não gastam energia/.test(q('#overlay').textContent)
       && A.state.phase === 'class' && !A.state.cls;
     // 4) propaganda de energia: 3 s sem botão para fechar, depois +10 e "1/3 hoje"
     q('#overlay #adEnergy').click();
@@ -473,4 +475,157 @@ window.navGear = async () => {
     'petsPage', 'hatch', 'hatchNoEgg', 'feed', 'feedPoor', 'feedPoorNo', 'feedMax', 'take', 'takeOne', 'takeOff', 'takeAgain', 'journeyPet', 'dailyNoPet', 'nopets', 'allTxt', 'allFood'].every(x => R[x]);
   return R;
   function AM_other(k) { return window.AlforjeData.PETKEYS.find(x => x !== k); }
+};
+
+// ===== v1.3 etapa 2 =====
+// diferença entre dois perfis (caminhos que mudaram), para provar que o Laboratório não mexe em nada da conta
+window.navDiff = (a, b, p = '') => { const out = [];
+  if (JSON.stringify(a) === JSON.stringify(b)) return out;
+  if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
+    for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) out.push(...navDiff(a[k], b[k], p ? p + '.' + k : k)); return out; }
+  return [p || '(raiz)']; };
+//   await navLab() -> Laboratório: começar não gasta energia; ouro infinito (∞) e compras não descontam; o Catálogo só tem itens já
+//                     descobertos e põe na mochila em qualquer raridade; escolher o adversário (parada, variação, modificador, Ascensão);
+//                     perder não tira vida nem avança; vencer não conta; luta retomada (recarregar/nuvem) continua Laboratório; sair volta ao
+//                     acampamento; o PROF (perfil e meta) não muda, só preferências de interface; nada vai para a fila de envios; o ouro infinito
+//                     não vaza para uma jornada normal. No fim devolve tudo.
+window.navLab = async () => {
+  const A = window.__alforje, R = {}, q = s => document.querySelector(s), PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts', POST = 'alforje-post-pending';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), post: localStorage.getItem(POST), mode: A.MENU.mode,
+    profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: JSON.parse(JSON.stringify(A.state)), ready: A.CLOUD.ready };
+  const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
+  R.catAudit = []; R.oppAudit = [];
+  try {
+    // perfil de teste: alguns itens no Codex (o Catálogo mostra só eles), energia abaixo do máximo
+    const C = A.PROF.codex; for (const k of ['sword', 'whet', 'clover', 'dagger', 'shield']) C.items[k] = C.items[k] || { seen: 1, bought: 0, merged: 0, forged: 0, wins: 0 };
+    A.META().energy = 15; A.META().eAt = Date.now(); A.META(); A.closeOverlay(); localStorage.setItem(PK, JSON.stringify(A.PROF));
+    const P0 = JSON.parse(JSON.stringify(A.PROF)), post0 = localStorage.getItem(POST);
+    // janela sem energia destaca o Laboratório
+    A.campScreen(); A.noEnergy(); R.noEnergyLab = !!q('#neLab'); q('#neLab').click(); R.noEnergyGoesLab = A.MENU.mode === 'lab' && !!q('#goBtn') && /grátis/.test(q('#goBtn').textContent);
+    // começar: grátis
+    q('#goBtn').click();
+    R.start = A.state.mode === 'lab' && !!A.state.cls && A.state.phase === 'shop' && A.PROF.meta.energy === 15 && A.state.perm == null;
+    R.goldInf = A.state.gold === 99999 && /∞/.test(q('#stats').textContent) && navVis('#app');
+    R.noCoach = q('#coach').hidden;
+    // compra não desconta
+    const n0 = A.state.items.length; let bought = false; for (let i = 0; i < A.state.shop.length && !bought; i++) { const o = A.state.shop[i]; if (o && !o.pet) { A.buy(i); bought = true; } }
+    R.buyFree = bought && A.state.gold === 99999 && (A.state.items.length > n0 || A.state.merges > 0);
+    // Catálogo: só o que está no Codex; Lendário direto na mochila
+    q('#labCat').click(); const keys = [...document.querySelectorAll('[data-lcat]')].map(b => b.dataset.lcat);
+    R.catKnownOnly = keys.length >= 5 && keys.every(k => { const x = A.PROF.codex.items[k]; return x && (x.seen || x.bought || x.forged); });
+    const unknown = Object.keys(window.AlforjeData.ITEMS).find(k => !A.PROF.codex.items[k]);
+    R.catRefusesUnknown = !unknown || A.labPlace(unknown, 4) === false;
+    q('[data-ltier="4"]').click(); const ni = A.state.nid; q('[data-lcat="sword"]').click();
+    const placed = A.state.items.find(i => i.id === ni); R.catPlace = !!placed && placed.key === 'sword' && placed.tier === 4 && placed.where === 'bag';
+    R.catAudit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+    q('#closeOv').click();
+    // adversário: parada 6, 2ª variação, um modificador, Ascensão 2
+    q('#foeinfo').click(); R.oppOpen = !!q('[data-lstop]');
+    q('[data-lstop="6"]').click(); q('[data-lvar="1"]').click(); const mod = q('[data-lmod]').dataset.lmod; q(`[data-lmod="${mod}"]`).click();
+    q('[data-lasc="1"]').click(); q('[data-lasc="1"]').click(); R.oppAudit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+    q('#labGo').click();
+    const f = A.foeDef(); R.oppSet = A.state.wins === 5 && f.stop === 5 && f.name === window.AlforjeData.STOPS[5].v[1].name && f.mods.includes(mod) && A.state.asc === 2 && /P6/.test(q('#stats').textContent);
+    // perder: troca a mochila por uma adaga Comum contra o chefe na A10
+    A.labOppApply({ stop: 10, v: 0, mods: ['furia'], asc: 10 });
+    A.state.items = [{ id: A.state.nid++, key: 'dagger', tier: 1, x: 0, y: 0, w: 1, h: 1, where: 'bag' }];
+    const L0 = A.state.lives, W0 = A.state.wins; A.fight(true); A.skip(); A.finish();
+    R.loseKeeps = A.B.done === 'lose' && A.state.lives === L0 && A.state.wins === W0 && A.state.phase === 'shop' && /Laboratório/.test(q('#overlay').textContent) && !!q('#next');
+    q('#next').click(); R.backToShop = q('#overlay').hidden && A.state.phase === 'shop' && A.state.mode === 'lab';
+    // vencer: Lendários contra a parada 1 na A0; não conta vitória
+    A.labOppApply({ stop: 1, v: 0, mods: [], asc: 0 });
+    A.state.items = []; A.labPlace('sword', 4); A.labPlace('whet', 4); A.labPlace('clover', 4); A.labPlace('shield', 4);
+    const tw0 = A.PROF.totalWins; A.fight(true); A.skip(); A.finish();
+    R.winNoCount = A.B.done === 'win' && A.state.wins === 0 && A.PROF.totalWins === tw0 && A.state.phase === 'shop';
+    q('#next').click();
+    // luta retomada (recarregar no meio ou nuvem): continua Laboratório
+    A.fight(true); const mid = JSON.parse(localStorage.getItem(RK)); R.savedLab = mid.mode === 'lab' && mid.phase === 'battle';
+    // (a) recarregar no meio da luta: o boot resolve a luta salva (resumeFight) e cai no resultado do Laboratório
+    A.state = JSON.parse(JSON.stringify(mid)); A.resumeFight();
+    R.resumeLab = A.state.mode === 'lab' && A.state.phase === 'shop' && A.state.gold === 99999 && /Laboratório/.test(q('#overlay').textContent) && A.state.lives === L0;
+    if (q('#next')) q('#next').click();
+    // (b) a nuvem traz a mesma luta pendente: continua Laboratório
+    A.cloudAdopt({ t: Date.now() + 1e4, prof: JSON.stringify(A.PROF), run: JSON.stringify(mid) });
+    await wait(50);
+    R.adoptLab = A.state.mode === 'lab' && A.state.phase === 'shop' && A.state.gold === 99999 && /Laboratório/.test(q('#overlay').textContent) && A.state.lives === L0;
+    if (q('#next')) q('#next').click();
+    R.reloadKeepsLab = JSON.parse(localStorage.getItem(RK)).mode === 'lab' && JSON.parse(localStorage.getItem(RK)).gold === 99999;
+    // sair: Mais -> Voltar ao acampamento
+    q('#moreBtn').click(); R.drawerLab = !!q('#labOpp') && !!q('#labCat2') && !!q('#labExit'); q('#labExit').click();
+    R.exit = !!q('#campGo') && !A.state.cls;
+    // nada mudou no perfil (só eAt, a hora da energia, e preferências de interface)
+    const allowed = /^(meta\.eAt|opt(\..*)?|ver|speed|skinSeen|tut)$/;
+    R.profDiff = navDiff(P0, JSON.parse(JSON.stringify(A.PROF))).filter(p => !allowed.test(p));
+    R.profSame = R.profDiff.length === 0;
+    R.noPosts = localStorage.getItem(POST) === post0;
+    // o ouro infinito não vaza: jornada normal depois começa com ouro normal
+    A.MENU.mode = 'normal'; A.META().energy = 30; A.state.phase = 'class'; A.pickClass('warrior');
+    R.noLeak = A.state.mode === 'normal' && A.state.gold < 200 && !/∞/.test(q('#stats').textContent);
+  } catch (e) { R.error = String(e && e.stack || e); }
+  finally {
+    A.adStop(); A.closeOverlay(); clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
+    A.PROF = keep.profObj; A.state = keep.stateObj; A.MENU.mode = keep.mode;
+    [[PK, keep.prof], [RK, keep.run], [TK, keep.ts], [POST, keep.post]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+    if (off0 == null) localStorage.removeItem(NAV_OFF);
+    A.CLOUD.ready = off0 == null ? keep.ready : false;
+    if (A.state.cls && A.state.phase !== 'class') { A.showRun(); A.render(); } else A.campScreen();
+  }
+  R.tsSame = localStorage.getItem(TK) === keep.ts;
+  R.pass = !R.error && R.tsSame && ['noEnergyLab', 'noEnergyGoesLab', 'start', 'goldInf', 'noCoach', 'buyFree', 'catKnownOnly', 'catRefusesUnknown', 'catPlace', 'oppOpen', 'oppSet', 'loseKeeps', 'backToShop',
+    'winNoCount', 'savedLab', 'resumeLab', 'adoptLab', 'reloadKeepsLab', 'drawerLab', 'exit', 'profSame', 'noPosts', 'noLeak'].every(k => R[k] === true) && !R.catAudit.length && !R.oppAudit.length;
+  return R;
+};
+//   await navCodexNew() -> descobertas do Codex: o Codex antigo (de antes da versão) não vira novidade; uma descoberta nova numa jornada normal
+//                          ganha o selo NOVO!, a bolinha com número em ☰ Mais e no atalho Mais do Acampamento; tocar paga +2 rubis uma vez;
+//                          recarregar o perfil não paga de novo; o Laboratório não cria descobertas. No fim devolve tudo.
+window.navCodexNew = async () => {
+  const A = window.__alforje, R = {}, q = s => document.querySelector(s), qa = s => [...document.querySelectorAll(s)], PK = 'alforje-prof6', RK = 'alforje-run6', TK = 'alforje-ts';
+  if (A.state.phase === 'battle') return { error: 'luta em andamento' };
+  const keep = { prof: localStorage.getItem(PK), run: localStorage.getItem(RK), ts: localStorage.getItem(TK), mode: A.MENU.mode,
+    profObj: JSON.parse(JSON.stringify(A.PROF)), stateObj: JSON.parse(JSON.stringify(A.state)), ready: A.CLOUD.ready };
+  const off0 = localStorage.getItem(NAV_OFF); navOffline(true);
+  R.audit = [];
+  try {
+    // 1) perfil de antes da versão (sem registro de descobertas) com Codex: nada vira novidade
+    const old = JSON.parse(JSON.stringify(A.PROF)); if (old.meta) delete old.meta.dsc;
+    old.codex = { items: { sword: { seen: 3, bought: 1, merged: 0, forged: 0, wins: 1 }, shield: { seen: 1, bought: 0, merged: 0, forged: 0, wins: 0 } }, foes: { rat: { met: 1, beat: 1 } }, recipes: { heroblade: 1 } };
+    localStorage.setItem(PK, JSON.stringify(old)); A.loadProf();
+    const d = A.PROF.meta.dsc; R.oldNotNew = A.discN().total === 0 && d.i.sword === 0 && d.i.shield === 0 && d.f.rat === 0 && d.r.heroblade === 0;
+    A.campScreen(); R.noDotCamp = !q('#cMore .k-dot') || q('#cMore .k-dot').textContent === '!';
+    // 2) Laboratório não descobre nada
+    A.MENU.mode = 'lab'; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior'); for (let i = 0; i < 4; i++) A.reroll();
+    R.labNoDisc = A.discN().total === 0 && Object.keys(A.PROF.codex.items).length === 2;
+    // 3) jornada normal: a loja mostra itens novos -> novidades
+    A.MENU.mode = 'normal'; A.META().energy = 30; A.state.phase = 'class'; A.state.cls = null; A.pickClass('warrior');
+    const offers = new Set(A.state.shop.filter(o => o && !o.pet).map(o => o.key).filter(k => k !== 'sword' && k !== 'shield'));
+    const N = A.discN(); R.found = offers.size > 0 && N.i === offers.size && N.total === offers.size;
+    // 4) alertas: atalho Mais do Acampamento e Codex em ☰ Mais, com número
+    A.state = JSON.parse(JSON.stringify(keep.stateObj)); A.state.phase = 'class'; A.state.cls = null; A.campScreen();
+    R.dotCamp = !!q('#cMore .k-dot') && q('#cMore .k-dot').textContent === String(N.total);
+    q('#cMore').click(); R.dotMore = !!q('#codexBtn .k-dot') && q('#codexBtn .k-dot').textContent === String(N.total);
+    q('#codexBtn').click(); const cells = qa('#mpage .ccell.nw');
+    R.badges = cells.length === N.i && cells.every(c => /NOVO!/.test(c.textContent)) && !qa('#mpage .ccell.nw').some(c => c.dataset.disc === 'i:sword');
+    R.oldNoBadge = !qa('[data-disc]').some(b => /sword|shield/.test(b.dataset.disc));
+    R.tabDot = !!q('[data-codex="items"] .k-dot');
+    R.audit = window.alforjeAudit ? window.alforjeAudit() : ['sem auditoria'];
+    // 5) tocar: +2 rubis, uma vez
+    const key = cells[0].dataset.disc.split(':')[1], r0 = A.PROF.meta.ruby; cells[0].click();
+    R.paid = A.PROF.meta.ruby === r0 + 2 && A.PROF.meta.dsc.i[key] === 2 && !q(`[data-disc="i:${key}"]`) && A.discN().total === N.total - 1;
+    const again = A.discClaim('i', key); R.paidOnce = again === null && A.PROF.meta.ruby === r0 + 2;
+    // 6) recarregar o perfil salvo não paga de novo nem devolve o selo
+    A.loadProf(); A.codexScreen('items');
+    R.reloadNoRegrant = A.PROF.meta.ruby === r0 + 2 && A.PROF.meta.dsc.i[key] === 2 && !q(`[data-disc="i:${key}"]`);
+  } catch (e) { R.error = String(e && e.stack || e); }
+  finally {
+    A.adStop(); A.closeOverlay(); clearTimeout(A.CLOUD.timer); A.CLOUD.dirty = false;
+    A.PROF = keep.profObj; A.state = keep.stateObj; A.MENU.mode = keep.mode;
+    [[PK, keep.prof], [RK, keep.run], [TK, keep.ts]].forEach(([k, v]) => { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+    if (off0 == null) localStorage.removeItem(NAV_OFF);
+    A.CLOUD.ready = off0 == null ? keep.ready : false;
+    if (A.state.cls && A.state.phase !== 'class') { A.showRun(); A.render(); } else A.campScreen();
+  }
+  R.tsSame = localStorage.getItem(TK) === keep.ts;
+  R.pass = !R.error && R.tsSame && ['oldNotNew', 'noDotCamp', 'labNoDisc', 'found', 'dotCamp', 'dotMore', 'badges', 'oldNoBadge', 'tabDot', 'paid', 'paidOnce', 'reloadNoRegrant'].every(k => R[k] === true) && !R.audit.length;
+  return R;
 };

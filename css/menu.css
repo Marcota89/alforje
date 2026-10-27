@@ -158,7 +158,7 @@
 /* ===== Mais, tutorial ===== */
 #mpage .morelist{display:grid;gap:10px}
 #mpage .morelist .k-btn{position:relative}
-#mpage .morelist .k-dot{top:-7px;right:-7px}
+#mpage .morelist .k-dot{top:-7px;right:6px}/* v1.3: dentro da largura do botão (a bolinha não estica a linha: Codex com número, Missões) */
 
 /* ===== Acampamento (aba Jogar): herói, nível, atalhos, energia, JORNADA e propaganda ===== */
 #mpage>.camp{flex:1 0 auto;display:flex;flex-direction:column;gap:8px;margin-top:-16px}
@@ -312,3 +312,20 @@ body.big #mpage .petc .pb2 .k-btn{font-size:15px}
 /* paisagem em tela baixa: o menu some atrás do "Gire o celular" */
 @media (orientation:landscape) and (max-height:500px){#menu{visibility:hidden}}
 @media (prefers-reduced-motion:reduce){#mpage .hpick,#mpage .mini,#mpage .cbar i{transition:none!important}}
+
+/* ===== v1.3 etapa 2 ===== */
+/* seis modos (com o Laboratório): duas fileiras de três */
+#mpage .k-seg.modes{flex-wrap:wrap}
+#mpage .k-seg.modes>*{flex:1 1 30%}
+/* descobertas do Codex: selo NOVO! dourado pulsante; tocar paga 2 rubis */
+#mpage .ccell{position:relative}
+#mpage button.ccell{margin:0;font-family:var(--f-body);cursor:pointer}
+#mpage .ccell.nw,#mpage .recipes .rnw{border-color:#ffb020;box-shadow:0 0 0 2px #ffd34d,0 2px 0 rgba(165,82,10,.35)}
+#mpage .recipes .rnw{position:relative;display:flex;align-items:center;gap:4px;flex-wrap:wrap;width:100%;min-height:44px;margin:0;padding:6px 8px;border:2px solid #ffb020;border-radius:12px;background:linear-gradient(180deg,#fffdf4,#fff0cb);color:var(--ink-brown);font:inherit;text-align:left;cursor:pointer}
+#mpage .nwb{position:absolute;top:-7px;right:-4px;z-index:1;padding:1px 6px;border-radius:9px;background:linear-gradient(180deg,#ffe27a,#f0a81c);border:2px solid #fff;color:var(--ink-brown);font:400 11px/1.2 var(--f-title);letter-spacing:.03em;white-space:nowrap;box-shadow:0 2px 0 var(--orange-d);animation:nwpulse 1.1s ease-in-out infinite}
+@keyframes nwpulse{50%{transform:scale(1.12);box-shadow:0 2px 0 var(--orange-d),0 0 10px 3px rgba(255,211,77,.9)}}
+#mpage .recipes .rnw .nwb{right:8px}
+#mpage .cxtabs>*{position:relative}
+#mpage .cxtabs .k-dot{top:-6px;right:2px}
+#mpage .cxnew{margin:0;padding:8px 12px;font:800 14px/1.3 var(--f-body);color:var(--ink-brown);text-align:center}
+@media (prefers-reduced-motion:reduce){#mpage .nwb{animation:none}}

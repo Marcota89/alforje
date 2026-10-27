@@ -363,5 +363,50 @@ check(M.progressCounts('normal') && M.progressCounts('daily') && M.progressCount
   check(M.goalEvent(full, t, M.GOALS[nx].ev, M.GOALS[nx].n).includes(nx), 'v1.2: a meta nova conta normalmente');
 }
 
+
+// v1.3 etapa 2 — Laboratório: não conta nem rende nada
+check(!M.progressCounts('lab') && M.isLab('lab') && !M.isLab('normal'), 'v1.3: progressCounts — o Laboratório não conta');
+{ const r = M.journeyRewards(10, true, 5, 'lab'); check(r.gold === 0 && r.stone === 0 && r.xp === 0, 'v1.3: Laboratório não rende ouro, pedras nem XP'); }
+{ const m = mk(); check(M.rewardOk(m, T0, 'lab') === false && M.rewardOk(m, T0, 'normal') === true, 'v1.3: rewardOk recusa o Laboratório'); const s0 = JSON.stringify(m.rw); M.markReward(m, T0, 'lab'); check(JSON.stringify(m.rw) === s0, 'v1.3: markReward do Laboratório não mexe no contador do dia'); }
+
+// v1.3 etapa 2 — descobertas do Codex (+2 rubis, uma vez cada; o Codex antigo não conta)
+{
+  const codex = { items: { sword: { seen: 3, bought: 1, merged: 0, forged: 0, wins: 2 }, whet: { seen: 0, bought: 0, merged: 0, forged: 0, wins: 0 } }, foes: { rat: { met: 2, beat: 1 }, slime: { met: 1, beat: 0 } }, recipes: { heroblade: 1 } };
+  const prof = { totalWins: 3, ach: {}, codex };
+  const m = M.ensureMeta(prof, T0);
+  check(m.dsc.i.sword === 0 && m.dsc.r.heroblade === 0 && m.dsc.f.rat === 0, 'descobertas: o que já estava no Codex na migração fica como antigo (0)');
+  check(!('whet' in m.dsc.i) && !('slime' in m.dsc.f), 'descobertas: item nunca visto e inimigo só encontrado (não derrotado) não entram');
+  check(M.discNew(m).total === 0, 'descobertas: perfil antigo começa sem novidades');
+  check(M.discClaim(m, 'i', 'sword') === null && m.ruby === 0, 'descobertas: entrada antiga não paga');
+  // novidades depois da migração
+  codex.items.whet.seen = 1; codex.items.axe = { seen: 0, bought: 1, merged: 0, forged: 0, wins: 0 }; codex.foes.slime.beat = 1; codex.recipes.infernal = 1;
+  M.ensureMeta(prof, T0);
+  const n = M.discNew(m);
+  check(n.i === 2 && n.f === 1 && n.r === 1 && n.total === 4, 'descobertas: item visto, item comprado, inimigo derrotado e receita forjada viram novidade (' + JSON.stringify(n) + ')');
+  check(M.discIs(m, 'i', 'whet') && !M.discIs(m, 'i', 'sword'), 'descobertas: discIs só marca as novas');
+  const r1 = M.discClaim(m, 'i', 'whet');
+  check(r1 && r1.added === 2 && m.ruby === 2 && m.dsc.i.whet === 2, 'descobertas: abrir paga +2 rubis e marca como paga');
+  check(M.discClaim(m, 'i', 'whet') === null && m.ruby === 2, 'descobertas: abrir de novo não paga');
+  const snap = JSON.stringify(m.dsc); M.ensureMeta(prof, T0);
+  check(JSON.stringify(m.dsc) === snap && M.discNew(m).total === 3, 'descobertas: sincronizar de novo não reabre nem duplica');
+  // recarregar (perfil salvo e lido de volta) não devolve a novidade já paga
+  const re = JSON.parse(JSON.stringify(prof)); const m2 = M.ensureMeta(re, T0 + 1000);
+  check(m2.dsc.i.whet === 2 && m2.ruby === 2 && M.discClaim(m2, 'i', 'whet') === null, 'descobertas: perfil recarregado não paga de novo');
+  // limite de rubis
+  m.ruby = M.CAP - 1; const r2 = M.discClaim(m, 'f', 'slime');
+  check(r2 && r2.added === 1 && r2.lost === 1 && m.ruby === M.CAP && m.dsc.f.slime === 2, 'descobertas: respeita o limite de 99.999 rubis (paga só o que cabe)');
+  check(M.DISC_RUBY === 2, 'descobertas: valem 2 rubis');
+  // perfil novo: tudo conta
+  const fresh = { totalWins: 0, ach: {}, codex: { items: {}, foes: {}, recipes: {} } }; const mf = M.ensureMeta(fresh, T0);
+  fresh.codex.items.sword = { seen: 1 }; M.ensureMeta(fresh, T0);
+  check(M.discNew(mf).i === 1, 'descobertas: perfil novo conta desde a primeira');
+  // perfil sem Codex (formato muito antigo) não quebra
+  const bare = { totalWins: 0, ach: {} }; const mb = M.ensureMeta(bare, T0);
+  check(M.discNew(mb).total === 0 && mb.dsc && typeof mb.dsc.i === 'object', 'descobertas: perfil sem Codex não quebra');
+  // registro corrompido é refeito como base (sem dar nada)
+  const bad = { totalWins: 0, ach: {}, codex, meta: JSON.parse(JSON.stringify(prof.meta)) }; bad.meta.dsc = 'x'; const mx = M.ensureMeta(bad, T0);
+  check(M.discNew(mx).total === 0 && mx.dsc.i.whet === 0, 'descobertas: registro com defeito volta à base (nada a pagar)');
+}
+
 console.log(fails ?`\n${fails} FALHA(S)` : '\ntudo ok');
 process.exit(fails ? 1 : 0);
